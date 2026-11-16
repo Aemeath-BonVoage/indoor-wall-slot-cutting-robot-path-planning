@@ -3,6 +3,7 @@ import launch_ros
 from ament_index_python.packages import get_package_share_directory, get_package_prefix
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.actions import TimerAction, ExecuteProcess, DeclareLaunchArgument
+from launch.conditions import IfCondition
 from launch.substitutions import LaunchConfiguration
 import os
 
@@ -60,10 +61,17 @@ def generate_launch_description():
         output='screen'
     )
     
-    # 启动 gzclient（不带 EOL GUI 插件）
+    # gui:=false 时不启动 Gazebo 窗口（gzclient），可显著降低内存/显卡占用
+    declare_gui = DeclareLaunchArgument(
+        'gui',
+        default_value='true',
+        description='Start Gazebo GUI (gzclient)'
+    )
+
     gzclient = ExecuteProcess(
         cmd=['gzclient', '--verbose'],
-        output='screen'
+        output='screen',
+        condition=IfCondition(LaunchConfiguration('gui'))
     )
 
     # Spawn robot
@@ -123,6 +131,7 @@ def generate_launch_description():
 
     return launch.LaunchDescription([
         declare_world,
+        declare_gui,
         robot_state_publisher_node,
         gzserver,
         gzclient,

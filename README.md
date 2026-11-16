@@ -78,6 +78,7 @@
 ```
 .
 ├── src/
+│   ├── scr_bringup/         # 一键启动（仿真 + 导航 + RViz，支持轻量模式）
 │   ├── scr_description/      # URDF/网格模型、Gazebo 世界、控制器配置、麦轮控制器
 │   ├── scr_navigation/       # SLAM Toolbox / Nav2 配置、地图、RViz 配置
 │   ├── scr_arm_controller/   # 笛卡尔运动学、YAML 轨迹任务、标记扫描、导航+切割总流程
@@ -115,10 +116,23 @@ colcon build --symlink-install
 source install/setup.bash
 ```
 
-### 运行
+### 一键启动（推荐）
 
 ```bash
-# 1. 启动 Gazebo 仿真
+ros2 launch scr_bringup sim_nav.launch.py                        # Gazebo + Nav2 + RViz
+ros2 launch scr_bringup sim_nav.launch.py gui:=false             # 不开 Gazebo 窗口
+ros2 launch scr_bringup sim_nav.launch.py gui:=false rviz:=false # 纯后台，最省内存
+
+# 导航就绪后（约 20–30 s）发送目标点
+ros2 run scr_navigation send_goal.py 1.5 0.0 0.0
+```
+
+> 纯后台模式实测：仿真 + 完整 Nav2 额外占用约 400 MB 内存（gzserver ≈ 470 MB），3–4 GB 内存的机器也能运行。
+
+### 分步运行
+
+```bash
+# 1. 启动 Gazebo 仿真（gui:=false 可关闭窗口）
 ros2 launch scr_description gazebo.launch.py
 
 # 2a. SLAM 建图（键盘遥控建图后保存）
@@ -165,8 +179,10 @@ python3 wall_cutting_planner.py  # 墙面层：开槽轨迹三算法对比
 
 ## 🗺️ Roadmap
 
-- [ ] 一键启动 launch，低配机器轻量模式
-- [ ] 增强 A\* 封装为 ROS 2 节点，规划结果在 RViz 可视化并驱动机械臂执行
+完整路线见 [docs/ROADMAP.md](docs/ROADMAP.md)。
+
+- [ ] 增强 A\* 用 C++ 重写为 Nav2 全局规划器插件，在 Gazebo 中直接驱动底盘
+- [ ] 墙面开槽规划节点，规划结果在 RViz 可视化并驱动机械臂执行
 - [ ] 按机械臂工作空间自动分段，多段开槽 + 底盘重定位的任务级规划
 - [ ] 随机场景生成器与批量基准测试
 - [ ] 迁移到 Gazebo Harmonic（ros_gz）

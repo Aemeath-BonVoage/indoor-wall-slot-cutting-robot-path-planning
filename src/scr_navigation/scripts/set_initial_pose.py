@@ -90,7 +90,8 @@ def main(args=None):
     time.sleep(1.0)
     
     node.destroy_node()
-    rclpy.shutdown()
+    if rclpy.ok():
+        rclpy.shutdown()
 
 
 if __name__ == '__main__':

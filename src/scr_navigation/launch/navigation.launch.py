@@ -2,6 +2,7 @@ import os
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, TimerAction
 from launch.launch_description_sources import PythonLaunchDescriptionSource
+from launch.conditions import IfCondition
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 from ament_index_python.packages import get_package_share_directory
@@ -29,7 +30,7 @@ def generate_launch_description():
 
     declare_map_file = DeclareLaunchArgument(
         'map',
-        default_value=os.path.join(pkg_share, 'maps', 'map.yaml'),
+        default_value=os.path.join(pkg_share, 'maps', 'my_map.yaml'),
         description='Full path to map yaml file'
     )
 
@@ -69,6 +70,12 @@ def generate_launch_description():
         }.items()
     )
 
+    declare_rviz = DeclareLaunchArgument(
+        'rviz',
+        default_value='true',
+        description='Start RViz'
+    )
+
     # RViz with navigation config
     rviz_node = Node(
         package='rviz2',
@@ -76,7 +83,8 @@ def generate_launch_description():
         name='rviz2',
         arguments=['-d', rviz_config],
         parameters=[{'use_sim_time': use_sim_time}],
-        output='screen'
+        output='screen',
+        condition=IfCondition(LaunchConfiguration('rviz'))
     )
     
     # 自动设置初始位姿节点
@@ -106,6 +114,7 @@ def generate_launch_description():
         declare_initial_pose_x,
         declare_initial_pose_y,
         declare_initial_pose_yaw,
+        declare_rviz,
         nav2_bringup,
         rviz_node,
         delayed_initial_pose

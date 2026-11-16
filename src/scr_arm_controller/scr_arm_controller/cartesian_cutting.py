@@ -270,7 +270,8 @@ def main(args=None):
         controller.get_logger().error('任务失败！')
 
     controller.destroy_node()
-    rclpy.shutdown()
+    if rclpy.ok():
+        rclpy.shutdown()
 
 
 if __name__ == '__main__':

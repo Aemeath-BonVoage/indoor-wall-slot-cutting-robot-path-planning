@@ -78,7 +78,8 @@ def main(args=None):
     navigator.send_goal(x, y, yaw)
     
     navigator.destroy_node()
-    rclpy.shutdown()
+    if rclpy.ok():
+        rclpy.shutdown()
 
 
 if __name__ == '__main__':

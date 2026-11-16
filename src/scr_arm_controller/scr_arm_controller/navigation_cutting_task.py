@@ -754,7 +754,8 @@ def main(args=None):
     task_controller.marker_scanner.destroy_node()
     task_controller.arm_controller.destroy_node()
     task_controller.destroy_node()
-    rclpy.shutdown()
+    if rclpy.ok():
+        rclpy.shutdown()
 
     sys.exit(0 if success else 1)
 

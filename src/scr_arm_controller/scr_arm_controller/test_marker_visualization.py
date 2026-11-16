@@ -79,7 +79,8 @@ def main(args=None):
     print('测试完成！\n')
 
     visualizer.destroy_node()
-    rclpy.shutdown()
+    if rclpy.ok():
+        rclpy.shutdown()
 
 
 if __name__ == '__main__':
