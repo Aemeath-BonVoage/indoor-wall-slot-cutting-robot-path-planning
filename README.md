@@ -40,6 +40,16 @@
 
 ---
 
+## 🎯 视觉伺服对位鲁棒性
+
+相机 + 激光融合 PBVS 与“里程计 + 已知标记坐标”基线的对比（每条件 8 次随机起点，Gazebo 真值评估）：
+
+![对位鲁棒性](docs/experiments/alignment_robustness/robustness.png)
+
+无扰动时两者精度相当（5.7 mm）；里程计漂移 3 / 10 cm 时基线误差升至 35 / 160 mm 并多次刀具碰墙，视觉伺服保持约 5 mm。详见 [实验报告](docs/experiments/alignment_robustness/README.md)。
+
+---
+
 ## 📐 增强 A\* 开槽轨迹规划
 
 水电开槽规范要求线槽**横平竖直**，而标准 A\* 偏好对角捷径，会产生大量斜线和密集拐点。增强 A\* 通过以下改造使轨迹完全正交：

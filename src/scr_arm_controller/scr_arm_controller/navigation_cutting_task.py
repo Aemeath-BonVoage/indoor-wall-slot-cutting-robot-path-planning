@@ -75,6 +75,7 @@ class NavigationCuttingTask(Node):
         # 对位模式：'visual' = 相机+激光 PBVS；'odom' = 里程计 + 已知方块坐标（基线）
         self.positioning_mode = 'visual'
         self.observe_joint1 = -0.15                # 视觉伺服时的滑台高度（避开机械臂自遮挡）
+        self.odom_bias = (0.0, 0.0, 0.0)           # 实验用：注入里程计漂移 (dx, dy, dyaw)
 
         # 视觉伺服测量器（激光拟合墙面 + 相机检测方块）
         self.servo = WallMarkerServo(self)
@@ -94,12 +95,16 @@ class NavigationCuttingTask(Node):
             pass
 
     def get_robot_position(self):
-        """获取机器人当前位置（控制用：里程计）"""
+        """获取机器人当前位置（控制用：里程计）.
+
+        self.odom_bias = (dx, dy, dyaw) 用于实验中模拟里程计累积漂移（默认为 0）。
+        """
         if self.current_odom is not None:
+            dx, dy, dyaw = self.odom_bias
             return {
-                'x': self.current_odom.pose.pose.position.x,
-                'y': self.current_odom.pose.pose.position.y,
-                'yaw': self.quaternion_to_yaw(self.current_odom.pose.pose.orientation)
+                'x': self.current_odom.pose.pose.position.x + dx,
+                'y': self.current_odom.pose.pose.position.y + dy,
+                'yaw': self.quaternion_to_yaw(self.current_odom.pose.pose.orientation) + dyaw
             }
         return None
 

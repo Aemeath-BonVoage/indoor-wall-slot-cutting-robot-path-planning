@@ -32,6 +32,7 @@ setup(
             'navigation_cutting_task = scr_arm_controller.navigation_cutting_task:main',
             'marker_scanner = scr_arm_controller.marker_scanner:main',
             'trajectory_visualizer = scr_arm_controller.trajectory_visualizer:main',
+            'alignment_benchmark = scr_arm_controller.alignment_benchmark:main',
             'test_marker_visualization = scr_arm_controller.test_marker_visualization:main',
         ],
     },

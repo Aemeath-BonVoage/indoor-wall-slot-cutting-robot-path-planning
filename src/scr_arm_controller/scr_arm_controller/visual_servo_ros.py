@@ -42,6 +42,11 @@ class WallMarkerServo:
         self.K = None                   # (fx, fy, cx, cy)
         self._filtered = None
 
+        # 实验用：额外注入的测量噪声（标准差），默认为 0
+        self.pixel_noise = 0.0          # 方块像素坐标噪声（像素）
+        self.range_noise = 0.0          # 激光测距噪声（米）
+        self.rng = np.random.default_rng()
+
         node.create_subscription(LaserScan, scan_topic, self._on_scan, 10)
         node.create_subscription(Image, image_topic, self._on_image, 1)
         node.create_subscription(CameraInfo, info_topic, self._on_info, 1)
@@ -82,7 +87,10 @@ class WallMarkerServo:
             return None, '未检测到方块'
 
         s = self.scan
-        wall_l = vs.fit_wall(s.ranges, s.angle_min, s.angle_increment)
+        ranges = np.asarray(s.ranges, dtype=float)
+        if self.range_noise > 0:
+            ranges = ranges + self.rng.normal(0.0, self.range_noise, ranges.shape)
+        wall_l = vs.fit_wall(ranges, s.angle_min, s.angle_increment)
         if wall_l is None:
             return None, '前方未拟合到墙面'
         try:
@@ -101,6 +109,9 @@ class WallMarkerServo:
                 'rms': wall_l['rms'], 'inliers': wall_l['inliers']}
 
         u, v, _ = self.detection
+        if self.pixel_noise > 0:
+            u += self.rng.normal(0.0, self.pixel_noise)
+            v += self.rng.normal(0.0, self.pixel_noise)
         ray = R_cb @ vs.pixel_to_ray(u, v, *self.K)
         marker = vs.intersect_ray_wall(p_cb, ray, n_b2, d_b)
         if marker is None:
