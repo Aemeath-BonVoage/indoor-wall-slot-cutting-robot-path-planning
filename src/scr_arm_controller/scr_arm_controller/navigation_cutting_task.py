@@ -7,11 +7,12 @@
 import sys
 import os
 import math
-import time
 import rclpy
 import yaml
 from rclpy.node import Node
 from rclpy.action import ActionClient
+from rclpy.duration import Duration
+from rclpy.parameter import Parameter
 from nav2_msgs.action import NavigateToPose
 from geometry_msgs.msg import Twist
 from nav_msgs.msg import Odometry
@@ -22,8 +23,15 @@ from scr_arm_controller.trajectory_visualizer import TrajectoryVisualizer
 
 
 class NavigationCuttingTask(Node):
+    # Gazebo 中机器人实体名（见 scr_description/launch/gazebo.launch.py）
+    GAZEBO_ENTITY = 'scr_robot_gazebo'
+
     def __init__(self):
-        super().__init__('navigation_cutting_task')
+        # 使用仿真时钟：控制周期按仿真时间计，与电脑快慢（实时率）无关
+        super().__init__(
+            'navigation_cutting_task',
+            parameter_overrides=[Parameter('use_sim_time', Parameter.Type.BOOL, True)],
+        )
 
         # 导航Action客户端
         self._nav_action_client = ActionClient(
@@ -68,28 +76,39 @@ class NavigationCuttingTask(Node):
         self.current_odom = msg
 
     def model_states_callback(self, msg):
-        """Gazebo模型状态回调"""
+        """Gazebo模型状态回调（真值，仅用于评估误差，不参与控制）"""
         try:
-            robot_index = msg.name.index('scr_robot')
+            robot_index = msg.name.index(self.GAZEBO_ENTITY)
             self.robot_pose = msg.pose[robot_index]
         except ValueError:
             pass
 
     def get_robot_position(self):
-        """获取机器人当前位置（优先使用Gazebo真实位置）"""
-        if self.robot_pose is not None:
-            return {
-                'x': self.robot_pose.position.x,
-                'y': self.robot_pose.position.y,
-                'yaw': self.quaternion_to_yaw(self.robot_pose.orientation)
-            }
-        elif self.current_odom is not None:
+        """获取机器人当前位置（控制用：里程计）"""
+        if self.current_odom is not None:
             return {
                 'x': self.current_odom.pose.pose.position.x,
                 'y': self.current_odom.pose.pose.position.y,
                 'yaw': self.quaternion_to_yaw(self.current_odom.pose.pose.orientation)
             }
         return None
+
+    def get_ground_truth_position(self):
+        """获取 Gazebo 真值位姿（评估用）"""
+        if self.robot_pose is None:
+            return None
+        return {
+            'x': self.robot_pose.position.x,
+            'y': self.robot_pose.position.y,
+            'yaw': self.quaternion_to_yaw(self.robot_pose.orientation)
+        }
+
+    def sleep_sim(self, duration):
+        """按仿真时钟等待 duration 秒，期间持续处理回调"""
+        start = self.get_clock().now()
+        target = Duration(seconds=duration)
+        while rclpy.ok() and (self.get_clock().now() - start) < target:
+            rclpy.spin_once(self, timeout_sec=0.005)
 
     def quaternion_to_yaw(self, q):
         """四元数转yaw角"""
@@ -185,7 +204,8 @@ class NavigationCuttingTask(Node):
         # 闭环控制参数
         position_tolerance = 0.03  # 位置容差 3cm（从2cm放宽）
         angle_tolerance = 0.08     # 角度容差 约4.6度（从3度放宽）
-        max_iterations = 500       # 增加到500次，约50秒
+        control_period = 0.1       # 控制周期（仿真时间，秒），即 10 Hz
+        max_iterations = 500       # 上限 500 个控制周期 = 50 s 仿真时间
 
         # PID控制参数
         kp_linear = 0.6   # 增加线速度增益
@@ -230,6 +250,7 @@ class NavigationCuttingTask(Node):
 
                     # 停止机器人
                     self.stop_robot()
+                    self.report_ground_truth_error(target_x, target_y, target_yaw)
                     return True
             else:
                 converged_count = 0  # 重置收敛计数
@@ -296,22 +317,38 @@ class NavigationCuttingTask(Node):
                     f'收敛={converged_count}/{required_converged}'
                 )
 
-            # 短暂延时
-            time.sleep(0.1)
-            rclpy.spin_once(self, timeout_sec=0.01)
+            # 按仿真时钟等待一个控制周期
+            self.sleep_sim(control_period)
 
-        # 超过最大迭代次数
-        self.get_logger().warn(f'⚠️  达到最大迭代次数({max_iterations})，定位可能不够精确')
-        self.get_logger().warn(f'   当前误差: 距离={distance_error*1000:.1f}mm, 角度={math.degrees(abs(error_yaw)):.2f}°')
+        # 超过最大迭代次数：定位未收敛，按失败处理
+        self.get_logger().error(f'❌ 达到最大迭代次数({max_iterations})，定位未收敛')
+        self.get_logger().error(f'   当前误差: 距离={distance_error*1000:.1f}mm, 角度={math.degrees(abs(error_yaw)):.2f}°')
         self.stop_robot()
-        return True
+        self.report_ground_truth_error(target_x, target_y, target_yaw)
+        return False
+
+    def report_ground_truth_error(self, target_x, target_y, target_yaw):
+        """用 Gazebo 真值评估实际对位误差（控制环使用的是里程计）"""
+        self.sleep_sim(0.5)  # 等待机器人静止并刷新真值
+        gt = self.get_ground_truth_position()
+        if gt is None:
+            self.get_logger().warn('未收到 Gazebo 真值位姿（/gazebo/model_states），跳过误差评估')
+            return None
+        dx, dy = target_x - gt['x'], target_y - gt['y']
+        dyaw = math.atan2(math.sin(target_yaw - gt['yaw']), math.cos(target_yaw - gt['yaw']))
+        pos_err = math.hypot(dx, dy)
+        self.get_logger().info(
+            f'📏 真值误差: 位置={pos_err*1000:.1f}mm (dx={dx*1000:.1f}, dy={dy*1000:.1f}), '
+            f'角度={math.degrees(abs(dyaw)):.2f}°'
+        )
+        return pos_err, dyaw
 
     def stop_robot(self):
         """停止机器人"""
         cmd = Twist()
         for _ in range(5):
             self.cmd_vel_pub.publish(cmd)
-            time.sleep(0.1)
+            self.sleep_sim(0.1)
 
     def scan_for_marker(self):
         """
@@ -502,7 +539,7 @@ class NavigationCuttingTask(Node):
 
         # 等待机器人稳定
         self.get_logger().info('\n等待机器人稳定...')
-        time.sleep(2.0)
+        self.sleep_sim(2.0)
 
         # 步骤2: 精确定位到黄色方块正前方
         if enable_precise_positioning:
@@ -512,7 +549,7 @@ class NavigationCuttingTask(Node):
 
             # 再次等待稳定
             self.get_logger().info('\n等待机器人稳定...')
-            time.sleep(1.0)
+            self.sleep_sim(1.0)
 
         # 步骤3: 执行切割任务
         if not self.execute_cutting_task(cutting_config):
@@ -549,7 +586,7 @@ class NavigationCuttingTask(Node):
 
         # 等待机器人稳定
         self.get_logger().info('\n等待机器人稳定...')
-        time.sleep(2.0)
+        self.sleep_sim(2.0)
 
         # 步骤2: 精确定位到黄色方块正前方
         if enable_precise_positioning:
@@ -559,7 +596,7 @@ class NavigationCuttingTask(Node):
 
             # 再次等待稳定
             self.get_logger().info('\n等待机器人稳定...')
-            time.sleep(1.0)
+            self.sleep_sim(1.0)
 
         # 步骤2.5: 扫描寻找黄色方块
         if enable_scanning:
@@ -577,7 +614,7 @@ class NavigationCuttingTask(Node):
                 self.get_logger().warn('⚠️  未检测到方块，使用默认切割点')
 
             # 等待稳定
-            time.sleep(1.0)
+            self.sleep_sim(1.0)
 
         # 步骤3: 执行切割任务
         self.get_logger().info('\n' + '='*60)

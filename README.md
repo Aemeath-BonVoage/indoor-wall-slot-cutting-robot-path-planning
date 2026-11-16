@@ -127,7 +127,7 @@ ros2 launch scr_bringup sim_nav.launch.py gui:=false rviz:=false # 纯后台，�
 ros2 run scr_navigation send_goal.py 1.5 0.0 0.0
 ```
 
-> 纯后台模式实测：仿真 + 完整 Nav2 额外占用约 400 MB 内存（gzserver ≈ 470 MB），3–4 GB 内存的机器也能运行。
+> 实测（4 核 / 4 GB 虚拟机，纯后台模式）：仿真实时率 ≈ 1.0，仿真 + 完整 Nav2 额外占用约 400 MB 内存；完整“导航 → 对位 → 扫描 → 切割”任务约 100 s。
 
 ### 分步运行
 

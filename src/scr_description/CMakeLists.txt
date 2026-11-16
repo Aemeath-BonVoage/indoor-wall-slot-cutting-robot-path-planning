@@ -12,7 +12,6 @@ find_package(ament_cmake REQUIRED)
 install(
   DIRECTORY urdf meshes launch rviz config worlds
   DESTINATION share/${PROJECT_NAME}
-  USE_SOURCE_PERMISSIONS
 )
 
 # Install Python scripts
