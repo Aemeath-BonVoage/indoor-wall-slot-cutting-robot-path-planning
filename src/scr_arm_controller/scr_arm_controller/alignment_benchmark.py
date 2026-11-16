@@ -27,22 +27,22 @@ from gazebo_msgs.srv import SetEntityState
 
 from scr_arm_controller.navigation_cutting_task import NavigationCuttingTask
 
-# (名称, 模式, 里程计漂移 (平移幅值 m, 航向幅值 deg), 像素噪声 px, 测距噪声 m)
+# (名称, 模式, 里程计漂移 (平移幅值 m, 航向幅值 deg), 像素噪声 px, 测距噪声 m, 防碰撞守护)
 # 漂移方向每次试验随机（固定种子，两种模式使用相同的方向序列）
 CONDITIONS = [
-    ('nominal',        'odom',   (0.00, 0.0), 0.0, 0.00),
-    ('nominal',        'visual', (0.00, 0.0), 0.0, 0.00),
-    ('odom_drift_3cm', 'odom',   (0.03, 1.0), 0.0, 0.00),
-    ('odom_drift_3cm', 'visual', (0.03, 1.0), 0.0, 0.00),
-    ('odom_drift_10cm', 'odom',  (0.10, 3.0), 0.0, 0.00),
-    ('odom_drift_10cm', 'visual', (0.10, 3.0), 0.0, 0.00),
-    ('sensor_noise_low', 'visual', (0.00, 0.0), 2.0, 0.02),
-    ('sensor_noise_high', 'visual', (0.00, 0.0), 5.0, 0.05),
+    ('nominal',        'odom',   (0.00, 0.0), 0.0, 0.00, True),
+    ('nominal',        'visual', (0.00, 0.0), 0.0, 0.00, True),
+    ('odom_drift_3cm', 'odom',   (0.03, 1.0), 0.0, 0.00, True),
+    ('odom_drift_3cm', 'visual', (0.03, 1.0), 0.0, 0.00, True),
+    ('odom_drift_10cm', 'odom',  (0.10, 3.0), 0.0, 0.00, True),
+    ('odom_drift_10cm', 'visual', (0.10, 3.0), 0.0, 0.00, True),
+    ('drift_10cm_noguard', 'odom', (0.10, 3.0), 0.0, 0.00, False),   # 消融：关闭守护
+    ('sensor_noise_low', 'visual', (0.00, 0.0), 2.0, 0.02, True),
+    ('sensor_noise_high', 'visual', (0.00, 0.0), 5.0, 0.05, True),
 ]
 
-# 墙面内表面 y 坐标与刀具前伸量：机器人中心离墙小于该值即判定刀具碰墙
+# 墙面内表面 y 坐标（真值，用于碰墙判定）
 WALL_Y = -3.925
-TOOL_REACH = 0.70
 
 
 def teleport(node, client, x, y, yaw, z=0.105):
@@ -157,9 +157,10 @@ def main():
     rows = []
     csv_path = os.path.join(args.out, 'trials.csv')
     conds = [c for c in CONDITIONS if not args.only or c[0] in args.only]
-    for cond, mode, bias, pix, rng_noise in conds:
+    for cond, mode, bias, pix, rng_noise, guard in conds:
         for k, (sx, sy, syaw) in enumerate(starts):
             node.positioning_mode = mode
+            node.guard_enabled = guard
             ang, sgn = drift_dirs[k]
             node.odom_bias = (bias[0] * math.cos(ang), bias[0] * math.sin(ang),
                               sgn * math.radians(bias[1]))
@@ -180,9 +181,15 @@ def main():
             pe, ae = gt_error(node, tx, ty, tyaw)
             gt = node.get_ground_truth_position()
             wall_dist = gt['y'] - WALL_Y if gt else float('nan')
+            try:
+                # 刀具前端（按当前机械臂位姿）到墙面的真值间隙；机器人朝向近似正对墙面
+                clearance = wall_dist - node.servo.tool_front_x()
+            except Exception:  # noqa: BLE001
+                clearance = float('nan')
             row = {'condition': cond, 'mode': mode, 'trial': k, 'success': bool(ok),
                    'pos_err_mm': pe * 1000, 'yaw_err_deg': ae, 'time_s': dt,
-                   'wall_dist_m': wall_dist, 'collision': bool(wall_dist < TOOL_REACH - 0.005),
+                   'wall_dist_m': wall_dist, 'clearance_mm': clearance * 1000,
+                   'collision': bool(clearance < 0.0), 'guard': guard,
                    'drift_dx': node.odom_bias[0], 'drift_dy': node.odom_bias[1],
                    'drift_dyaw_deg': math.degrees(node.odom_bias[2]),
                    'wall_s': time.time() - wall0,
@@ -190,7 +197,8 @@ def main():
             rows.append(row)
             print(f'[{cond:>17s} | {mode:6s} | #{k}] success={ok} '
                   f'err={pe*1000:6.1f} mm {ae:5.2f}° time={dt:5.1f}s '
-                  f'wall={wall_dist:.3f}m{" COLLISION" if row["collision"] else ""}', flush=True)
+                  f'clearance={clearance*1000:5.1f}mm'
+                  f'{" COLLISION" if row["collision"] else ""}', flush=True)
             with open(csv_path, 'w', newline='') as f:
                 w = csv.DictWriter(f, fieldnames=list(rows[0].keys()))
                 w.writeheader()

@@ -32,8 +32,10 @@
   - 发现并处理机械臂自遮挡：伺服前机械臂移至观测位姿（滑台降 0.15 m）
   - 修正仿真中方块悬空 2.5 cm、倾斜 0.4° 的建模错误
 - [ ] 消除感知横向系统偏差（相机外参标定）
-- [x] 鲁棒性对比实验（`alignment_benchmark`，64 次试验，见 [experiments/alignment_robustness](experiments/alignment_robustness/README.md)）：里程计漂移 3 / 10 cm 时 odom 模式误差 35 / 160 mm 并多次碰墙，visual 模式保持 5.3 mm；传感器噪声下 visual 保持 4–5 mm
-- [ ] **对位距离零安全余量**：目标离墙 0.70 m 等于刀具前伸量，需留余量或把“对位距离”与“切割进给”分开
+- [x] 鲁棒性对比实验（`alignment_benchmark`，72 次试验，见 [experiments/alignment_robustness](experiments/alignment_robustness/README.md)）：里程计漂移 3 / 10 cm 时 odom 模式误差 31 / 83 mm、刀具间隙压缩到 1–2 mm，visual 模式保持 5.5–5.8 mm、间隙 ≥ 21 mm；传感器噪声下 visual 保持 4.5–5.7 mm；零碰墙
+- [x] **安全间隙**：发现对位距离 0.70 m 与刀具前伸量（0.696 m）几乎相等；改为接近时机械臂完全缩回（余量 24 mm）、切割时再伸出，并加入激光防碰撞守护（间隙 < 5 mm 时禁止向墙运动）
+- [x] 修正 `cartesian_cutting.py` 与文档中笛卡尔工作空间的符号错误（X 实为 0.517–0.582 m，Y 为 −0.060–0.080 m，TF 实测）
+- [ ] 偶发：odom 模式在无扰动下曾有一次航向停在 1.6° 不收敛（同起点复现 2 次均成功），原因待查
 - [ ] 旧版 `marker_scanner` 坐标变换有误（高度估计偏差约 18 cm），改用新的感知模块
 - [ ] IBVS（基于图像的视觉伺服）实现与 PBVS 对比
 - [ ] 自动化测量对位误差（多次重复、不同起点，统计均值 / 方差）
