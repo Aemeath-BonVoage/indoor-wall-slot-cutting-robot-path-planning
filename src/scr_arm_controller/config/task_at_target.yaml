@@ -11,6 +11,8 @@ navigation:
 precise_positioning:
   enabled: true
   distance_from_marker: 0.70  # 距离黄色方块的目标距离（米）
+  position_tolerance: 0.01    # 位置容差（米）
+  angle_tolerance_deg: 1.0    # 角度容差（度）
 
 # 方块扫描参数
 scanning:

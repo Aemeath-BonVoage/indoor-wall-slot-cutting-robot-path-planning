@@ -66,8 +66,10 @@ class NavigationCuttingTask(Node):
         self.marker_position = {'x': 8.42, 'y': -3.9, 'z': 0.6}
         self.marker_detected_position = None  # 扫描检测到的位置
 
-        # 距离参数（可配置）
+        # 精确定位参数（可由任务配置 precise_positioning 段覆盖）
         self.distance_from_marker = 0.6
+        self.position_tolerance = 0.01             # 1 cm
+        self.angle_tolerance = math.radians(1.0)   # 1°
 
         self.get_logger().info('导航+切割任务控制器已初始化')
 
@@ -201,19 +203,23 @@ class NavigationCuttingTask(Node):
             self.get_logger().error('无法获取机器人位置')
             return False
 
-        # 闭环控制参数
-        position_tolerance = 0.03  # 位置容差 3cm（从2cm放宽）
-        angle_tolerance = 0.08     # 角度容差 约4.6度（从3度放宽）
+        # 闭环控制参数（全向底盘：平移与转向解耦，同时控制）
+        position_tolerance = self.position_tolerance   # 位置容差（米）
+        angle_tolerance = self.angle_tolerance         # 角度容差（弧度）
         control_period = 0.1       # 控制周期（仿真时间，秒），即 10 Hz
         max_iterations = 500       # 上限 500 个控制周期 = 50 s 仿真时间
 
-        # PID控制参数
-        kp_linear = 0.6   # 增加线速度增益
-        kp_angular = 1.2  # 增加角速度增益
+        # P 控制参数
+        kp_linear = 0.8
+        kp_angular = 1.5
         max_linear_vel = 0.2
         max_angular_vel = 0.3
+        min_linear_vel = 0.01      # 最小平移速度：避免接近目标时速度过小、迟迟进不了容差
+        min_angular_vel = 0.02
 
-        self.get_logger().info('开始精确定位...')
+        self.get_logger().info(
+            f'开始精确定位... 容差: {position_tolerance*1000:.0f}mm / '
+            f'{math.degrees(angle_tolerance):.1f}°')
 
         converged_count = 0  # 连续满足容差的次数
         required_converged = 5  # 需要连续5次满足容差才认为收敛
@@ -225,21 +231,14 @@ class NavigationCuttingTask(Node):
                 rclpy.spin_once(self, timeout_sec=0.1)
                 continue
 
-            # 计算误差
+            # 计算误差（全局系）
             error_x = target_x - current_pos['x']
             error_y = target_y - current_pos['y']
-            error_yaw = target_yaw - current_pos['yaw']
+            error_yaw = math.atan2(math.sin(target_yaw - current_pos['yaw']),
+                                   math.cos(target_yaw - current_pos['yaw']))
+            distance_error = math.hypot(error_x, error_y)
 
-            # 归一化角度误差到[-pi, pi]
-            while error_yaw > math.pi:
-                error_yaw -= 2 * math.pi
-            while error_yaw < -math.pi:
-                error_yaw += 2 * math.pi
-
-            # 计算距离误差
-            distance_error = math.sqrt(error_x**2 + error_y**2)
-
-            # 检查是否到达目标
+            # 检查是否到达目标（位置与角度同时满足，连续若干周期）
             if distance_error < position_tolerance and abs(error_yaw) < angle_tolerance:
                 converged_count += 1
                 if converged_count >= required_converged:
@@ -247,69 +246,33 @@ class NavigationCuttingTask(Node):
                     self.get_logger().info(f'   最终位置: x={current_pos["x"]:.4f}, y={current_pos["y"]:.4f}, yaw={current_pos["yaw"]:.4f}')
                     self.get_logger().info(f'   位置误差: {distance_error*1000:.1f}mm, 角度误差: {math.degrees(abs(error_yaw)):.2f}°')
                     self.get_logger().info(f'   总迭代次数: {iteration+1}')
-
-                    # 停止机器人
                     self.stop_robot()
                     self.report_ground_truth_error(target_x, target_y, target_yaw)
                     return True
             else:
-                converged_count = 0  # 重置收敛计数
+                converged_count = 0
 
-            # 计算控制量
+            # 全局误差 → 机器人坐标系
+            robot_yaw = current_pos['yaw']
+            error_x_robot = error_x * math.cos(robot_yaw) + error_y * math.sin(robot_yaw)
+            error_y_robot = -error_x * math.sin(robot_yaw) + error_y * math.cos(robot_yaw)
+
             cmd = Twist()
-
-            # 如果距离误差较大，使用全向移动直接朝目标点移动
-            if distance_error > 0.03:  # 距离大于3cm才移动
-                # 计算在机器人坐标系中的目标方向
-                # 将全局误差转换到机器人坐标系
-                robot_yaw = current_pos['yaw']
-
-                # 在机器人坐标系中的误差
-                error_x_robot = error_x * math.cos(-robot_yaw) - error_y * math.sin(-robot_yaw)
-                error_y_robot = error_x * math.sin(-robot_yaw) + error_y * math.cos(-robot_yaw)
-
-                # 使用全向移动能力
-                cmd.linear.x = max(min(kp_linear * error_x_robot, max_linear_vel), -max_linear_vel)
-                cmd.linear.y = max(min(kp_linear * error_y_robot, max_linear_vel), -max_linear_vel)
-
-                # 同时调整朝向（朝向目标点）
-                angle_to_target = math.atan2(error_y, error_x)
-                angle_error_to_target = angle_to_target - robot_yaw
-
-                # 归一化角度误差
-                while angle_error_to_target > math.pi:
-                    angle_error_to_target -= 2 * math.pi
-                while angle_error_to_target < -math.pi:
-                    angle_error_to_target += 2 * math.pi
-
-                cmd.angular.z = max(min(kp_angular * angle_error_to_target, max_angular_vel), -max_angular_vel)
-
-                if iteration % 20 == 0:
-                    self.get_logger().debug('  模式: 全向移动到目标')
-            else:
-                # 距离很接近，主要调整最终朝向
-                cmd.angular.z = max(min(kp_angular * error_yaw, max_angular_vel), -max_angular_vel)
-                if iteration % 20 == 0:
-                    self.get_logger().debug('  模式: 调整最终朝向')
+            # 平移：始终闭环到目标点，直到进入容差的一半（留出余量，避免停在容差边缘）
+            if distance_error > position_tolerance * 0.5:
+                speed = min(max(kp_linear * distance_error, min_linear_vel), max_linear_vel)
+                cmd.linear.x = speed * error_x_robot / distance_error
+                cmd.linear.y = speed * error_y_robot / distance_error
+            # 转向：始终直接对准目标朝向（全向底盘无需先转向目标点）
+            if abs(error_yaw) > angle_tolerance * 0.5:
+                w = min(max(kp_angular * abs(error_yaw), min_angular_vel), max_angular_vel)
+                cmd.angular.z = math.copysign(w, error_yaw)
 
             # 发布速度命令
             self.cmd_vel_pub.publish(cmd)
 
             # 每20次迭代打印一次状态
             if iteration % 20 == 0:
-                # 计算朝向目标点的角度误差
-                angle_to_target = math.atan2(error_y, error_x)
-                angle_error_to_target = angle_to_target - current_pos['yaw']
-                while angle_error_to_target > math.pi:
-                    angle_error_to_target -= 2 * math.pi
-                while angle_error_to_target < -math.pi:
-                    angle_error_to_target += 2 * math.pi
-
-                # 计算在机器人坐标系中的误差
-                robot_yaw = current_pos['yaw']
-                error_x_robot = error_x * math.cos(-robot_yaw) - error_y * math.sin(-robot_yaw)
-                error_y_robot = error_x * math.sin(-robot_yaw) + error_y * math.cos(-robot_yaw)
-
                 self.get_logger().info(
                     f'迭代{iteration}: 距离={distance_error*1000:.1f}mm, '
                     f'机器人系误差(x={error_x_robot*1000:.0f}mm, y={error_y_robot*1000:.0f}mm), '
@@ -768,9 +731,13 @@ def main(args=None):
     # 创建任务控制器
     task_controller = NavigationCuttingTask()
 
-    # 设置距离参数
+    # 设置距离与容差参数
     if enable_precise:
         task_controller.distance_from_marker = distance_from_marker
+        if 'position_tolerance' in precise_config:
+            task_controller.position_tolerance = float(precise_config['position_tolerance'])
+        if 'angle_tolerance_deg' in precise_config:
+            task_controller.angle_tolerance = math.radians(float(precise_config['angle_tolerance_deg']))
 
     print('\n任务配置:')
     print(f'  导航目标: x={nav_x:.3f}, y={nav_y:.3f}, yaw={nav_yaw:.3f}')
