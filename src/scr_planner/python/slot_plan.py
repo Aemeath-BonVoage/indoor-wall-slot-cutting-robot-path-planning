@@ -278,25 +278,53 @@ def station_points(st: Station, wall: WallFrame, robot: RobotModel, depth,
 
 
 # ---------------------------------------------------------------------------
-# 总流程
+# 总流程：多条槽 → 停靠站划分 → 访问顺序 → 时间预测
 # ---------------------------------------------------------------------------
+@dataclass
+class TimeModel:
+    """执行时间模型（仿真时间，秒）。数值由 Gazebo 运行标定，见报告。"""
+    t_settle: float = 12.0      # 每站：横移收敛 + 定点 + 测残差的固定开销
+    v_strafe: float = 0.05      # 沿墙横移的等效速度（m/s）
+    t_point: float = 2.0        # 每个机械臂点（= 任务 YAML motion.duration）
+
+    def move(self, d):
+        return self.t_settle + abs(d) / self.v_strafe
+
+
+@dataclass
+class Slot:
+    label: str
+    status: str
+    corners_m: list = field(default_factory=list)
+    cut_path: list = field(default_factory=list)     # 正交折线，切割只沿它进行
+    conduit: list = field(default_factory=list)      # 仅供显示：线管在直角槽内按 R 弯过的中心线
+    planner: dict = field(default_factory=dict)
+
+
 @dataclass
 class SlotPlan:
     status: str
-    corners_m: list = field(default_factory=list)
-    # 切割路径：正交折线（直角坐标解耦机械臂每一刀只动一个轴，刀片 0° / 90°）
-    cut_path: list = field(default_factory=list)
-    # 仅供显示：线管中心线（拐角处按弯曲半径画圆弧，说明管子在直角槽内如何弯）
-    conduit: list = field(default_factory=list)
-    stations: list = field(default_factory=list)
-    unreachable: list = field(default_factory=list)   # 机械臂够不到的子折线
+    slots: list = field(default_factory=list)
+    stations: list = field(default_factory=list)     # 按执行顺序排列
+    unreachable: list = field(default_factory=list)  # 机械臂够不到的子折线
     slot_depth: float = wr.SLOT_DEPTH / 100.0
     slot_width: float = wr.SLOT_WIDTH / 100.0
-    planner: dict = field(default_factory=dict)
+    partition: str = ''
+    order: str = ''
+    start_u: float = 0.0
+    prediction: dict = field(default_factory=dict)
+
+    @property
+    def cut_paths(self):
+        return [s.cut_path for s in self.slots if s.cut_path]
+
+    @property
+    def conduits(self):
+        return [s.conduit for s in self.slots if s.conduit]
 
     @property
     def length(self):
-        return polyline_length(self.cut_path) if self.cut_path else 0.0
+        return sum(polyline_length(p) for p in self.cut_paths)
 
     @property
     def unreachable_length(self):
@@ -312,35 +340,209 @@ def scene_grid_with_band(scene, band):
     return g
 
 
-def plan_task(scene, wall: WallFrame, robot: RobotModel, planner,
-              restrict_to_reach=True, retract_between_turns=True):
-    """scene: wall_rules.WallScene（厘米栅格），planner: scr_planner_py.OrientedAStar."""
+def plan_routes(scene, robot: RobotModel, planner, restrict_to_reach=True):
+    """逐条规划槽线；已规划的槽作为后续槽的障碍（同类线管分槽，间距 wr.SLOT_SPACING）."""
     band = robot.reach_band
-    grid = scene_grid_with_band(scene, band) if restrict_to_reach else scene.grid()
-    res = planner.plan(grid, scene.start, scene.goal, **scene.params())
-    plan = SlotPlan(status=res['status'],
+    tasks = scene.tasks or [(scene.start, scene.goal, scene.start_label, scene.goal_label)]
+    base_obstacles = list(scene.obstacles)
+    slots = []
+    for k, (start, goal, sl, gl) in enumerate(tasks):
+        scene.obstacles = base_obstacles + [o for s_ in slots for o in _slot_obstacles(s_)]
+        grid = scene_grid_with_band(scene, band) if restrict_to_reach else scene.grid()
+        res = planner.plan(grid, start, goal, **scene.params())
+        slot = Slot(f'{sl}→{gl}', res['status'],
                     planner=dict(turns=res['turns'], cost=res['cost'],
                                  expansions=res['expansions'], time_ms=res['time_ms']))
-    if not res['ok']:
-        return plan
-    plan.corners_m = corners_to_m(res['corners'])
-    plan.cut_path = [tuple(p) for p in plan.corners_m]
-    plan.conduit = conduit_polyline(plan.corners_m, wr.BEND_RADIUS / 100.0)
+        if res['ok']:
+            slot.corners_m = corners_to_m(res['corners'])
+            slot.cut_path = [tuple(p) for p in slot.corners_m]
+            slot.conduit = conduit_polyline(slot.corners_m, wr.BEND_RADIUS / 100.0)
+        slots.append(slot)
+    scene.obstacles = base_obstacles
+    return slots
 
-    reach = clip_polyline(plan.cut_path, band[0], band[1], axis=1)
-    plan.unreachable = _complement(plan.cut_path, band)
+
+def _slot_obstacles(slot):
+    out = []
+    for (u0, v0), (u1, v1) in zip(slot.cut_path[:-1], slot.cut_path[1:]):
+        x0, x1 = sorted((round(u0 / RES - 0.5), round(u1 / RES - 0.5)))
+        y0, y1 = sorted((round(v0 / RES - 0.5), round(v1 / RES - 0.5)))
+        out.append(wr.Rect(x0, y0, x1 - x0 + 1, y1 - y0 + 1, 'slot', '已规划槽'))
+    return out
+
+
+def count_points(pieces):
+    """与 station_points 相同的点数：每段子折线 退刀/下刀 2 点 + 每小段 1 点 + 每次转向 3 点 + 退刀 1 点."""
+    n = 0
+    for piece in pieces:
+        segs = 0
+        prev = None
+        for a, b in zip(piece[:-1], piece[1:]):
+            d = 'h' if abs(b[1] - a[1]) < 1e-12 else 'v'
+            if d != prev:
+                segs += 1
+            prev = d
+        n += 3 + segs + 3 * (segs - 1)
+    return n
+
+
+def _clip_all(pieces, lo, hi):
+    return [q for piece in pieces for q in clip_polyline(piece, lo - EPS, hi - EPS, axis=0)]
+
+
+def partition_greedy(pieces, robot: RobotModel):
     intervals = [(min(a[0], b[0]), max(a[0], b[0]))
-                 for piece in reach for a, b in zip(piece[:-1], piece[1:])]
-    for k, (lo, hi) in enumerate(cover_stations(intervals, robot.window_width)):
-        # 窗口 [lo, hi) 对应机械臂 y ∈ (y_max - margin - width, y_max - margin]
-        u_c = lo + (robot.y_range[1] - robot.margin)
-        st = Station(k, lo, hi, u_c, wall.station_pose(u_c, robot.standoff))
-        st.pieces = [q for piece in reach for q in clip_polyline(piece, lo - EPS, hi - EPS, axis=0)]
+                 for piece in pieces for a, b in zip(piece[:-1], piece[1:])]
+    return cover_stations(intervals, robot.window_width)
+
+
+def partition_dp(pieces, robot: RobotModel, tm: TimeModel, step=0.005):
+    """动态规划划分停靠站窗口，最小化 Σ(每站固定开销 + 点数 × 每点时间).
+
+    状态 x = “u < x 的槽线已切完”。下一站从第一个未覆盖点 a 开始，结束于候选位置
+    y ∈ (a, a + 窗宽]；该站代价只取决于 [a, y) 内的槽线。候选位置为 step 网格加上所有
+    折线顶点的 u，保证能把窗口边界对齐到拐角。横移距离近似不随划分变化（见报告）。
+    """
+    w = robot.window_width
+    verts = sorted({round(p[0], 9) for piece in pieces for p in piece})
+    if not verts:
+        return []
+    umin, umax = verts[0], verts[-1]
+    cand = set(verts)
+    n = int(math.ceil((umax + w - umin) / step)) + 1
+    cand.update(round(umin + k * step, 9) for k in range(n))
+    cand.update(round(v + 1e-6, 9) for v in verts)      # 恰好包住位于 v 的竖切
+    cand = sorted(cand)
+    intervals = sorted((min(a[0], b[0]), max(a[0], b[0]))
+                       for piece in pieces for a, b in zip(piece[:-1], piece[1:]))
+
+    def first_uncovered(x):
+        """u >= x 处第一个尚未切的槽线位置（与 _clip_all 的半开边界一致）."""
+        best = None
+        for s0, e0 in intervals:
+            if s0 == e0:                       # 竖切：恰在边界上的归下一站
+                u = s0 if s0 >= x - EPS else None
+            else:                              # 横切：只剩零长度端点的不算
+                u = max(s0, x) if e0 > x + EPS else None
+            if u is not None and (best is None or u < best):
+                best = u
+        return best
+
+    INF = float('inf')
+    dp = {umin: (0.0, None)}
+    order = [umin]
+    done_cost, done_x = INF, None
+    i = 0
+    while i < len(order):
+        x = order[i]
+        i += 1
+        cost_x = dp[x][0]
+        a = first_uncovered(x)
+        if a is None:
+            if cost_x < done_cost:
+                done_cost, done_x = cost_x, x
+            continue
+        for y in cand:
+            if y <= a + 1e-12:
+                continue
+            if y > a + w + 1e-9:
+                break
+            cut = _clip_all(pieces, a, y)
+            if not cut:
+                continue
+            c = cost_x + tm.t_settle + tm.t_point * count_points(cut)
+            if y not in dp or c < dp[y][0] - 1e-9:
+                if y not in dp:
+                    order.append(y)
+                dp[y] = (c, (x, a))
+        order.sort()
+    # 回溯
+    wins = []
+    x = done_x
+    while dp[x][1] is not None:
+        px, a = dp[x][1]
+        wins.append((a, x))
+        x = px
+    return sorted(wins)
+
+
+def build_stations(windows, pieces, wall, robot, depth, retract_between_turns=True):
+    stations = []
+    for lo, hi in windows:
+        u_c = lo + (robot.y_range[1] - robot.margin)    # 窗口左端对应机械臂 y 上限
+        st = Station(len(stations), lo, hi, u_c, wall.station_pose(u_c, robot.standoff))
+        st.pieces = _clip_all(pieces, lo, hi)
         if st.pieces:
-            station_points(st, wall, robot, plan.slot_depth, retract_between_turns)
-            plan.stations.append(st)
-    for k, st in enumerate(plan.stations):
+            station_points(st, wall, robot, depth, retract_between_turns)
+            stations.append(st)
+    return stations
+
+
+def order_stations(stations, start_u, method='sweep'):
+    """一维上从 start_u 出发访问全部站：先到较近的一端再扫到另一端（旅行距离最短）."""
+    stations = sorted(stations, key=lambda s: s.u_c)
+    if method == 'sweep' and stations:
+        lo, hi = stations[0].u_c, stations[-1].u_c
+        if abs(start_u - hi) < abs(start_u - lo):
+            stations = stations[::-1]
+    return stations
+
+
+def predict_time(stations, start_u, tm: TimeModel):
+    travel, u = 0.0, start_u
+    t_move = t_cut = 0.0
+    n_pts = 0
+    for st in stations:
+        d = abs(st.u_c - u)
+        travel += d
+        t_move += tm.move(d)
+        t_cut += tm.t_point * len(st.points)
+        n_pts += len(st.points)
+        u = st.u_c
+    return dict(stations=len(stations), points=n_pts, travel_m=round(travel, 4),
+                t_move=round(t_move, 1), t_cut=round(t_cut, 1), t_total=round(t_move + t_cut, 1))
+
+
+def plan_task(scene, wall: WallFrame, robot: RobotModel, planner,
+              restrict_to_reach=True, retract_between_turns=True,
+              partition='dp', order='sweep', start_u=None, tm=None):
+    """完整离线规划.
+
+    partition: 'dp'（全部槽合并后动态规划）/ 'greedy'（全部槽合并后贪心最少站）/
+               'per_slot'（每条槽各自贪心划分，站不共享 —— 基线）
+    order:     'sweep'（从 start_u 出发，最近端先、单向扫过）/
+               'slot_by_slot'（逐条槽、每条从左到右 —— 基线）
+    """
+    tm = tm or TimeModel()
+    band = robot.reach_band
+    slots = plan_routes(scene, robot, planner, restrict_to_reach)
+    ok = [s for s in slots if s.status == 'success']
+    status = 'success' if len(ok) == len(slots) else next(s.status for s in slots
+                                                             if s.status != 'success')
+    plan = SlotPlan(status=status, slots=slots, partition=partition, order=order)
+    if not ok:
+        return plan
+    reach = [clip_polyline(s.cut_path, band[0], band[1], axis=1) for s in ok]
+    plan.unreachable = [q for s in ok for q in _complement(s.cut_path, band)]
+    us = [p[0] for r in reach for q in r for p in q]
+    plan.start_u = start_u if start_u is not None else (min(us) if us else 0.0)
+    if partition == 'per_slot':
+        groups = [build_stations(partition_greedy(r, robot), r, wall, robot, plan.slot_depth,
+                                 retract_between_turns) for r in reach]
+    else:
+        pieces = [q for r in reach for q in r]
+        wins = partition_dp(pieces, robot, tm) if partition == 'dp' else \
+            partition_greedy(pieces, robot)
+        groups = [build_stations(wins, pieces, wall, robot, plan.slot_depth,
+                                 retract_between_turns)]
+    if order == 'slot_by_slot':
+        stations = [st for g in groups for st in sorted(g, key=lambda s: s.u_c)]
+    else:
+        stations = order_stations([st for g in groups for st in g], plan.start_u, 'sweep')
+    for k, st in enumerate(stations):
         st.index = k
+    plan.stations = stations
+    plan.prediction = predict_time(stations, plan.start_u, tm)
     return plan
 
 
@@ -373,35 +575,76 @@ def scene_from_config(cfg):
     obstacles = [wr.Rect(cm(o['u']), cm(o['v']), max(1, cm(o['w'])), max(1, cm(o['h'])),
                          o['kind'], o.get('label', o['kind']))
                  for o in cfg.get('obstacles', [])]
-    t = cfg['task']
+    tasks = cfg.get('tasks') or [cfg['task']]
+    tl = [((cm(t['start'][0]), cm(t['start'][1])), (cm(t['goal'][0]), cm(t['goal'][1])),
+           t.get('start_label', '起点'), t.get('goal_label', '终点')) for t in tasks]
     scene = wr.WallScene(cm(frame.length), cm(w['height']), bool(w.get('load_bearing', False)),
-                         obstacles, start=(cm(t['start'][0]), cm(t['start'][1])),
-                         goal=(cm(t['goal'][0]), cm(t['goal'][1])),
-                         start_label=t.get('start_label', '起点'),
-                         goal_label=t.get('goal_label', '终点'))
+                         obstacles, start=tl[0][0], goal=tl[0][1], start_label=tl[0][2],
+                         goal_label=tl[0][3], tasks=tl)
     return scene, frame
 
 
-def plan_to_dict(plan: SlotPlan, wall: WallFrame, robot: RobotModel, duration=2.0):
-    """导出为 YAML 友好的 dict；每个 station 的 points 与 navigation_cutting_task 格式相同."""
+def plan_to_dict(plan: SlotPlan, wall: WallFrame, robot: RobotModel, duration=2.0,
+                 scene=None, marker_u=None):
+    """导出为 YAML 友好的 dict（执行器只读这个文件，不再重新规划）.
+
+    stations 按执行顺序排列；每站 points 与 navigation_cutting_task 的格式相同。
+    """
     r3 = lambda v: round(float(v), 4)  # noqa: E731
-    return dict(
+    pl = lambda pts: [[r3(u), r3(v)] for u, v in pts]  # noqa: E731
+    d = dict(
         status=plan.status,
         frame_id=wall.frame_id,
-        wall=dict(left_end=[r3(c) for c in wall.p0], right_end=[r3(c) for c in wall.to_map(wall.length)],
-                  length=r3(wall.length)),
-        slot=dict(depth=r3(plan.slot_depth), width=r3(plan.slot_width),
-                  bend_radius=r3(wr.BEND_RADIUS / 100.0), length=r3(plan.length),
-                  unreachable_length=r3(plan.unreachable_length),
-                  corners=[[r3(u), r3(v)] for u, v in plan.corners_m],
-                  cut_path=[[r3(u), r3(v)] for u, v in plan.cut_path],
-                  conduit_display=[[r3(u), r3(v)] for u, v in plan.conduit]),
-        planner=plan.planner,
+        wall=dict(left_end=[r3(c) for c in wall.p0],
+                  right_end=[r3(c) for c in wall.to_map(wall.length)], length=r3(wall.length),
+                  load_bearing=bool(scene.load_bearing) if scene else None),
+        slot_spec=dict(depth=r3(plan.slot_depth), width=r3(plan.slot_width),
+                       bend_radius=r3(wr.BEND_RADIUS / 100.0)),
+        slots=[dict(label=s.label, status=s.status, planner=s.planner,
+                    length=r3(polyline_length(s.cut_path)) if s.cut_path else 0.0,
+                    cut_path=pl(s.cut_path), conduit_display=pl(s.conduit))
+               for s in plan.slots],
+        length=r3(plan.length), unreachable_length=r3(plan.unreachable_length),
+        unreachable=[pl(p) for p in plan.unreachable],
+        partition=plan.partition, order=plan.order, start_u=r3(plan.start_u),
+        prediction=plan.prediction,
         robot=dict(standoff=robot.standoff, reach_band=[r3(b) for b in robot.reach_band],
                    window_width=r3(robot.window_width), x_cut=r3(robot.x_cut(plan.slot_depth)),
-                   x_retract=robot.x_retract),
+                   x_retract=robot.x_retract, tool_offset=robot.tool_offset),
         stations=[dict(index=s.index, u_c=r3(s.u_c), window=[r3(s.u_lo), r3(s.u_hi)],
                        pose=dict(x=r3(s.pose[0]), y=r3(s.pose[1]), yaw=r3(s.pose[2])),
-                       cut_length=r3(s.cut_length),
+                       cut_length=r3(s.cut_length), pieces=[pl(p) for p in s.pieces],
                        points=s.points, motion=dict(duration=duration, return_home=False))
                   for s in plan.stations])
+    if scene is not None:
+        d['obstacles'] = [dict(kind=o.kind, label=o.label, u=o.x / 100, v=o.y / 100,
+                               w=o.w / 100, h=o.h / 100) for o in scene.obstacles]
+    if marker_u is not None:
+        d['marker_u'] = r3(marker_u)
+    return d
+
+
+def plan_from_dict(d):
+    """读回 plan_to_dict 的结果（执行器用）→ (SlotPlan, WallFrame, obstacles)."""
+    wall = WallFrame(tuple(d['wall']['left_end']), tuple(d['wall']['right_end']),
+                     d.get('frame_id', 'map'))
+    plan = SlotPlan(status=d['status'], partition=d.get('partition', ''),
+                    order=d.get('order', ''), start_u=d.get('start_u', 0.0),
+                    prediction=d.get('prediction', {}))
+    plan.slot_depth = d['slot_spec']['depth']
+    plan.slot_width = d['slot_spec']['width']
+    plan.slots = [Slot(s['label'], s['status'], cut_path=[tuple(p) for p in s['cut_path']],
+                       conduit=[tuple(p) for p in s['conduit_display']], planner=s['planner'])
+                  for s in d['slots']]
+    plan.unreachable = [[tuple(p) for p in q] for q in d.get('unreachable', [])]
+    for s in d['stations']:
+        st = Station(s['index'], s['window'][0], s['window'][1], s['u_c'],
+                     (s['pose']['x'], s['pose']['y'], s['pose']['yaw']))
+        st.pieces = [[tuple(p) for p in q] for q in s['pieces']]
+        st.points = s['points']
+        st.cut_length = s['cut_length']
+        plan.stations.append(st)
+    obstacles = [wr.Rect(round(o['u'] * 100), round(o['v'] * 100), round(o['w'] * 100),
+                         round(o['h'] * 100), o['kind'], o['label'])
+                 for o in d.get('obstacles', [])]
+    return plan, wall, obstacles

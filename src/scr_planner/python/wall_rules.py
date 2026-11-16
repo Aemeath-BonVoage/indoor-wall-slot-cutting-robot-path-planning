@@ -29,6 +29,7 @@ BEAM_MARGIN = 50            # [参照] GB 50203-2011 3.0.9：梁或梁垫下及�
 WEAK_CURRENT_SPACING = 30   # [行业] 强弱电平行间距 ≥ 300 mm
 BOX_MARGIN = 5              # [假设] 与其他线盒的净距
 EDGE_MARGIN = 10            # [假设] 与墙边 / 阴阳角的净距
+SLOT_SPACING = 5            # [假设] 同一面墙上两条同类（强电）槽之间的净距
 TURN_PENALTY = 4.0          # [假设] 每个弯折算 4 cm 槽长（= 第一版规划器 turn_penalty 8.0 的 90° 折算值）
 WEIGHT_X_PARTITION = 2.0    # [假设] 非承重墙“竖槽为主”：横槽每厘米代价 ×2
 TOP_PREFERENCE = 0.5        # [行业→假设] “电上水下”：越靠下每格加价越多，最多 +0.5
@@ -44,7 +45,7 @@ class Rect:
     y: int
     w: int
     h: int
-    kind: str          # door / window / beam / column / box / weak_line / pier
+    kind: str          # door / window / beam / column / box / weak_line / pier / slot
     label: str = ''
 
     def grown(self, m):
@@ -61,12 +62,14 @@ class WallScene:
     goal: tuple = (0, 0)
     start_label: str = ''
     goal_label: str = ''
+    # 多条槽：[(start, goal, start_label, goal_label)]；为空时只有 start → goal 一条
+    tasks: list = field(default_factory=list)
 
     # -- 规则 → 栅格 -------------------------------------------------------
     def margin_of(self, o):
         return {'door': OPENING_MARGIN, 'window': OPENING_MARGIN, 'beam': BEAM_MARGIN,
                 'column': BEAM_MARGIN, 'box': BOX_MARGIN, 'weak_line': WEAK_CURRENT_SPACING,
-                'pier': 0}[o.kind]
+                'pier': 0, 'slot': SLOT_SPACING}[o.kind]
 
     def grid(self, top_preference=True):
         """uint8 栅格：254 = 不可开槽；其余为“电上水下”代价（0 顶部 ~ 252 底部）."""
@@ -222,13 +225,18 @@ def _overlaps(r, others, gap=0):
     return False
 
 
-def random_scene(rng: random.Random, load_bearing=None, max_tries=200):
+def random_scene(rng: random.Random, load_bearing=None, max_tries=200, band=None, n_tasks=1):
     """生成一面带门窗 / 梁柱 / 已有线盒 / 弱电线槽的墙，以及一项开槽任务.
 
     非承重墙：从上部接线盒引线到新插座 / 开关 / 空调插座。
     承重墙：从顶部（楼板 / 吊顶）引下到新线盒，管线入墙点在线盒正上方
     （横槽被禁止，这是承重墙上唯一的合规走法）。
     返回 None 表示多次尝试仍放不下任务线盒。
+
+    band=(lo, hi)（厘米）：任务线盒全部放在机械臂可切高度带内（墙面布局按机器人能力
+    调整，“可切高度”是任务约束）。此时非承重墙为“已有线盒 → 新插座”的低位改造，承重墙
+    为同一竖线上上下两个线盒（承重墙只能开竖槽）；n_tasks 条槽共用一面墙。
+    band=None 为 2a 规范对比实验用的全高度任务（保持原样以便复现）。
     """
     for _ in range(max_tries):
         lb = rng.random() < 0.5 if load_bearing is None else load_bearing
@@ -281,6 +289,13 @@ def random_scene(rng: random.Random, load_bearing=None, max_tries=200):
             return (0 <= cx < W and 0 <= cy < H and
                     free[max(0, cy - 6):cy + 7, max(0, cx - 6):cx + 7].all())
 
+        if band is not None:
+            tasks = _in_band_tasks(rng, scene, free_box, band, n_tasks)
+            if tasks:
+                scene.tasks = tasks
+                scene.start, scene.goal, scene.start_label, scene.goal_label = tasks[0]
+                return scene
+            continue
         goal_y, goal_label = rng.choice(((34, '新插座'), (134, '新开关'), (204, '空调插座')))
         if lb:
             tops = [o.y for o in obs if o.kind == 'beam']
@@ -301,3 +316,37 @@ def random_scene(rng: random.Random, load_bearing=None, max_tries=200):
                     scene.start_label, scene.goal_label = '接线盒', goal_label
                     return scene
     return None
+
+
+def _in_band_tasks(rng, scene, free_box, band, n_tasks):
+    """在可切高度带内生成 n_tasks 项开槽任务（线盒中心离带边至少 6 cm：半个 86 盒 + 余量）."""
+    lo, hi = math.ceil(band[0] + 6), math.floor(band[1] - 6)
+    W = scene.width
+    heights = [h for h in (34, 45, 60, 72) if lo <= h <= hi] or [lo]
+    boxes, tasks = [], []
+
+    def far(x, y):
+        return all(abs(x - bx) >= 25 or abs(y - by) >= 25 for bx, by in boxes)
+
+    for _ in range(n_tasks):
+        for _ in range(80):
+            if scene.load_bearing:
+                gx = rng.randrange(EDGE_MARGIN + 10, W - EDGE_MARGIN - 10)
+                sy, gy = sorted(rng.sample(heights, 2)) if len(heights) > 1 else (lo, hi)
+                if gy - sy <= 2 * BEND_RADIUS:
+                    sy, gy = lo, hi
+                s, g = (gx, sy), (gx, gy)
+                labels = ('已有插座', '上方新插座')
+            else:
+                s = (rng.randrange(EDGE_MARGIN + 10, W - EDGE_MARGIN - 10), rng.choice(heights))
+                g = (rng.randrange(EDGE_MARGIN + 10, W - EDGE_MARGIN - 10), rng.choice(heights))
+                if not 40 <= abs(s[0] - g[0]) <= 160:
+                    continue
+                labels = ('已有插座', '新插座')
+            if free_box(*s) and free_box(*g) and far(*s) and far(*g):
+                boxes += [s, g]
+                tasks.append((s, g) + labels)
+                break
+        else:
+            return None
+    return tasks

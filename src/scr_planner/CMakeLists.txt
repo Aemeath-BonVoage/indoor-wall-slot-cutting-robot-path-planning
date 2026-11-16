@@ -27,6 +27,7 @@ install(FILES python/scr_planner_py.py python/wall_rules.py python/slot_plan.py 
   DESTINATION share/${PROJECT_NAME}/python)
 install(DIRECTORY config DESTINATION share/${PROJECT_NAME})
 install(PROGRAMS scripts/wall_slot_planner_node.py scripts/execute_slot_plan.py
+  scripts/plan_wall_slots.py scripts/plot_execution.py
   DESTINATION lib/${PROJECT_NAME})
 
 if(BUILD_TESTING)

@@ -141,7 +141,7 @@ def _check_plan(plan, scene, wall):
     band = ROBOT.reach_band
     xc = ROBOT.x_cut(plan.slot_depth)
     for st in plan.stations:
-        assert st.u_hi - st.u_lo == pytest.approx(ROBOT.window_width)
+        assert st.u_hi - st.u_lo <= ROBOT.window_width + 1e-9
         for p in st.points:
             assert ROBOT.reachable(p['x'], p['y'], p['z'], p['rotation'])
             assert p['x'] in (pytest.approx(xc), pytest.approx(ROBOT.x_retract))
@@ -161,16 +161,16 @@ def _check_plan(plan, scene, wall):
             u, v = st.u_c - p['y'], p['z'] + ROBOT.base_height
             assert st.u_lo - 1e-4 <= u <= st.u_hi + 1e-4
             assert band[0] - 1e-4 <= v <= band[1] + 1e-4
-            d = min(_dist_to_polyline((u, v), plan.cut_path), 1.0)
+            d = min(_dist_to_polyline((u, v), cp) for cp in plan.cut_paths)
             assert d < 1e-4
     # every reachable point of the cut path is cut by exactly one station
-    for piece in sp.clip_polyline(plan.cut_path, band[0], band[1], axis=1):
+    for piece in [q for cp in plan.cut_paths for q in sp.clip_polyline(cp, band[0], band[1], 1)]:
         for q in sp._densify(piece, 0.003)[1:-1]:
+            if any(abs(q[0] - b) < 1e-5 for st in plan.stations for b in (st.u_lo, st.u_hi)):
+                continue      # 恰在窗口边界上的采样点会同时贴着两侧的子折线
             n = sum(any(_dist_to_polyline(q, pc) < 1e-6 for pc in st.pieces)
                     for st in plan.stations)
-            assert n >= 1
-            owners = [st for st in plan.stations if st.u_lo - sp.EPS <= q[0] < st.u_hi - sp.EPS]
-            assert len(owners) == 1
+            assert n == 1, f'point {q} cut by {n} stations'
 
 
 def _dist_to_polyline(p, pts):
@@ -186,19 +186,96 @@ def _dist_to_polyline(p, pts):
 def test_example_config_plans_and_is_executable(planner):
     cfg = yaml.safe_load(open(os.path.join(PKG, 'config', 'wall_task_room3_south.yaml')))
     scene, wall = sp.scene_from_config(cfg)
-    plan = sp.plan_task(scene, wall, ROBOT, planner)
-    assert plan.status == 'success'
-    assert plan.unreachable_length == 0.0
-    cells = wr.densify([(round(u / sp.RES - 0.5), round(v / sp.RES - 0.5))
-                        for u, v in plan.corners_m])
-    assert sum(scene.violations(cells).values()) == 0
-    # horizontal extent 1.10 m with 0.12 m windows needs at least 10 stations
-    extent = max(u for u, _ in plan.cut_path) - min(u for u, _ in plan.cut_path)
-    assert len(plan.stations) == math.ceil(extent / ROBOT.window_width - 1e-9)
-    _check_plan(plan, scene, wall)
-    d = sp.plan_to_dict(plan, wall, ROBOT)
-    yaml.safe_dump(d, allow_unicode=True)  # serialisable
-    assert all(set(p) == {'x', 'y', 'z', 'rotation'} for s in d['stations'] for p in s['points'])
+    assert len(scene.tasks) == 2
+    plans = {}
+    for part, order in (('per_slot', 'slot_by_slot'), ('greedy', 'sweep'), ('dp', 'sweep')):
+        plan = sp.plan_task(scene, wall, ROBOT, planner, partition=part, order=order,
+                            start_u=1.505)
+        assert plan.status == 'success'
+        assert plan.unreachable_length == 0.0
+        for slot in plan.slots:
+            cells = wr.densify([(round(u / sp.RES - 0.5), round(v / sp.RES - 0.5))
+                                for u, v in slot.corners_m])
+            assert sum(scene.violations(cells).values()) == 0
+        _check_plan(plan, scene, wall)
+        plans[part] = plan
+    # stations shared between the two slots, DP never worse than greedy under the model
+    assert len(plans['greedy'].stations) < len(plans['per_slot'].stations)
+    assert plans['dp'].prediction['t_total'] <= plans['greedy'].prediction['t_total'] + 1e-6
+    assert plans['dp'].prediction['t_total'] < plans['per_slot'].prediction['t_total']
+    # the two slots keep the 5 cm spacing (no crossing)
+    a, b = plans['dp'].slots
+    assert min(_dist_to_polyline(p, b.cut_path) for p in sp._densify(a.cut_path, 0.005)) >= \
+        wr.SLOT_SPACING / 100 - 0.011
+
+
+def test_plan_file_round_trip(planner):
+    cfg = yaml.safe_load(open(os.path.join(PKG, 'config', 'wall_task_room3_south.yaml')))
+    scene, wall = sp.scene_from_config(cfg)
+    plan = sp.plan_task(scene, wall, ROBOT, planner, start_u=1.505)
+    d = yaml.safe_load(yaml.safe_dump(sp.plan_to_dict(plan, wall, ROBOT, scene=scene,
+                                                      marker_u=1.505), allow_unicode=True))
+    plan2, wall2, obstacles = sp.plan_from_dict(d)
+    assert np.allclose(wall2.p0, wall.p0) and wall2.length == pytest.approx(wall.length)
+    assert [s.index for s in plan2.stations] == list(range(len(plan.stations)))
+    for s1, s2 in zip(plan.stations, plan2.stations):
+        assert s2.points == s1.points
+        assert s2.u_c == pytest.approx(s1.u_c, abs=1e-4)
+    assert len(obstacles) == len(scene.obstacles)
+    assert plan2.length == pytest.approx(plan.length, abs=1e-3)
+
+
+def test_dp_partition_never_worse_and_complete(planner):
+    rng = random.Random(21)
+    wall = sp.WallFrame((10.0, 0.0), (5.0, 0.0))
+    tm = sp.TimeModel()
+    done = 0
+    while done < 12:
+        scene = wr.random_scene(rng, load_bearing=False, band=(27, 79), n_tasks=2)
+        if scene is None:
+            continue
+        g = sp.plan_task(scene, wall, ROBOT, planner, partition='greedy', tm=tm)
+        if g.status != 'success':
+            continue
+        d = sp.plan_task(scene, wall, ROBOT, planner, partition='dp', tm=tm)
+        model = lambda p: len(p.stations) * tm.t_settle + tm.t_point * sum(  # noqa: E731
+            len(s.points) for s in p.stations)
+        assert model(d) <= model(g) + 1e-6
+        _check_plan(d, scene, wall)
+        done += 1
+
+
+def test_sweep_order_minimises_travel():
+    import itertools
+    rng = random.Random(4)
+    for _ in range(100):
+        sts = [sp.Station(k, 0, 0, rng.uniform(0, 3), (0, 0, 0)) for k in range(rng.randrange(1, 7))]
+        start = rng.uniform(-0.5, 3.5)
+        order = sp.order_stations(sts, start)
+
+        def travel(seq):
+            u, t = start, 0.0
+            for s_ in seq:
+                t, u = t + abs(s_.u_c - u), s_.u_c
+            return t
+        best = min(travel(p) for p in itertools.permutations(sts))
+        assert travel(order) == pytest.approx(best)
+
+
+def test_in_band_tasks_are_inside_reach():
+    rng = random.Random(9)
+    band = tuple(b * 100 for b in ROBOT.reach_band)
+    n = 0
+    while n < 30:
+        lb = n % 3 == 0
+        scene = wr.random_scene(rng, load_bearing=lb, band=band, n_tasks=1 + n % 3)
+        if scene is None:
+            continue
+        n += 1
+        for (sx, sy), (gx, gy), *_ in scene.tasks:
+            assert band[0] + 6 <= sy <= band[1] - 6 and band[0] + 6 <= gy <= band[1] - 6
+            if lb:
+                assert sx == gx      # load-bearing: vertical only
 
 
 def test_random_walls_full_pipeline(planner):
@@ -212,6 +289,7 @@ def test_random_walls_full_pipeline(planner):
         # put the task inside the arm's reach band
         scene.start = (scene.start[0], 34)
         scene.goal = (scene.goal[0], 34)
+        scene.tasks = []
         plan = sp.plan_task(scene, wall, ROBOT, planner)
         if plan.status != 'success':
             continue
@@ -231,5 +309,6 @@ def test_unrestricted_plan_reports_unreachable_part(planner):
             break
     assert plan.unreachable_length > 0
     total = plan.unreachable_length + sum(st.cut_length for st in plan.stations)
+    assert scene.tasks == [] or len(scene.tasks) == 1
     assert total == pytest.approx(plan.length, abs=1e-6)
     _check_plan(plan, scene, wall)

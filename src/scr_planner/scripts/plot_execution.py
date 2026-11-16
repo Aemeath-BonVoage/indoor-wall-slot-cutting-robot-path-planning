@@ -30,14 +30,15 @@ def main():
     plan = yaml.safe_load(open(os.path.join(run, 'slot_plan.yaml'), encoding='utf-8'))
     trace = list(csv.DictReader(open(os.path.join(run, 'tool_trace.csv'))))
     stations = list(csv.DictReader(open(os.path.join(run, 'stations.csv'))))
-    depth = plan['slot']['depth']
+    depth = plan['slot_spec']['depth']
     robot = sp.RobotModel()
 
     fig = plt.figure(figsize=(13, 6.2))
     gs = fig.add_gridspec(2, 3, height_ratios=[1.6, 1], width_ratios=[2.2, 1, 1])
     ax = fig.add_subplot(gs[0, :])
-    conduit = np.array(plan['slot']['cut_path'])
-    centerline = np.array(plan['slot']['conduit_display'])
+    paths = [np.array(s_['cut_path']) for s_ in plan['slots'] if s_['cut_path']]
+    centers = [np.array(s_['conduit_display']) for s_ in plan['slots'] if s_['conduit_display']]
+    conduit = np.vstack(paths)
     u0, u1 = conduit[:, 0].min() - 0.25, conduit[:, 0].max() + 0.25
     lo, hi = robot.reach_band
     ax.add_patch(Rectangle((u0, lo), u1 - u0, hi - lo, color='#D9EAD3', alpha=0.6,
@@ -51,33 +52,38 @@ def main():
     for s in plan['stations']:
         a, b = s['window']
         ax.axvspan(a, b, ymin=0, ymax=0.04, color='#1F4E9C' if s['index'] % 2 == 0 else '#E69138')
-        ax.text((a + b) / 2, 0.02, f"S{s['index']}", ha='center', fontsize=7, color='w')
-    ax.plot(conduit[:, 0], conduit[:, 1], '-', color='#C00000', lw=7, alpha=0.35,
-            label=f'规划槽线（直角折线，槽宽 {plan["slot"]["width"] * 1000:.0f} mm）')
-    ax.plot(centerline[:, 0], centerline[:, 1], '--', color='#7F0000', lw=0.8,
-            label='线管中心线（R12 cm 弯，仅示意）')
+        ax.text((a + b) / 2, 0.02, f"{s['index']}", ha='center', fontsize=7, color='w')
+    for k, (pth, cen) in enumerate(zip(paths, centers)):
+        ax.plot(pth[:, 0], pth[:, 1], '-', color='#C00000', lw=7, alpha=0.35,
+                label=f'规划槽线（直角折线，槽宽 {plan["slot_spec"]["width"] * 1000:.0f} mm）'
+                if k == 0 else None)
+        ax.plot(cen[:, 0], cen[:, 1], '--', color='#7F0000', lw=0.8,
+                label='线管中心线（R12 cm 弯，仅示意）' if k == 0 else None)
+        ax.plot(*pth[0], 's', color='k', ms=7)
+        ax.plot(*pth[-1], 'o', color='#C00000', ms=8)
     deep = [(float(r['u']), float(r['v'])) for r in trace
             if int(r['station']) >= 0 and r['phase'] == 'cut']
     if deep:
         d = np.array(deep)
         ax.plot(d[:, 0], d[:, 1], '.', color='#1F4E9C', ms=1.5,
                 label='Gazebo 真值刀尖（切割阶段）')
-    st = plan['slot']
-    ax.plot(*np.array(st['corners'])[0], 's', color='k', ms=7)
-    ax.plot(*np.array(st['corners'])[-1], 'o', color='#C00000', ms=8)
     ax.set_xlim(u0, u1)
     ax.set_ylim(0, 0.95)
     ax.set_aspect('equal')
     ax.set_xlabel('沿墙 u (m)')
     ax.set_ylabel('离地 v (m)')
     ax.legend(loc='upper right', fontsize=8, ncol=3)
-    ax.set_title('room3 南墙：规划槽线与 Gazebo 中实际刀尖轨迹', fontsize=10)
+    ax.set_title(f"room3 南墙：规划槽线与 Gazebo 中实际刀尖轨迹（{plan['partition']} / "
+                 f"{plan['order']}，{len(plan['stations'])} 站）", fontsize=10)
 
     # 拐弯处放大
     ax2 = fig.add_subplot(gs[1, 0])
-    c = np.array(st['corners'])[2]
-    ax2.plot(conduit[:, 0], conduit[:, 1], '-', color='#C00000', lw=1.2, label='规划槽线')
-    ax2.plot(centerline[:, 0], centerline[:, 1], '--', color='#7F0000', lw=0.8, label='线管弯（示意）')
+    c = paths[0][2] if len(paths[0]) > 2 else paths[0][0]
+    for k, (pth, cen) in enumerate(zip(paths, centers)):
+        ax2.plot(pth[:, 0], pth[:, 1], '-', color='#C00000', lw=1.2,
+                 label='规划槽线' if k == 0 else None)
+        ax2.plot(cen[:, 0], cen[:, 1], '--', color='#7F0000', lw=0.8,
+                 label='线管弯（示意）' if k == 0 else None)
     if deep:
         ax2.plot(d[:, 0], d[:, 1], '.', color='#1F4E9C', ms=2, label='真值刀尖')
     ax2.set_xlim(c[0] - 0.16, c[0] + 0.04)

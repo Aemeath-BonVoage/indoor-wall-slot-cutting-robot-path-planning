@@ -28,22 +28,19 @@ except ImportError:  # 安装树：python/ 在 share/scr_planner 下
     sys.path.insert(0, os.path.join(get_package_share_directory('scr_planner'), 'python'))
     from slot_ros import package_python_dir
 sys.path.insert(0, package_python_dir())
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import slot_plan as sp  # noqa: E402
-from scr_planner_py import OrientedAStar  # noqa: E402
 from slot_ros import build_markers  # noqa: E402
 
 
-def load_and_plan(task_file, planner=None):
+def load_and_plan(task_file, partition=None, order=None):
+    from plan_wall_slots import plan_file
     with open(task_file, encoding='utf-8') as f:
         cfg = yaml.safe_load(f)
+    d, plan = plan_file(task_file, partition or None, order or None)
     scene, wall = sp.scene_from_config(cfg)
-    robot = sp.RobotModel()
-    opt = cfg.get('options', {})
-    plan = sp.plan_task(scene, wall, robot, planner or OrientedAStar(),
-                        restrict_to_reach=opt.get('restrict_to_reach', True),
-                        retract_between_turns=opt.get('retract_between_turns', True))
-    return cfg, scene, wall, robot, plan
+    return d, scene, wall, sp.RobotModel(), plan
 
 
 class WallSlotPlanner(Node):
@@ -51,14 +48,16 @@ class WallSlotPlanner(Node):
         super().__init__('wall_slot_planner')
         self.declare_parameter('task_file', '')
         self.declare_parameter('output_file', '')
+        self.declare_parameter('partition', '')      # 空 = 用任务文件 options
+        self.declare_parameter('order', '')
         task_file = self.get_parameter('task_file').value
         if not task_file:
             raise SystemExit('参数 task_file 未设置')
-        cfg, scene, wall, robot, plan = load_and_plan(task_file)
+        d, scene, wall, robot, plan = load_and_plan(
+            task_file, self.get_parameter('partition').value, self.get_parameter('order').value)
         self.log_plan(plan, robot)
         out = self.get_parameter('output_file').value
         if out:
-            d = sp.plan_to_dict(plan, wall, robot, cfg.get('options', {}).get('duration', 2.0))
             with open(out, 'w', encoding='utf-8') as f:
                 yaml.safe_dump(d, f, allow_unicode=True, sort_keys=False)
             self.get_logger().info(f'规划结果已写入 {out}')
@@ -71,9 +70,11 @@ class WallSlotPlanner(Node):
         if plan.status != 'success':
             log.error(f'规划失败: {plan.status}（可能需要设计同意、改走吊顶 / 地面，或调整线盒位置）')
             return
-        log.info(f'槽线: {len(plan.corners_m) - 2} 个弯, 长 {plan.length:.3f} m, '
-                 f'槽深 {plan.slot_depth * 1000:.0f} mm, 槽宽 {plan.slot_width * 1000:.0f} mm, '
-                 f'规划 {plan.planner["time_ms"]:.1f} ms')
+        for s_ in plan.slots:
+            log.info(f'槽 {s_.label}: {len(s_.corners_m) - 2} 个弯, '
+                     f'长 {sp.polyline_length(s_.cut_path):.3f} m, 规划 {s_.planner["time_ms"]:.1f} ms')
+        log.info(f'槽深 {plan.slot_depth * 1000:.0f} mm, 槽宽 {plan.slot_width * 1000:.0f} mm；'
+                 f'划分 {plan.partition}，顺序 {plan.order}，预测 {plan.prediction}')
         if plan.unreachable:
             log.warn(f'机械臂够不到的部分 {plan.unreachable_length:.3f} m '
                      f'（可达高度 {robot.reach_band[0]:.2f}–{robot.reach_band[1]:.2f} m）')

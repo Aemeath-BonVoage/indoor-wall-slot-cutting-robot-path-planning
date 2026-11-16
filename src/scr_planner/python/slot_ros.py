@@ -72,10 +72,10 @@ def build_markers(plan, scene, wall, robot, stamp, executed=None):
         m.pose.orientation.w = 1.0
         return m
 
-    if plan.cut_path:
-        out.markers.append(strip('slot', plan.cut_path, (0.85, 0.1, 0.1, 1.0), plan.slot_width, 1))
-    if plan.conduit:
-        out.markers.append(strip('conduit_centerline', plan.conduit, (1.0, 1.0, 1.0, 0.9), 0.004, 1))
+    for k, cp in enumerate(plan.cut_paths):
+        out.markers.append(strip('slot', cp, (0.85, 0.1, 0.1, 1.0), plan.slot_width, k))
+    for k, cd in enumerate(plan.conduits):
+        out.markers.append(strip('conduit_centerline', cd, (1.0, 1.0, 1.0, 0.9), 0.004, k))
     for k, piece in enumerate(plan.unreachable):
         out.markers.append(strip('unreachable', piece, (1.0, 0.6, 0.0, 1.0), 0.01, k))
     if executed:

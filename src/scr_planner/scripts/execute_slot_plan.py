@@ -2,13 +2,13 @@
 # -*- coding: utf-8 -*-
 """多停靠站开槽执行（Gazebo）.
 
-流程：规划 → Nav2 导航到定位标记前 → 视觉伺服对位（现有 PBVS，确定墙面坐标原点）
+流程：读规划文件 → Nav2 导航到定位标记前 → 视觉伺服对位（现有 PBVS，确定墙面坐标原点）
 → 依次沿墙横移到各停靠站（里程计控横向，激光拟合墙面控离墙距离与朝向）
 → 每站执行机械臂切割点 → 用 Gazebo 真值记录刀尖轨迹，与规划槽线比较。
 
 复用 scr_arm_controller.navigation_cutting_task.NavigationCuttingTask（不修改它）。
 
-  ros2 run scr_planner execute_slot_plan.py <task.yaml> [结果目录] [--dry-run-gap=0.01]
+  ros2 run scr_planner execute_slot_plan.py <plan.yaml> [结果目录] [--dry-run-gap=0.01]
                                            [--no-compensation]
 
 到站后用里程计（横向）和激光拟合墙面（离墙距离、朝向）测出残余误差，按它修正本站的
@@ -44,9 +44,9 @@ except ImportError:
     sys.path.insert(0, os.path.join(get_package_share_directory('scr_planner'), 'python'))
 
 import slot_plan as sp  # noqa: E402
+import wall_rules as wr  # noqa: E402
 from scr_arm_controller.navigation_cutting_task import NavigationCuttingTask  # noqa: E402
 from scr_arm_controller.visual_servo import pbvs_command  # noqa: E402
-from scr_planner_py import OrientedAStar  # noqa: E402
 from slot_ros import build_markers  # noqa: E402
 
 TOOL_LINK = 'scr_robot_gazebo::link4'
@@ -250,7 +250,7 @@ def evaluate(trace, plan, robot, depth_target):
     res = dict(trace_samples=len(trace), cutting_samples=len(deep))
     if not deep:
         return res
-    dist = np.array([_dist_poly((r[2], r[3]), plan.cut_path) for r in deep])
+    dist = np.array([min(_dist_poly((r[2], r[3]), cp) for cp in plan.cut_paths) for r in deep])
     res.update(path_err_mean_mm=float(dist.mean() * 1000), path_err_p95_mm=float(
         np.percentile(dist, 95) * 1000), path_err_max_mm=float(dist.max() * 1000),
         tip_depth_mean_mm=float(np.mean([r[4] for r in deep]) * 1000),
@@ -258,7 +258,7 @@ def evaluate(trace, plan, robot, depth_target):
         arm_x_mean=float(np.mean([r[5] for r in deep])))
     # 覆盖率：可达槽线每 5 mm 取样，3 mm 内有刀尖经过即算已切
     band = robot.reach_band
-    pts = [q for piece in sp.clip_polyline(plan.cut_path, band[0], band[1], axis=1)
+    pts = [q for cp in plan.cut_paths for piece in sp.clip_polyline(cp, band[0], band[1], axis=1)
            for q in sp._densify(piece, 0.005)]
     uv = np.array([(r[2], r[3]) for r in deep])
     covered = sum(np.min(np.hypot(uv[:, 0] - q[0], uv[:, 1] - q[1])) < 0.003 for q in pts)
@@ -286,25 +286,22 @@ def main():
     for a in sys.argv[1:]:
         if a.startswith('--dry-run-gap='):
             dry_gap = float(a.split('=', 1)[1])
-    task_file = args[0]
+    plan_path = args[0]
     out_dir = args[1] if len(args) > 1 else os.getcwd()
     os.makedirs(out_dir, exist_ok=True)
-    with open(task_file, encoding='utf-8') as f:
-        cfg = yaml.safe_load(f)
-
-    scene, wall = sp.scene_from_config(cfg)
-    robot = sp.RobotModel()
-    opt = cfg.get('options', {})
-    plan = sp.plan_task(scene, wall, robot, OrientedAStar(),
-                        restrict_to_reach=opt.get('restrict_to_reach', True),
-                        retract_between_turns=opt.get('retract_between_turns', True))
+    # 只读离线规划结果，执行中不重新规划
+    with open(plan_path, encoding='utf-8') as f:
+        plan_dict = yaml.safe_load(f)
+    plan, wall, obstacles = sp.plan_from_dict(plan_dict)
     if plan.status != 'success' or not plan.stations:
-        print(f'规划失败: {plan.status}')
+        print(f'规划结果不可执行: {plan.status}')
         sys.exit(2)
-    duration = opt.get('duration', 2.0)
+    robot = sp.RobotModel()
+    scene = wr.WallScene(int(round(wall.length * 100)), 300,
+                         bool(plan_dict['wall'].get('load_bearing')), obstacles)
+    duration = plan_dict['stations'][0]['motion']['duration']
     with open(os.path.join(out_dir, 'slot_plan.yaml'), 'w', encoding='utf-8') as f:
-        yaml.safe_dump(sp.plan_to_dict(plan, wall, robot, duration), f, allow_unicode=True,
-                       sort_keys=False)
+        yaml.safe_dump(plan_dict, f, allow_unicode=True, sort_keys=False)
 
     rclpy.init()
     ex = SlotExecutor()
@@ -319,6 +316,8 @@ def main():
     # 定位标记在墙面坐标中的位置 = 参考原点
     m = np.array([ex.marker_position['x'], ex.marker_position['y']])
     u_marker = float((m - wall.p0) @ wall.t)
+    if 'marker_u' in plan_dict and abs(plan_dict['marker_u'] - u_marker) > 1e-3:
+        log.warn(f"规划时的标记位置 u={plan_dict['marker_u']:.3f} 与执行器不一致 ({u_marker:.3f})")
     log.info(f'定位标记 u = {u_marker:.3f} m；停靠站 {len(plan.stations)} 个')
 
     # 1. Nav2 导航到标记正前方 1.2 m
@@ -335,6 +334,7 @@ def main():
     ref = {'p': np.array([pose['x'], pose['y']]), 'yaw': pose['yaw']}
 
     rows = []
+    prev_u = u_marker
     for st in plan.stations:
         log.info(f'\n===== 停靠站 S{st.index}: u = {st.u_c:.3f} m（横移 '
                  f'{(st.u_c - u_marker) * 100:+.1f} cm），{len(st.points)} 个点 =====')
@@ -365,7 +365,11 @@ def main():
         ex.cur_station = -1
         bs = [(r[7], r[8]) for r in ex.trace if r[1] == st.index]
         drift = (max(math.hypot(a - bs[0][0], d - bs[0][1]) for a, d in bs) * 1000) if bs else float('nan')
+        station_s = (ex.tracer.get_clock().now() - t0).nanoseconds * 1e-9
+        move_dist = abs(st.u_c - prev_u)
+        prev_u = st.u_c
         rows.append(dict(station=st.index, u_c=st.u_c, points=len(st.points),
+                         move_dist_m=move_dist, station_s=station_s,
                          sensed_lateral_mm=e_l * 1000, sensed_standoff_mm=e_n * 1000,
                          sensed_yaw_deg=math.degrees(psi),
                          base_drift_mm=drift,
@@ -378,7 +382,10 @@ def main():
     sim_total = (ex.get_clock().now() - sim_start).nanoseconds * 1e-9
 
     summary = evaluate(ex.trace, plan, robot, plan.slot_depth)
-    summary.update(dry_run_gap=dry_gap, compensation=compensate, stations=len(plan.stations), stations_done=len(rows),
+    summary.update(plan_partition=plan.partition, plan_order=plan.order,
+                   predicted_t_total=plan.prediction.get('t_total'),
+                   stations_total_s=float(sum(r['station_s'] for r in rows)),
+                   dry_run_gap=dry_gap, compensation=compensate, stations=len(plan.stations), stations_done=len(rows),
                    all_ok=all(r['moved'] and r['cut_ok'] for r in rows) and len(rows) == len(
                        plan.stations), sim_time_s=sim_total, wall_time_s=time.time() - t_start,
                    slot_length_m=plan.length)
