@@ -8,19 +8,26 @@
 
 复用 scr_arm_controller.navigation_cutting_task.NavigationCuttingTask（不修改它）。
 
-  ros2 run scr_planner execute_slot_plan.py <task.yaml> [结果目录]
+  ros2 run scr_planner execute_slot_plan.py <task.yaml> [结果目录] [--dry-run-gap=0.01]
+
+--dry-run-gap：空切。Gazebo 的墙是刚体，刀具下刀会把整台机器人顶开（实测约 35 mm），
+切深无法仿真，接触力还会扭曲轨迹；空切时把切割位置改为刀尖停在墙面前 gap 处，
+只验证墙面内 (u, v) 轨迹精度。真机上不加此参数。
 """
 import csv
 import math
 import os
 import sys
+import threading
 import time
 
 import numpy as np
 import rclpy
 import yaml
 from gazebo_msgs.msg import LinkStates
+from nav_msgs.msg import Odometry
 from geometry_msgs.msg import Twist
+from rclpy.executors import SingleThreadedExecutor
 from rclpy.qos import DurabilityPolicy, QoSProfile
 from visualization_msgs.msg import MarkerArray
 
@@ -38,6 +45,7 @@ from scr_planner_py import OrientedAStar  # noqa: E402
 from slot_ros import build_markers  # noqa: E402
 
 TOOL_LINK = 'scr_robot_gazebo::link4'
+BASE_LINK = 'scr_robot_gazebo::base_link'
 
 
 class SlotExecutor(NavigationCuttingTask):
@@ -45,35 +53,87 @@ class SlotExecutor(NavigationCuttingTask):
         super().__init__()
         self.trace = []            # (t, station, u, v, depth) 真值刀尖
         self.cur_station = -1
+        self.phase = 'idle'         # idle / move / cut
         self.wall = None
-        self.create_subscription(LinkStates, '/gazebo/link_states', self._links_cb, 10)
         qos = QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL)
         self.marker_pub = self.create_publisher(MarkerArray, '/wall_slot_plan/markers', qos)
+        # 真值记录放在独立节点 + 后台线程：机械臂运动时 cartesian_cutting 会阻塞在自己的
+        # 节点上，主节点的回调此时得不到处理
+        self.robot = sp.RobotModel()
+        self.tracer = rclpy.create_node('slot_tool_tracer')
+        self.tracer.create_subscription(LinkStates, '/gazebo/link_states', self._links_cb, 50)
+        # 定点保持：机械臂运动的反作用力会推动底盘（Gazebo 中轮子无摩擦、底盘由 planar_move
+        # 驱动，实测一站内可漂移 10 cm）。切割期间用里程计闭环把底盘保持在到站位姿。
+        self.hold_target = None
+        self._odom = None
+        self.tracer.create_subscription(Odometry, '/odom', self._odom_cb, 20)
+        self._hold_pub = self.tracer.create_publisher(Twist, '/cmd_vel', 10)
+        self.tracer.create_timer(0.05, self._hold_step)
+        self._tracer_exec = SingleThreadedExecutor()
+        self._tracer_exec.add_node(self.tracer)
+        threading.Thread(target=self._tracer_exec.spin, daemon=True).start()
+
+    # --- 定点保持 -----------------------------------------------------------
+    def _odom_cb(self, msg):
+        p, q = msg.pose.pose.position, msg.pose.pose.orientation
+        self._odom = (p.x, p.y, math.atan2(2 * (q.w * q.z + q.x * q.y),
+                                          1 - 2 * (q.y * q.y + q.z * q.z)))
+
+    def _hold_step(self, k_lin=1.0, k_ang=1.5, max_lin=0.05, max_ang=0.2):
+        if self.hold_target is None or self._odom is None:
+            return
+        x, y, yaw = self._odom
+        tx, ty, tyaw = self.hold_target
+        ex, ey = tx - x, ty - y
+        c, s_ = math.cos(yaw), math.sin(yaw)
+        bx, by = c * ex + s_ * ey, -s_ * ex + c * ey          # 误差转到 base_link
+        eyaw = math.atan2(math.sin(tyaw - yaw), math.cos(tyaw - yaw))
+        cmd = Twist()
+        cmd.linear.x = max(-max_lin, min(max_lin, k_lin * bx))
+        cmd.linear.y = max(-max_lin, min(max_lin, k_lin * by))
+        cmd.angular.z = max(-max_ang, min(max_ang, k_ang * eyaw))
+        self._hold_pub.publish(cmd)
+
+    def hold_here(self):
+        self.hold_target = self._odom
+
+    def release_hold(self):
+        self.hold_target = None
+        self._hold_pub.publish(Twist())
 
     # --- 真值刀尖 -----------------------------------------------------------
     def _links_cb(self, msg):
-        if self.wall is None or TOOL_LINK not in msg.name:
+        if self.wall is None or TOOL_LINK not in msg.name or BASE_LINK not in msg.name:
             return
-        gt = self.get_ground_truth_position()
-        if gt is None:
-            return
+        b = msg.pose[msg.name.index(BASE_LINK)]
         p = msg.pose[msg.name.index(TOOL_LINK)].position
+        q = b.orientation
+        yaw = math.atan2(2 * (q.w * q.z + q.x * q.y), 1 - 2 * (q.y * q.y + q.z * q.z))
+        heading = np.array([math.cos(yaw), math.sin(yaw)])
+        # 机械臂伸出量（base_link x），用来区分“切割 / 抵墙”与“退刀”阶段
+        arm_x = float((np.array([p.x, p.y]) - np.array([b.position.x, b.position.y])) @ heading)
         # 刀尖 = link4 原点沿 base_link x 方向前伸 tool_offset（visual_servo_ros.tool_front_x）
-        tip = np.array([p.x, p.y]) + sp.RobotModel().tool_offset * np.array(
-            [math.cos(gt['yaw']), math.sin(gt['yaw'])])
+        tip = np.array([p.x, p.y]) + self.robot.tool_offset * heading
         rel = tip - self.wall.p0
         u = float(rel @ self.wall.t)
-        depth = float(-(rel @ self.wall.n))      # >0：刀尖进入墙体
-        self.trace.append((self.get_clock().now().nanoseconds * 1e-9, self.cur_station,
-                           u, float(p.z), depth))
+        depth = float(-(rel @ self.wall.n))      # >0：刀尖进入墙面（刚体墙上应约为 0）
+        relb = np.array([b.position.x, b.position.y]) - self.wall.p0
+        self.trace.append((msg_time(self.tracer), self.cur_station, u, float(p.z), depth, arm_x,
+                           self.phase, float(relb @ self.wall.t), float(relb @ self.wall.n)))
 
     # --- 沿墙横移 -------------------------------------------------------------
-    def strafe_to(self, du_target, ref, tol_lat=0.003, tol_norm=0.005, tol_yaw=math.radians(0.5),
-                  max_iter=600):
-        """横移到相对参考位姿 du_target（沿墙向右为正，米）处，保持离墙 standoff."""
+    def strafe_to(self, du_target, ref, tol_lat=0.003, tol_norm=0.005, tol_yaw=math.radians(1.0),
+                  max_iter=600, alpha=0.3):
+        """横移到相对参考位姿 du_target（沿墙向右为正，米）处，保持离墙 standoff.
+
+        横向用里程计（短距离内几乎无漂移、无噪声）；离墙距离与朝向用激光拟合墙面，
+        单帧拟合 rms 约 9 mm、朝向抖动约 ±1°，故做指数平滑（alpha）。容差与视觉对位一致
+        （task_at_target.yaml：角度 1°）。
+        """
         D = self.distance_from_marker
         right = np.array([math.sin(ref['yaw']), -math.cos(ref['yaw'])])   # 面墙时的右方
         ok = 0
+        filt = None
         for it in range(max_iter):
             pose = self.get_robot_position()
             wall, why = self.servo.wall_in_base()
@@ -81,10 +141,12 @@ class SlotExecutor(NavigationCuttingTask):
                 self.cmd_vel_pub.publish(Twist())
                 self.sleep_sim(0.1)
                 continue
+            raw = np.array([wall['distance'] - D, wall['yaw_error']])
+            filt = raw if filt is None else (1 - alpha) * filt + alpha * raw
             du = float((np.array([pose['x'], pose['y']]) - ref['p']) @ right)
             n = np.array(wall['normal'])
-            err = {'normal': wall['distance'] - D, 'lateral': -(du_target - du),
-                   'yaw': wall['yaw_error'], 'n': n, 't': np.array([-n[1], n[0])}
+            err = {'normal': float(filt[0]), 'lateral': -(du_target - du),
+                   'yaw': float(filt[1]), 'n': n, 't': np.array([-n[1], n[0]])}
             if abs(err['lateral']) < tol_lat and abs(err['normal']) < tol_norm and \
                     abs(err['yaw']) < tol_yaw:
                 ok += 1
@@ -102,6 +164,19 @@ class SlotExecutor(NavigationCuttingTask):
         self.stop_robot()
         return False
 
+    def run_points(self, points, x_cut, duration):
+        """逐点执行机械臂点，并标注阶段：相邻两点都在切割深度时为 'cut'."""
+        prev_cut = False
+        for i, (x, y, z, rot) in enumerate(points):
+            is_cut = abs(x - x_cut) < 1e-6
+            self.phase = 'cut' if (prev_cut and is_cut) else 'move'
+            if not self.arm_controller.move_to_cartesian(x, y, z, rot, duration=duration):
+                self.phase = 'idle'
+                return False
+            prev_cut = is_cut
+        self.phase = 'idle'
+        return True
+
     def gt_station_error(self, st, robot):
         self.sleep_sim(0.3)
         gt = self.get_ground_truth_position()
@@ -116,24 +191,34 @@ class SlotExecutor(NavigationCuttingTask):
                     yaw_deg=math.degrees(dyaw))
 
 
+def msg_time(node):
+    return node.get_clock().now().nanoseconds * 1e-9
+
+
+def cutting_samples(trace, robot=None, depth=None):
+    """切割阶段（相邻两个切割点之间的运动）的样本."""
+    return [r for r in trace if r[1] >= 0 and r[6] == 'cut']
+
+
 def evaluate(trace, plan, robot, depth_target):
-    """真值刀尖轨迹 vs 规划槽线."""
-    cut = [(s, u, v, d) for _, s, u, v, d in trace if d > 0.002]
-    deep = [(s, u, v, d) for s, u, v, d in cut if d > depth_target - 0.005]
-    res = dict(trace_samples=len(trace), in_wall_samples=len(cut))
+    """真值刀尖轨迹（切割阶段）vs 规划槽线."""
+    deep = cutting_samples(trace, robot, depth_target)
+    res = dict(trace_samples=len(trace), cutting_samples=len(deep))
     if not deep:
         return res
-    dist = np.array([_dist_poly((u, v), plan.conduit) for _, u, v, _ in deep])
+    dist = np.array([_dist_poly((r[2], r[3]), plan.conduit) for r in deep])
     res.update(path_err_mean_mm=float(dist.mean() * 1000), path_err_p95_mm=float(
         np.percentile(dist, 95) * 1000), path_err_max_mm=float(dist.max() * 1000),
-        depth_mean_mm=float(np.mean([d for *_, d in deep]) * 1000))
+        tip_depth_mean_mm=float(np.mean([r[4] for r in deep]) * 1000),
+        tip_depth_max_mm=float(np.max([r[4] for r in deep]) * 1000),
+        arm_x_mean=float(np.mean([r[5] for r in deep])))
     # 覆盖率：可达槽线每 5 mm 取样，3 mm 内有刀尖经过即算已切
     band = robot.reach_band
     pts = [q for piece in sp.clip_polyline(plan.conduit, band[0], band[1], axis=1)
            for q in sp._densify(piece, 0.005)]
-    uv = np.array([(u, v) for _, u, v, _ in deep])
+    uv = np.array([(r[2], r[3]) for r in deep])
     covered = sum(np.min(np.hypot(uv[:, 0] - q[0], uv[:, 1] - q[1])) < 0.003 for q in pts)
-    res['coverage'] = covered / max(1, len(pts))
+    res['coverage'] = float(covered) / max(1, len(pts))
     return res
 
 
@@ -151,8 +236,13 @@ def main():
     if len(sys.argv) < 2:
         print(__doc__)
         sys.exit(1)
-    task_file = sys.argv[1]
-    out_dir = sys.argv[2] if len(sys.argv) > 2 else os.getcwd()
+    args = [a for a in sys.argv[1:] if not a.startswith('--')]
+    dry_gap = None
+    for a in sys.argv[1:]:
+        if a.startswith('--dry-run-gap='):
+            dry_gap = float(a.split('=', 1)[1])
+    task_file = args[0]
+    out_dir = args[1] if len(args) > 1 else os.getcwd()
     os.makedirs(out_dir, exist_ok=True)
     with open(task_file, encoding='utf-8') as f:
         cfg = yaml.safe_load(f)
@@ -210,12 +300,20 @@ def main():
         log.info(f'到位 {"✓" if ok_move else "✗"}，用时 {t_move:.1f} s，真值误差 '
                  + ', '.join(f'{k}={v:.2f}' for k, v in gt_err.items()))
         ex.cur_station = st.index
-        pts = [(p['x'], p['y'], p['z'], math.radians(p['rotation'])) for p in st.points]
+        x_cut = robot.x_cut(plan.slot_depth)
+        x_exec = x_cut if dry_gap is None else robot.standoff - dry_gap - robot.tool_offset
+        pts = [(x_exec if abs(p['x'] - x_cut) < 1e-6 else p['x'], p['y'], p['z'],
+                math.radians(p['rotation'])) for p in st.points]
         t1 = ex.get_clock().now()
-        ok_cut = ex.execute_cutting_points(pts, duration, return_home=False)
+        ex.hold_here()
+        ok_cut = ex.run_points(pts, x_exec, duration)
+        ex.release_hold()
         t_cut = (ex.get_clock().now() - t1).nanoseconds * 1e-9
         ex.cur_station = -1
+        bs = [(r[7], r[8]) for r in ex.trace if r[1] == st.index]
+        drift = (max(math.hypot(a - bs[0][0], d - bs[0][1]) for a, d in bs) * 1000) if bs else float('nan')
         rows.append(dict(station=st.index, u_c=st.u_c, points=len(st.points),
+                         base_drift_mm=drift,
                          cut_cm=st.cut_length * 100, moved=int(ok_move), cut_ok=int(ok_cut),
                          move_s=t_move, cut_s=t_cut, **gt_err))
         if not ok_cut:
@@ -225,11 +323,11 @@ def main():
     sim_total = (ex.get_clock().now() - sim_start).nanoseconds * 1e-9
 
     summary = evaluate(ex.trace, plan, robot, plan.slot_depth)
-    summary.update(stations=len(plan.stations), stations_done=len(rows),
+    summary.update(dry_run_gap=dry_gap, stations=len(plan.stations), stations_done=len(rows),
                    all_ok=all(r['moved'] and r['cut_ok'] for r in rows) and len(rows) == len(
                        plan.stations), sim_time_s=sim_total, wall_time_s=time.time() - t_start,
                    slot_length_m=plan.length)
-    for k in ('lateral_mm', 'standoff_mm', 'yaw_deg'):
+    for k in ('lateral_mm', 'standoff_mm', 'yaw_deg', 'base_drift_mm'):
         vals = [abs(r[k]) for r in rows if k in r]
         if vals:
             summary[f'station_{k}_mean_abs'] = float(np.mean(vals))
@@ -240,12 +338,13 @@ def main():
         w.writerows(rows)
     with open(os.path.join(out_dir, 'tool_trace.csv'), 'w', newline='') as f:
         w = csv.writer(f)
-        w.writerow(['t', 'station', 'u', 'v', 'depth'])
+        w.writerow(['t', 'station', 'u', 'v', 'depth', 'arm_x', 'phase', 'base_u', 'base_d'])
         w.writerows(ex.trace)
     with open(os.path.join(out_dir, 'summary.yaml'), 'w', encoding='utf-8') as f:
-        yaml.safe_dump({k: (round(v, 4) if isinstance(v, float) else v)
+        yaml.safe_dump({k: (round(float(v), 4) if isinstance(v, (float, np.floating)) else
+                            int(v) if isinstance(v, (np.integer, np.bool_)) else v)
                         for k, v in summary.items()}, f, allow_unicode=True, sort_keys=False)
-    executed = [(u, v) for _, s, u, v, d in ex.trace if d > plan.slot_depth - 0.005]
+    executed = [(r[2], r[3]) for r in cutting_samples(ex.trace)]
     ex.marker_pub.publish(build_markers(plan, scene, wall, robot, ex.get_clock().now().to_msg(),
                                         executed=executed[::5]))
     log.info('\n' + '\n'.join(f'  {k}: {v}' for k, v in summary.items()))
