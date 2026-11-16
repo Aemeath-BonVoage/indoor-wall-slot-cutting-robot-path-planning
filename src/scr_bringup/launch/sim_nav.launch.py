@@ -4,9 +4,8 @@
   ros2 launch scr_bringup sim_nav.launch.py                    # 完整界面
   ros2 launch scr_bringup sim_nav.launch.py gui:=false         # 不开 Gazebo 窗口
   ros2 launch scr_bringup sim_nav.launch.py gui:=false rviz:=false   # 纯后台（最省内存）
-  ros2 launch scr_bringup sim_nav.launch.py \
-      params_file:=$(ros2 pkg prefix scr_navigation)/share/scr_navigation/config/nav2_params_scr_planner.yaml
-                                                               # 换用 C++ 增强 A* 全局规划器
+  ros2 launch scr_bringup sim_nav.launch.py params_file:=/path/to/nav2_params_xxx.yaml
+                                                               # 换用其他 Nav2 参数文件
 """
 import os
 

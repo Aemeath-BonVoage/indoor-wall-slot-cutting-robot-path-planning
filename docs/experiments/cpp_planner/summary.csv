@@ -1,4 +1,0 @@
-impl,n,length_m_mean,turns_mean,turns_total,hv_ratio_min,J_mean,time_ms_median,time_ms_mean,time_ms_max,expansions_mean
-py_enhanced,31,8.842,1.94,60,1.0,181.68,88.831,130.928,663.957,4363
-py_oriented,31,8.842,1.68,52,1.0,181.03,0.872,23.17,132.269,5181
-cpp,31,8.842,1.68,52,1.0,181.03,0.018,0.949,5.673,5181
