@@ -20,6 +20,7 @@ from gazebo_msgs.msg import ModelStates
 from scr_arm_controller.cartesian_cutting import CartesianCuttingController
 from scr_arm_controller.marker_scanner import MarkerScanner
 from scr_arm_controller.trajectory_visualizer import TrajectoryVisualizer
+from scr_arm_controller.base_hold import BaseHold
 from scr_arm_controller.visual_servo import pbvs_command
 from scr_arm_controller.visual_servo_ros import WallMarkerServo
 
@@ -82,11 +83,19 @@ class NavigationCuttingTask(Node):
         self.min_clearance = 0.005                 # 防碰撞守护：刀具前端与墙面的最小间隙（米）
         self.guard_enabled = True
         self._guard_active = False
+        # 扫描 / 切割期间底盘定点保持（机械臂反作用力会推动底盘）
+        self.hold_base = True
+        self.base_hold = BaseHold(entity=self.GAZEBO_ENTITY)
 
         # 视觉伺服测量器（激光拟合墙面 + 相机检测方块）
         self.servo = WallMarkerServo(self)
 
         self.get_logger().info('导航+切割任务控制器已初始化')
+
+    def destroy_node(self):
+        # 先停掉定点保持的后台线程，避免 rclpy.shutdown() 时进程 abort
+        self.base_hold.shutdown()
+        return super().destroy_node()
 
     def odom_callback(self, msg):
         """里程计回调"""
@@ -706,6 +715,21 @@ class NavigationCuttingTask(Node):
             self.get_logger().info('\n等待机器人稳定...')
             self.sleep_sim(1.0)
 
+        # 从这里到切割结束，机械臂动作会推动底盘：开启定点保持（并用真值记录漂移）
+        self.base_hold.enabled = self.hold_base
+        self.base_hold.hold()
+        self.get_logger().info(
+            f'底盘定点保持: {"开启" if self.hold_base else "关闭（仅测量漂移）"}')
+        try:
+            return self._scan_and_cut(config, enable_scanning)
+        finally:
+            drift = self.base_hold.release()
+            if drift is not None:
+                self.get_logger().info(
+                    f'📏 扫描+切割期间底盘真值最大漂移: {drift[0]*1000:.1f} mm, {drift[1]:.2f}°')
+
+    def _scan_and_cut(self, config, enable_scanning):
+        """步骤 2.5 扫描 + 步骤 3 切割（在底盘定点保持下执行）."""
         # 步骤2.5: 扫描寻找黄色方块
         if enable_scanning:
             marker_pos = self.scan_for_marker()
@@ -886,6 +910,7 @@ def main(args=None):
         task_controller.positioning_mode = precise_config.get('mode', 'visual')
         if 'observe_joint1' in precise_config:
             task_controller.observe_joint1 = float(precise_config['observe_joint1'])
+    task_controller.hold_base = bool(config.get('base_hold', True))
 
     print('\n任务配置:')
     print(f'  导航目标: x={nav_x:.3f}, y={nav_y:.3f}, yaw={nav_yaw:.3f}')
