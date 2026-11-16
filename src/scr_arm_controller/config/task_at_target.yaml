@@ -10,9 +10,11 @@ navigation:
 # 精确定位参数
 precise_positioning:
   enabled: true
+  mode: visual                # visual = 相机+激光 PBVS；odom = 里程计 + 已知方块坐标（基线）
   distance_from_marker: 0.70  # 距离黄色方块的目标距离（米）
   position_tolerance: 0.01    # 位置容差（米）
   angle_tolerance_deg: 1.0    # 角度容差（度）
+  observe_joint1: -0.15       # visual 模式下滑台高度（米），使方块成像在机械臂遮挡区域之上
 
 # 方块扫描参数
 scanning:

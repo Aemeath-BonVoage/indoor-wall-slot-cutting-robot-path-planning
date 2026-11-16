@@ -20,6 +20,8 @@ from gazebo_msgs.msg import ModelStates
 from scr_arm_controller.cartesian_cutting import CartesianCuttingController
 from scr_arm_controller.marker_scanner import MarkerScanner
 from scr_arm_controller.trajectory_visualizer import TrajectoryVisualizer
+from scr_arm_controller.visual_servo import pbvs_command
+from scr_arm_controller.visual_servo_ros import WallMarkerServo
 
 
 class NavigationCuttingTask(Node):
@@ -63,13 +65,19 @@ class NavigationCuttingTask(Node):
         self.trajectory_visualizer = TrajectoryVisualizer()
 
         # 黄色方块位置（从world文件中获取，或通过扫描获得）
-        self.marker_position = {'x': 8.42, 'y': -3.9, 'z': 0.6}
+        self.marker_position = {'x': 8.42, 'y': -3.9245, 'z': 0.6}  # 贴在南墙内表面 y=-3.925
         self.marker_detected_position = None  # 扫描检测到的位置
 
         # 精确定位参数（可由任务配置 precise_positioning 段覆盖）
         self.distance_from_marker = 0.6
         self.position_tolerance = 0.01             # 1 cm
         self.angle_tolerance = math.radians(1.0)   # 1°
+        # 对位模式：'visual' = 相机+激光 PBVS；'odom' = 里程计 + 已知方块坐标（基线）
+        self.positioning_mode = 'visual'
+        self.observe_joint1 = -0.15                # 视觉伺服时的滑台高度（避开机械臂自遮挡）
+
+        # 视觉伺服测量器（激光拟合墙面 + 相机检测方块）
+        self.servo = WallMarkerServo(self)
 
         self.get_logger().info('导航+切割任务控制器已初始化')
 
@@ -192,6 +200,11 @@ class NavigationCuttingTask(Node):
         self.get_logger().info(f'目标距离: {self.distance_from_marker:.2f}m')
         self.get_logger().info(f'目标位置: x={target_x:.3f}, y={target_y:.3f}, yaw={target_yaw:.3f} ({math.degrees(target_yaw):.1f}°)')
 
+        if self.positioning_mode == 'visual':
+            # 视觉伺服：控制只用传感器测量；上面的目标位姿仅用于真值评估
+            return self.precise_positioning_visual(target_x, target_y, target_yaw)
+
+        self.get_logger().info('对位模式: odom（里程计 + 已知方块坐标，基线）')
         # 等待获取机器人位置
         self.get_logger().info('等待获取机器人位置...')
         for _ in range(50):
@@ -289,6 +302,92 @@ class NavigationCuttingTask(Node):
         self.stop_robot()
         self.report_ground_truth_error(target_x, target_y, target_yaw)
         return False
+
+    def precise_positioning_visual(self, target_x, target_y, target_yaw):
+        """相机 + 激光融合 PBVS 对位（不使用里程计与已知方块坐标）."""
+        D = self.distance_from_marker
+        pos_tol, ang_tol = self.position_tolerance, self.angle_tolerance
+        control_period = 0.1
+        max_iterations = 500
+        lost_limit = 20            # 连续 20 个周期（2 s）测量失败则判定失败
+
+        self.get_logger().info(
+            f'对位模式: visual（激光拟合墙面 + 相机检测方块），目标离墙 {D:.2f} m，'
+            f'容差 {pos_tol*1000:.0f}mm / {math.degrees(ang_tol):.1f}°')
+
+        # 观测位姿：相机与机械臂同在升降滑台上，机械臂会遮挡画面中下部；
+        # 降低滑台使相机略低于方块，方块成像在画面上部，避开自遮挡区域
+        self.get_logger().info(f'机械臂移至观测位姿 joint1={self.observe_joint1:.2f} m')
+        self.arm_controller.move_to_joints([self.observe_joint1, 0.0, 0.0, 0.0], duration=2.0)
+        self.sleep_sim(0.5)
+        self.servo.reset_filter()
+
+        converged, lost, required = 0, 0, 5
+        m = None
+        for it in range(max_iterations):
+            m, why = self.servo.measure(D)
+            if m is None:
+                lost += 1
+                self.cmd_vel_pub.publish(Twist())          # 测量丢失时原地停住
+                if lost == 1 or lost % 10 == 0:
+                    self.get_logger().warn(f'测量失败（{lost}）: {why}')
+                if lost >= lost_limit:
+                    self.get_logger().error('❌ 视觉测量持续丢失，对位失败')
+                    self.stop_robot()
+                    return False
+                self.sleep_sim(control_period)
+                continue
+            lost = 0
+            e = m['err']
+            pos_err = math.hypot(e['normal'], e['lateral'])
+
+            if pos_err < pos_tol and abs(e['yaw']) < ang_tol:
+                converged += 1
+                if converged >= required:
+                    self.stop_robot()
+                    self.get_logger().info('✅ 视觉伺服对位完成！')
+                    self.get_logger().info(
+                        f'   传感器误差: 法向={e["normal"]*1000:.1f}mm, 横向={e["lateral"]*1000:.1f}mm, '
+                        f'角度={math.degrees(abs(e["yaw"])):.2f}°, 迭代 {it+1}')
+                    self.report_ground_truth_error(target_x, target_y, target_yaw)
+                    self.report_perception_error(m)
+                    return True
+            else:
+                converged = 0
+
+            vx, vy, wz = pbvs_command(e, pos_deadband=pos_tol * 0.5, ang_deadband=ang_tol * 0.5)
+            cmd = Twist()
+            cmd.linear.x, cmd.linear.y, cmd.angular.z = vx, vy, wz
+            self.cmd_vel_pub.publish(cmd)
+
+            if it % 20 == 0:
+                w = m['wall']
+                self.get_logger().info(
+                    f'迭代{it}: 离墙={w["distance"]:.3f}m 法向误差={e["normal"]*1000:.0f}mm '
+                    f'横向={e["lateral"]*1000:.0f}mm 角度={math.degrees(e["yaw"]):.2f}° '
+                    f'(墙面拟合 {w["inliers"]} 点, rms {w["rms"]*1000:.1f}mm, '
+                    f'方块像素 {m["pixel"][0]:.0f},{m["pixel"][1]:.0f})')
+            self.sleep_sim(control_period)
+
+        self.get_logger().error(f'❌ 达到最大迭代次数({max_iterations})，视觉伺服未收敛')
+        self.stop_robot()
+        self.report_ground_truth_error(target_x, target_y, target_yaw)
+        return False
+
+    def report_perception_error(self, m):
+        """用 Gazebo 真值检查感知精度：方块在 base_link 中的估计位置 vs 真值."""
+        gt = self.get_ground_truth_position()
+        if gt is None:
+            return
+        rx = self.marker_position['x'] - gt['x']
+        ry = self.marker_position['y'] - gt['y']
+        c, s = math.cos(gt['yaw']), math.sin(gt['yaw'])
+        true_b = (c * rx + s * ry, -s * rx + c * ry)
+        est = m['marker_base']
+        self.get_logger().info(
+            f'🔍 感知误差: 方块估计 base_link=({est[0]:.4f}, {est[1]:.4f}, {est[2]:.4f}) '
+            f'真值=({true_b[0]:.4f}, {true_b[1]:.4f}, {self.marker_position["z"] - 0.1024:.4f}) '
+            f'→ dx={(est[0]-true_b[0])*1000:.1f}mm dy={(est[1]-true_b[1])*1000:.1f}mm')
 
     def report_ground_truth_error(self, target_x, target_y, target_yaw):
         """用 Gazebo 真值评估实际对位误差（控制环使用的是里程计）"""
@@ -738,6 +837,9 @@ def main(args=None):
             task_controller.position_tolerance = float(precise_config['position_tolerance'])
         if 'angle_tolerance_deg' in precise_config:
             task_controller.angle_tolerance = math.radians(float(precise_config['angle_tolerance_deg']))
+        task_controller.positioning_mode = precise_config.get('mode', 'visual')
+        if 'observe_joint1' in precise_config:
+            task_controller.observe_joint1 = float(precise_config['observe_joint1'])
 
     print('\n任务配置:')
     print(f'  导航目标: x={nav_x:.3f}, y={nav_y:.3f}, yaw={nav_yaw:.3f}')

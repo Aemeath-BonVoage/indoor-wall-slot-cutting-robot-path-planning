@@ -366,7 +366,7 @@
     <!-- 右边墙上的彩色正方形标记 -->
     <model name="wall_marker">
       <static>true</static>
-      <pose>8.42 -3.9 0.6 1.578 0 0</pose>  <!-- 贴在x=10墙面内侧，y=4m，z=1m高度，pitch旋转90度贴墙 -->
+      <pose>8.42 -3.9245 0.6 1.5708 0 0</pose>  <!-- 贴在 room3 南墙内表面（y=-3.925），离地 0.6 m，绕 x 转 90° 贴墙 -->
       <link name="link">
         <collision name="collision">
           <geometry><box><size>0.05 0.05 0.001</size></box></geometry>
