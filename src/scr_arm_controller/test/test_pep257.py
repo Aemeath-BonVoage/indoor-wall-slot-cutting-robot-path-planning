@@ -19,5 +19,6 @@ import pytest
 @pytest.mark.linter
 @pytest.mark.pep257
 def test_pep257():
-    rc = main(argv=['.', 'test'])
+    # D400/D415 要求首行以英文句号结尾，不适用于中文 docstring
+    rc = main(argv=['.', 'test', '--add-ignore', 'D400', 'D415'])
     assert rc == 0, 'Found code style errors / warnings'

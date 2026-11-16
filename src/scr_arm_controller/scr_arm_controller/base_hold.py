@@ -1,4 +1,5 @@
-"""底盘定点保持 + 漂移测量.
+"""
+底盘定点保持 + 漂移测量.
 
 机械臂运动的反作用力会推动底盘：仿真中轮子摩擦为 0、底盘由 planar_move 驱动，
 实测机械臂动作时一站内可漂移约 10 cm。切割 / 扫描期间需要把底盘闭环保持在到位位姿。
@@ -99,7 +100,7 @@ class BaseHold:
             return (self._max_drift, math.degrees(self._max_yaw)) if had_ref else None
 
     def shutdown(self):
-        """停止后台线程并销毁节点；必须在 rclpy.shutdown() 之前调用，否则进程退出时会 abort."""
+        """停止后台线程并销毁节点（须先于 rclpy 关闭调用，否则进程退出时会 abort）."""
         self._target = None
         self._exec.shutdown()
         self._thread.join(timeout=2.0)
