@@ -1,0 +1,609 @@
+<!-- Modified for ROS2 and Gazebo compatibility -->
+<robot name="scr_robot">
+  
+  <!-- 材质定义 -->
+  <material name="silver">
+    <color rgba="0.808 0.843 0.906 1"/>
+  </material>
+  
+  <material name="black">
+    <color rgba="0.2 0.2 0.2 1"/>
+  </material>
+  
+  <material name="blue">
+    <color rgba="0.2 0.4 0.8 1"/>
+  </material>
+  
+  <material name="red">
+    <color rgba="0.8 0.2 0.2 1"/>
+  </material>
+
+  <!-- 底盘基座 -->
+  <link name="base_link">
+    <inertial>
+      <!-- 重心降低到z=0.05m，增加质量到25kg提高稳定性 -->
+      <origin xyz="-0.027 0 0.05" rpy="0 0 0" />
+      <mass value="25.0" />
+      <inertia
+        ixx="0.5"
+        ixy="0"
+        ixz="0"
+        iyy="0.5"
+        iyz="0"
+        izz="0.3" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://scr_description/meshes/base_link.STL" />
+      </geometry>
+      <material name="silver" />
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://scr_description/meshes/base_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+
+  <gazebo reference="base_link">
+    <material>Gazebo/Grey</material>
+  </gazebo>
+
+  <!-- 左前轮 -->
+  <link name="lf_link">
+    <inertial>
+      <origin xyz="5.29557580564166E-08 -6.17963774179886E-08 -0.0305109870278072" rpy="0 0 0" />
+      <mass value="0.129839804826671" />
+      <inertia
+        ixx="2.63561432215261E-05"
+        ixy="-7.20251226080988E-11"
+        ixz="1.70982515377405E-11"
+        iyy="2.63544848655039E-05"
+        iyz="6.39415997460102E-11"
+        izz="3.34636998142227E-05" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://scr_description/meshes/lf_link.STL" />
+      </geometry>
+      <material name="black" />
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://scr_description/meshes/lf_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+
+  <gazebo reference="lf_link">
+    <material>Gazebo/Black</material>
+    <mu1>0.0</mu1>
+    <mu2>0.0</mu2>
+  </gazebo>
+
+  <joint name="joint_lf_link" type="continuous">
+    <origin xyz="0.29625 0.212 -0.052484" rpy="1.5708 0 0" />
+    <parent link="base_link" />
+    <child link="lf_link" />
+    <axis xyz="0 0 1" />
+  </joint>
+
+  <!-- 右前轮 -->
+  <link name="rf_link">
+    <inertial>
+      <origin xyz="-8.43667760097588E-08 -4.99532847100803E-08 0.0305109948019305" rpy="0 0 0" />
+      <mass value="0.129839858904515" />
+      <inertia
+        ixx="2.63561390358805E-05"
+        ixy="-3.1977115837502E-10"
+        ixz="1.41178033811077E-11"
+        iyy="2.6354414729042E-05"
+        iyz="-5.0872373113867E-11"
+        izz="3.34636042667901E-05" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://scr_description/meshes/rf_link.STL" />
+      </geometry>
+      <material name="black" />
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://scr_description/meshes/rf_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+
+  <gazebo reference="rf_link">
+    <material>Gazebo/Black</material>
+    <mu1>0.0</mu1>
+    <mu2>0.0</mu2>
+  </gazebo>
+
+  <joint name="joint_rf_link" type="continuous">
+    <origin xyz="0.29625 -0.212 -0.052484" rpy="1.5708 0 0" />
+    <parent link="base_link" />
+    <child link="rf_link" />
+    <axis xyz="0 0 -1" />
+  </joint>
+
+  <!-- 左后轮 -->
+  <link name="lb_link">
+    <inertial>
+      <origin xyz="6.55648161318467E-08 -6.48109523895823E-08 -0.0305109900352756" rpy="0 0 0" />
+      <mass value="0.129839854216223" />
+      <inertia
+        ixx="2.63559328637384E-05"
+        ixy="3.74491510346193E-10"
+        ixz="-9.08996092228637E-13"
+        iyy="2.63544971814173E-05"
+        iyz="6.3163341142044E-11"
+        izz="3.34634914360848E-05" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://scr_description/meshes/lb_link.STL" />
+      </geometry>
+      <material name="black" />
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://scr_description/meshes/lb_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+
+  <gazebo reference="lb_link">
+    <material>Gazebo/Black</material>
+    <mu1>0.0</mu1>
+    <mu2>0.0</mu2>
+  </gazebo>
+
+  <joint name="joint_lb_link" type="continuous">
+    <origin xyz="-0.29691 0.212 -0.052484" rpy="1.5708 0 0" />
+    <parent link="base_link" />
+    <child link="lb_link" />
+    <axis xyz="0 0 1" />
+  </joint>
+
+  <!-- 右后轮 -->
+  <link name="rb_link">
+    <inertial>
+      <origin xyz="-6.29950885899788E-08 -9.84461989844698E-08 0.0305109978955908" rpy="0 0 0" />
+      <mass value="0.129839864464815" />
+      <inertia
+        ixx="2.63562458419912E-05"
+        ixy="2.29704947052573E-10"
+        ixz="1.50282886449282E-11"
+        iyy="2.63545430564528E-05"
+        iyz="-3.37407424593969E-11"
+        izz="3.34638337117375E-05" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://scr_description/meshes/rb_link.STL" />
+      </geometry>
+      <material name="black" />
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://scr_description/meshes/rb_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+
+  <gazebo reference="rb_link">
+    <material>Gazebo/Black</material>
+    <mu1>0.0</mu1>
+    <mu2>0.0</mu2>
+  </gazebo>
+
+  <joint name="joint_rb_link" type="continuous">
+    <origin xyz="-0.29691 -0.212 -0.052484" rpy="1.5708 0 0" />
+    <parent link="base_link" />
+    <child link="rb_link" />
+    <axis xyz="0 0 -1" />
+  </joint>
+
+  <!-- 机械臂 Link1 -->
+  <link name="link1">
+    <inertial>
+      <origin xyz="0.0382297535731808 -0.0129853009346597 0.459596279833554" rpy="0 0 0" />
+      <mass value="2.98499311852617" />
+      <inertia
+        ixx="0.0236429744472958"
+        ixy="-7.21224005790593E-07"
+        ixz="-3.7704382792381E-07"
+        iyy="0.00200943641964478"
+        iyz="1.17984290029184E-06"
+        izz="0.022595998659547" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://scr_description/meshes/link1.STL" />
+      </geometry>
+      <material name="blue" />
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://scr_description/meshes/link1.STL" />
+      </geometry>
+    </collision>
+  </link>
+
+  <gazebo reference="link1">
+    <material>Gazebo/Blue</material>
+  </gazebo>
+
+  <joint name="joint1" type="prismatic">
+    <origin xyz="0.038668 -0.0001 0.048" rpy="0 0 0" />
+    <parent link="base_link" />
+    <child link="link1" />
+    <axis xyz="0 0 1" />
+    <limit lower="-0.35" upper="0.2" effort="1000" velocity="3" />
+  </joint>
+
+  <!-- 机械臂 Link2 -->
+  <link name="link2">
+    <inertial>
+      <origin xyz="0.106262539521642 0.00062009464701307 -0.136468740018203" rpy="0 0 0" />
+      <mass value="0.613259868815591" />
+      <inertia
+        ixx="0.000739202772122273"
+        ixy="3.02868085831672E-07"
+        ixz="2.47314591570609E-08"
+        iyy="0.000769406652286141"
+        iyz="6.68459909685627E-09"
+        izz="0.000601333213127597" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://scr_description/meshes/link2.STL" />
+      </geometry>
+      <material name="blue" />
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://scr_description/meshes/link2.STL" />
+      </geometry>
+    </collision>
+  </link>
+
+  <gazebo reference="link2">
+    <material>Gazebo/Blue</material>
+  </gazebo>
+
+  <joint name="joint2" type="prismatic">
+    <origin xyz="0.0665 -0.13661 0.45879" rpy="1.5708 0 0" />
+    <parent link="link1" />
+    <child link="link2" />
+    <axis xyz="0 0 1" />
+    <limit lower="-0.08" upper="0.06" effort="500" velocity="3" />
+  </joint>
+
+  <!-- 机械臂 Link3 -->
+  <link name="link3">
+    <inertial>
+      <origin xyz="9.44735396233298E-05 0.000166990039199288 0.0666975222492641" rpy="0 0 0" />
+      <mass value="0.286606996657999" />
+      <inertia
+        ixx="0.00018359631080914"
+        ixy="4.12263078100897E-07"
+        ixz="4.03781560094023E-07"
+        iyy="0.000184128876045744"
+        iyz="-1.89244530728374E-07"
+        izz="0.000131826279029635" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://scr_description/meshes/link3.STL" />
+      </geometry>
+      <material name="blue" />
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://scr_description/meshes/link3.STL" />
+      </geometry>
+    </collision>
+  </link>
+
+  <gazebo reference="link3">
+    <material>Gazebo/Blue</material>
+  </gazebo>
+
+  <joint name="joint3" type="prismatic">
+    <origin xyz="0.3059 0 -0.13656" rpy="0 1.5708 0" />
+    <parent link="link2" />
+    <child link="link3" />
+    <axis xyz="0 0 -1" />
+    <limit lower="-0.045" upper="0.02" effort="500" velocity="3" />
+  </joint>
+
+  <!-- 机械臂 Link4 -->
+  <link name="link4">
+    <inertial>
+      <origin xyz="-0.0527404287085458 -0.0348653539347688 0.0819571283290921" rpy="0 0 0" />
+      <mass value="0.99908834249615" />
+      <inertia
+        ixx="0.00120775477312767"
+        ixy="8.9496926932981E-07"
+        ixz="-1.99357703923385E-06"
+        iyy="0.00187541214472099"
+        iyz="5.24498571381107E-05"
+        izz="0.00178336276032721" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://scr_description/meshes/link4.STL" />
+      </geometry>
+      <material name="red" />
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://scr_description/meshes/link4.STL" />
+      </geometry>
+    </collision>
+  </link>
+
+  <gazebo reference="link4">
+    <material>Gazebo/Red</material>
+  </gazebo>
+
+  <joint name="joint4" type="revolute">
+    <origin xyz="0 0 0.1257" rpy="0 0 0" />
+    <parent link="link3" />
+    <child link="link4" />
+    <axis xyz="0 0 -1" />
+    <limit lower="-1.57" upper="1.57" effort="500" velocity="3" />
+  </joint>
+
+
+  <!-- ros2_control 硬件接口配置 -->
+  <ros2_control name="GazeboSystem" type="system">
+    <hardware>
+      <plugin>gazebo_ros2_control/GazeboSystem</plugin>
+    </hardware>
+    <joint name="joint1">
+      <command_interface name="position">
+        <param name="min">-0.35</param>
+        <param name="max">0.2</param>
+      </command_interface>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+    </joint>
+    <joint name="joint2">
+      <command_interface name="position">
+        <param name="min">-0.08</param>
+        <param name="max">0.06</param>
+      </command_interface>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+    </joint>
+    <joint name="joint3">
+      <command_interface name="position">
+        <param name="min">-0.045</param>
+        <param name="max">0.02</param>
+      </command_interface>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+    </joint>
+    <joint name="joint4">
+      <command_interface name="position">
+        <param name="min">-1.57</param>
+        <param name="max">1.57</param>
+      </command_interface>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+    </joint>
+    <joint name="joint_lf_link">
+      <command_interface name="velocity"/>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+    </joint>
+    <joint name="joint_rf_link">
+      <command_interface name="velocity"/>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+    </joint>
+    <joint name="joint_lb_link">
+      <command_interface name="velocity"/>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+    </joint>
+    <joint name="joint_rb_link">
+      <command_interface name="velocity"/>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+    </joint>
+  </ros2_control>
+
+  <!-- Gazebo ros2_control 插件 -->
+  <gazebo>
+    <plugin filename="libgazebo_ros2_control.so" name="gazebo_ros2_control">
+      <robot_param>robot_description</robot_param>
+      <robot_param_node>robot_state_publisher</robot_param_node>
+      <parameters>$(find scr_description)/config/arm_controllers.yaml</parameters>
+    </plugin>
+  </gazebo>
+
+  <!-- Gazebo关节状态发布插件 -->
+  <gazebo>
+    <plugin name="gazebo_ros_joint_state_publisher" filename="libgazebo_ros_joint_state_publisher.so">
+      <update_rate>50</update_rate>
+      <joint_name>joint_lf_link</joint_name>
+      <joint_name>joint_rf_link</joint_name>
+      <joint_name>joint_lb_link</joint_name>
+      <joint_name>joint_rb_link</joint_name>
+    </plugin>
+  </gazebo>
+
+  <!-- Planar Move 插件 - 直接控制底盘运动 -->
+  <gazebo>
+    <plugin name="planar_move" filename="libgazebo_ros_planar_move.so">
+      <ros>
+        <namespace>/</namespace>
+        <remapping>cmd_vel:=cmd_vel_direct</remapping>
+        <remapping>odom:=odom</remapping>
+      </ros>
+      <update_rate>50</update_rate>
+      <publish_rate>50</publish_rate>
+      <publish_odom>true</publish_odom>
+      <publish_odom_tf>true</publish_odom_tf>
+      <odometry_frame>odom</odometry_frame>
+      <robot_base_frame>base_link</robot_base_frame>
+    </plugin>
+  </gazebo>
+
+  <!-- ==================== 激光雷达 (LiDAR) ==================== -->
+  <link name="lidar_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="0.1"/>
+      <inertia ixx="0.0001" ixy="0" ixz="0" iyy="0.0001" iyz="0" izz="0.0001"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.03" length="0.04"/>
+      </geometry>
+      <material name="black"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.03" length="0.04"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="lidar_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="lidar_link"/>
+    <origin xyz="0 0 0.98" rpy="0 0 0"/>
+  </joint>
+
+  <gazebo reference="lidar_link">
+    <material>Gazebo/Black</material>
+    <sensor type="ray" name="lidar_sensor">
+      <pose>0 0 0 0 0 0</pose>
+      <visualize>false</visualize>
+      <update_rate>10</update_rate>
+      <ray>
+        <scan>
+          <horizontal>
+            <samples>360</samples>
+            <resolution>1</resolution>
+            <min_angle>-3.14159</min_angle>
+            <max_angle>3.14159</max_angle>
+          </horizontal>
+        </scan>
+        <range>
+          <min>0.1</min>
+          <max>20.0</max>
+          <resolution>0.01</resolution>
+        </range>
+        <noise>
+          <type>gaussian</type>
+          <mean>0.0</mean>
+          <stddev>0.01</stddev>
+        </noise>
+      </ray>
+      <plugin name="gazebo_ros_lidar" filename="libgazebo_ros_ray_sensor.so">
+        <ros>
+          <remapping>~/out:=scan</remapping>
+        </ros>
+        <output_type>sensor_msgs/LaserScan</output_type>
+        <frame_name>lidar_link</frame_name>
+      </plugin>
+    </sensor>
+  </gazebo>
+
+  <!-- ==================== 摄像头 (Camera) ==================== -->
+  <link name="camera_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="0.05"/>
+      <inertia ixx="0.00001" ixy="0" ixz="0" iyy="0.00001" iyz="0" izz="0.00001"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.02 0.05 0.02"/>
+      </geometry>
+      <material name="red"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.02 0.05 0.02"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="camera_joint" type="fixed">
+    <parent link="link1"/>
+    <child link="camera_link"/>
+    <origin xyz="0.11 0.0215 0.5" rpy="0 0 0"/>
+  </joint>
+
+  <!-- 摄像头光学坐标系 -->
+  <link name="camera_optical_link"/>
+
+  <joint name="camera_optical_joint" type="fixed">
+    <parent link="camera_link"/>
+    <child link="camera_optical_link"/>
+    <origin xyz="0 0 0" rpy="-1.5708 0 -1.5708"/>
+  </joint>
+
+  <gazebo reference="camera_link">
+    <material>Gazebo/Red</material>
+    <sensor type="camera" name="camera_sensor">
+      <update_rate>30.0</update_rate>
+      <visualize>true</visualize>
+      <camera name="front_camera">
+        <horizontal_fov>1.3962634</horizontal_fov>
+        <image>
+          <width>640</width>
+          <height>480</height>
+          <format>R8G8B8</format>
+        </image>
+        <clip>
+          <near>0.02</near>
+          <far>100</far>
+        </clip>
+        <noise>
+          <type>gaussian</type>
+          <mean>0.0</mean>
+          <stddev>0.007</stddev>
+        </noise>
+      </camera>
+      <plugin name="gazebo_ros_camera" filename="libgazebo_ros_camera.so">
+        <ros>
+          <remapping>~/image_raw:=camera/image_raw</remapping>
+          <remapping>~/camera_info:=camera/camera_info</remapping>
+        </ros>
+        <camera_name>front_camera</camera_name>
+        <frame_name>camera_optical_link</frame_name>
+      </plugin>
+    </sensor>
+  </gazebo>
+
+</robot>

@@ -1,0 +1,13 @@
+# 水平面切割示例 - 在水平面上画矩形
+# Z固定，XY变化，使用 joint2(Y) 和 joint3(X)
+# 每个点末端旋转90度
+
+points:
+  - {x: 0.520, y: -0.025, z: 0.507, rotation: 90}
+  - {x: 0.520, y: 0.025, z: 0.507, rotation: 90}
+  - {x: 0.554, y: 0.025, z: 0.507, rotation: 90}
+  - {x: 0.554, y: -0.025, z: 0.507, rotation: 90}
+
+motion:
+  duration: 3.0
+  return_home: true

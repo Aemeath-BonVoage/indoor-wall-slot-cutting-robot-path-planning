@@ -1,0 +1,334 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Modified for ROS2 compatibility -->
+<robot name="scr_robot">
+  
+  <!-- 材质定义 -->
+  <material name="silver">
+    <color rgba="0.808 0.843 0.906 1"/>
+  </material>
+  
+  <material name="black">
+    <color rgba="0.2 0.2 0.2 1"/>
+  </material>
+  
+  <material name="blue">
+    <color rgba="0.2 0.4 0.8 1"/>
+  </material>
+  
+  <material name="red">
+    <color rgba="0.8 0.2 0.2 1"/>
+  </material>
+
+  <!-- 底盘基座 -->
+  <link name="base_link">
+    <inertial>
+      <origin xyz="-0.0271869545617233 -1.19461122941034E-05 0.240742282977963" rpy="0 0 0" />
+      <mass value="6.49820335119445" />
+      <inertia
+        ixx="0.212134328832715"
+        ixy="-4.36268536173614E-08"
+        ixz="-0.000322313919588723"
+        iyy="0.190547802895951"
+        iyz="-5.62513007166979E-06"
+        izz="0.0905915740494004" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://scr_description/meshes/base_link.STL" />
+      </geometry>
+      <material name="silver" />
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://scr_description/meshes/base_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+
+  <!-- 左前轮 (Left Front) -->
+  <link name="lf_link">
+    <inertial>
+      <origin xyz="5.29557580564166E-08 -6.17963774179886E-08 -0.0305109870278072" rpy="0 0 0" />
+      <mass value="0.129839804826671" />
+      <inertia
+        ixx="2.63561432215261E-05"
+        ixy="-7.20251226080988E-11"
+        ixz="1.70982515377405E-11"
+        iyy="2.63544848655039E-05"
+        iyz="6.39415997460102E-11"
+        izz="3.34636998142227E-05" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://scr_description/meshes/lf_link.STL" />
+      </geometry>
+      <material name="black" />
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://scr_description/meshes/lf_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="joint_lf_link" type="continuous">
+    <origin xyz="0.29625 0.212 -0.052484" rpy="1.5708 0 0" />
+    <parent link="base_link" />
+    <child link="lf_link" />
+    <axis xyz="0 0 1" />
+  </joint>
+
+  <!-- 右前轮 (Right Front) -->
+  <link name="rf_link">
+    <inertial>
+      <origin xyz="-8.43667760097588E-08 -4.99532847100803E-08 0.0305109948019305" rpy="0 0 0" />
+      <mass value="0.129839858904515" />
+      <inertia
+        ixx="2.63561390358805E-05"
+        ixy="-3.1977115837502E-10"
+        ixz="1.41178033811077E-11"
+        iyy="2.6354414729042E-05"
+        iyz="-5.0872373113867E-11"
+        izz="3.34636042667901E-05" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://scr_description/meshes/rf_link.STL" />
+      </geometry>
+      <material name="black" />
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://scr_description/meshes/rf_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="joint_rf_link" type="continuous">
+    <origin xyz="0.29625 -0.212 -0.052484" rpy="1.5708 0 0" />
+    <parent link="base_link" />
+    <child link="rf_link" />
+    <axis xyz="0 0 -1" />
+  </joint>
+
+  <!-- 左后轮 (Left Back) -->
+  <link name="lb_link">
+    <inertial>
+      <origin xyz="6.55648161318467E-08 -6.48109523895823E-08 -0.0305109900352756" rpy="0 0 0" />
+      <mass value="0.129839854216223" />
+      <inertia
+        ixx="2.63559328637384E-05"
+        ixy="3.74491510346193E-10"
+        ixz="-9.08996092228637E-13"
+        iyy="2.63544971814173E-05"
+        iyz="6.3163341142044E-11"
+        izz="3.34634914360848E-05" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://scr_description/meshes/lb_link.STL" />
+      </geometry>
+      <material name="black" />
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://scr_description/meshes/lb_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="joint_lb_link" type="continuous">
+    <origin xyz="-0.29691 0.212 -0.052484" rpy="1.5708 0 0" />
+    <parent link="base_link" />
+    <child link="lb_link" />
+    <axis xyz="0 0 1" />
+  </joint>
+
+  <!-- 右后轮 (Right Back) -->
+  <link name="rb_link">
+    <inertial>
+      <origin xyz="-6.29950885899788E-08 -9.84461989844698E-08 0.0305109978955908" rpy="0 0 0" />
+      <mass value="0.129839864464815" />
+      <inertia
+        ixx="2.63562458419912E-05"
+        ixy="2.29704947052573E-10"
+        ixz="1.50282886449282E-11"
+        iyy="2.63545430564528E-05"
+        iyz="-3.37407424593969E-11"
+        izz="3.34638337117375E-05" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://scr_description/meshes/rb_link.STL" />
+      </geometry>
+      <material name="black" />
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://scr_description/meshes/rb_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="joint_rb_link" type="continuous">
+    <origin xyz="-0.29691 -0.212 -0.052484" rpy="1.5708 0 0" />
+    <parent link="base_link" />
+    <child link="rb_link" />
+    <axis xyz="0 0 -1" />
+  </joint>
+
+  <!-- 机械臂 Link1 (升降关节) -->
+  <link name="link1">
+    <inertial>
+      <origin xyz="0.0382297535731808 -0.0129853009346597 0.459596279833554" rpy="0 0 0" />
+      <mass value="2.98499311852617" />
+      <inertia
+        ixx="0.0236429744472958"
+        ixy="-7.21224005790593E-07"
+        ixz="-3.7704382792381E-07"
+        iyy="0.00200943641964478"
+        iyz="1.17984290029184E-06"
+        izz="0.022595998659547" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://scr_description/meshes/link1.STL" />
+      </geometry>
+      <material name="blue" />
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://scr_description/meshes/link1.STL" />
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="joint1" type="prismatic">
+    <origin xyz="0.038668 -0.0001 0.048" rpy="0 0 0" />
+    <parent link="base_link" />
+    <child link="link1" />
+    <axis xyz="0 0 1" />
+    <limit lower="-0.35" upper="0.2" effort="10" velocity="3" />
+  </joint>
+
+  <!-- 机械臂 Link2 (前后伸缩) -->
+  <link name="link2">
+    <inertial>
+      <origin xyz="0.106262539521642 0.00062009464701307 -0.136468740018203" rpy="0 0 0" />
+      <mass value="0.613259868815591" />
+      <inertia
+        ixx="0.000739202772122273"
+        ixy="3.02868085831672E-07"
+        ixz="2.47314591570609E-08"
+        iyy="0.000769406652286141"
+        iyz="6.68459909685627E-09"
+        izz="0.000601333213127597" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://scr_description/meshes/link2.STL" />
+      </geometry>
+      <material name="blue" />
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://scr_description/meshes/link2.STL" />
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="joint2" type="prismatic">
+    <origin xyz="0.0665 -0.13661 0.45879" rpy="1.5708 0 0" />
+    <parent link="link1" />
+    <child link="link2" />
+    <axis xyz="0 0 1" />
+    <limit lower="-0.08" upper="0.06" effort="10" velocity="3" />
+  </joint>
+
+  <!-- 机械臂 Link3 (左右伸缩) -->
+  <link name="link3">
+    <inertial>
+      <origin xyz="9.44735396233298E-05 0.000166990039199288 0.0666975222492641" rpy="0 0 0" />
+      <mass value="0.286606996657999" />
+      <inertia
+        ixx="0.00018359631080914"
+        ixy="4.12263078100897E-07"
+        ixz="4.03781560094023E-07"
+        iyy="0.000184128876045744"
+        iyz="-1.89244530728374E-07"
+        izz="0.000131826279029635" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://scr_description/meshes/link3.STL" />
+      </geometry>
+      <material name="blue" />
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://scr_description/meshes/link3.STL" />
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="joint3" type="prismatic">
+    <origin xyz="0.3059 0 -0.13656" rpy="0 1.5708 0" />
+    <parent link="link2" />
+    <child link="link3" />
+    <axis xyz="0 0 -1" />
+    <limit lower="-0.045" upper="0.02" effort="10" velocity="3" />
+  </joint>
+
+  <!-- 机械臂 Link4 (末端执行器旋转) -->
+  <link name="link4">
+    <inertial>
+      <origin xyz="-0.0527404287085458 -0.0348653539347688 0.0819571283290921" rpy="0 0 0" />
+      <mass value="0.99908834249615" />
+      <inertia
+        ixx="0.00120775477312767"
+        ixy="8.9496926932981E-07"
+        ixz="-1.99357703923385E-06"
+        iyy="0.00187541214472099"
+        iyz="5.24498571381107E-05"
+        izz="0.00178336276032721" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://scr_description/meshes/link4.STL" />
+      </geometry>
+      <material name="red" />
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://scr_description/meshes/link4.STL" />
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="joint4" type="revolute">
+    <origin xyz="0 0 0.1257" rpy="0 0 0" />
+    <parent link="link3" />
+    <child link="link4" />
+    <axis xyz="0 0 -1" />
+    <limit lower="-1.57" upper="1.57" effort="10" velocity="3" />
+  </joint>
+
+</robot>

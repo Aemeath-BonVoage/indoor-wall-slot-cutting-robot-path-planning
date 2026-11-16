@@ -1,0 +1,44 @@
+# 在目标点(8.61277, -2.01879)执行的切割任务
+# 完整任务配置：导航 + 精确定位 + 切割
+
+# 导航目标
+navigation:
+  x: 8.61277
+  y: -2.01879
+  yaw: -1.64894  # 弧度
+
+# 精确定位参数
+precise_positioning:
+  enabled: true
+  distance_from_marker: 0.70  # 距离黄色方块的目标距离（米）
+
+# 方块扫描参数
+scanning:
+  enabled: true
+  z_start: 0.3    # 扫描起始高度（米）
+  z_end: 0.7      # 扫描结束高度（米）
+  z_step: 0.05    # 扫描步进（米）
+
+# 切割任务 - 墙面切割（可以是任意数量的点，至少2个）
+# 示例1：4个点的矩形
+points:
+  - {x: 0.520, y: 0.000, z: 0.507, rotation: 0}
+  - {x: 0.520, y: 0.0, z: 0.532, rotation: 0}
+  - {x: 0.550, y: 0.0, z: 0.532, rotation: 0}
+  - {x: 0.550, y: 0.0, z: 0.482, rotation: 0} #
+  - {x: 0.520, y: 0.0, z: 0.482, rotation: 0}
+  - {x: 0.520, y: 0.0, z: 0.482, rotation: 90}
+  - {x: 0.550, y: 0.0, z: 0.482, rotation: 90}
+  - {x: 0.550, y: 0.055, z: 0.482, rotation: 90} #
+  - {x: 0.520, y: 0.055, z: 0.482, rotation: 90}
+  - {x: 0.520, y: 0.055, z: 0.482, rotation: 0}
+  - {x: 0.550, y: 0.055, z: 0.482, rotation: 0}
+  - {x: 0.550, y: 0.055, z: 0.532, rotation: 0} #
+  - {x: 0.520, y: 0.055, z: 0.532, rotation: 0}
+  - {x: 0.520, y: 0.055, z: 0.532, rotation: 90}
+  - {x: 0.550, y: 0.055, z: 0.532, rotation: 90} # 
+  - {x: 0.550, y: 0.0, z: 0.532, rotation: 90}
+  - {x: 0.520, y: 0.0, z: 0.532, rotation: 90}
+motion:
+  duration: 2.0
+  return_home: true

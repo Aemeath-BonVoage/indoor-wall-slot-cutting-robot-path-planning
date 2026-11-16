@@ -1,0 +1,379 @@
+<?xml version="1.0" ?>
+<sdf version="1.6">
+  <world name="room_world">
+    
+    <!-- 光照 -->
+    <include>
+      <uri>model://sun</uri>
+    </include>
+    
+    <!-- 地面 -->
+    <include>
+      <uri>model://ground_plane</uri>
+    </include>
+
+    <!-- ==================== 房间1: 主房间 (10m x 8m) ==================== -->
+    
+    <!-- 北墙 -->
+    <model name="room1_wall_north">
+      <static>true</static>
+      <pose>0 4 1 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>10 0.15 2</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>10 0.15 2</size></box></geometry>
+          <material>
+            <ambient>0.9 0.9 0.9 1</ambient>
+            <diffuse>0.9 0.9 0.9 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- 南墙 (带门洞通往房间2) -->
+    <model name="room1_wall_south_left">
+      <static>true</static>
+      <pose>-3 -4 1 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>4 0.15 2</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>4 0.15 2</size></box></geometry>
+          <material>
+            <ambient>0.9 0.9 0.9 1</ambient>
+            <diffuse>0.9 0.9 0.9 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="room1_wall_south_right">
+      <static>true</static>
+      <pose>3 -4 1 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>4 0.15 2</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>4 0.15 2</size></box></geometry>
+          <material>
+            <ambient>0.9 0.9 0.9 1</ambient>
+            <diffuse>0.9 0.9 0.9 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- 东墙 (带门洞通往房间3) -->
+    <model name="room1_wall_east_front">
+      <static>true</static>
+      <pose>5 2.5 1 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>0.15 3 2</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>0.15 3 2</size></box></geometry>
+          <material>
+            <ambient>0.9 0.9 0.9 1</ambient>
+            <diffuse>0.9 0.9 0.9 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="room1_wall_east_back">
+      <static>true</static>
+      <pose>5 -2.5 1 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>0.15 3 2</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>0.15 3 2</size></box></geometry>
+          <material>
+            <ambient>0.9 0.9 0.9 1</ambient>
+            <diffuse>0.9 0.9 0.9 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- 西墙 -->
+    <model name="room1_wall_west">
+      <static>true</static>
+      <pose>-5 0 1 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>0.15 8 2</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>0.15 8 2</size></box></geometry>
+          <material>
+            <ambient>0.9 0.9 0.9 1</ambient>
+            <diffuse>0.9 0.9 0.9 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- ==================== 房间2: 南侧房间 (6m x 5m) ==================== -->
+    
+    <model name="room2_wall_south">
+      <static>true</static>
+      <pose>0 -9 1 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>6 0.15 2</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>6 0.15 2</size></box></geometry>
+          <material>
+            <ambient>0.85 0.85 0.9 1</ambient>
+            <diffuse>0.85 0.85 0.9 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="room2_wall_east">
+      <static>true</static>
+      <pose>3 -6.5 1 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>0.15 5 2</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>0.15 5 2</size></box></geometry>
+          <material>
+            <ambient>0.85 0.85 0.9 1</ambient>
+            <diffuse>0.85 0.85 0.9 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="room2_wall_west">
+      <static>true</static>
+      <pose>-3 -6.5 1 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>0.15 5 2</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>0.15 5 2</size></box></geometry>
+          <material>
+            <ambient>0.85 0.85 0.9 1</ambient>
+            <diffuse>0.85 0.85 0.9 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- ==================== 房间3: 东侧房间 (5m x 6m) ==================== -->
+    
+    <model name="room3_wall_north">
+      <static>true</static>
+      <pose>7.5 4 1 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>5 0.15 2</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>5 0.15 2</size></box></geometry>
+          <material>
+            <ambient>0.9 0.85 0.85 1</ambient>
+            <diffuse>0.9 0.85 0.85 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="room3_wall_south">
+      <static>true</static>
+      <pose>7.5 -4 1 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>5 0.15 2</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>5 0.15 2</size></box></geometry>
+          <material>
+            <ambient>0.9 0.85 0.85 1</ambient>
+            <diffuse>0.9 0.85 0.85 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="room3_wall_east">
+      <static>true</static>
+      <pose>10 0 1 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>0.15 8 2</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>0.15 8 2</size></box></geometry>
+          <material>
+            <ambient>0.9 0.85 0.85 1</ambient>
+            <diffuse>0.9 0.85 0.85 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- ==================== 房间内障碍物 ==================== -->
+    
+    <!-- 房间1: 柜子 -->
+    <model name="cabinet1">
+      <static>true</static>
+      <pose>-2 2 1 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>1.5 0.8 2</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>1.5 0.8 2</size></box></geometry>
+          <material>
+            <ambient>0.6 0.4 0.2 1</ambient>
+            <diffuse>0.6 0.4 0.2 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- 房间1: 书架 -->
+    <model name="bookshelf">
+      <static>true</static>
+      <pose>2 3 1 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>2 0.5 2</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>2 0.5 2</size></box></geometry>
+          <material>
+            <ambient>0.3 0.3 0.6 1</ambient>
+            <diffuse>0.3 0.3 0.6 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- 房间1: 柱子 -->
+    <model name="pillar1">
+      <static>true</static>
+      <pose>-3 -1 1 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><cylinder><radius>0.25</radius><length>2</length></cylinder></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><cylinder><radius>0.25</radius><length>2</length></cylinder></geometry>
+          <material>
+            <ambient>0.7 0.7 0.7 1</ambient>
+            <diffuse>0.7 0.7 0.7 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- 房间2: 货架1 -->
+    <model name="shelf1">
+      <static>true</static>
+      <pose>-1.5 -7 1 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>0.8 0.6 2</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>0.8 0.6 2</size></box></geometry>
+          <material>
+            <ambient>0.8 0.5 0.2 1</ambient>
+            <diffuse>0.8 0.5 0.2 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="shelf2">
+      <static>true</static>
+      <pose>1.5 -6 1 0 0 0.2</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>1 0.8 2</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>1 0.8 2</size></box></geometry>
+          <material>
+            <ambient>0.2 0.6 0.4 1</ambient>
+            <diffuse>0.2 0.6 0.4 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- 房间3: 设备柜 -->
+    <model name="equipment">
+      <static>true</static>
+      <pose>8 2 1 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>1.8 0.7 2</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>1.8 0.7 2</size></box></geometry>
+          <material>
+            <ambient>0.5 0.5 0.5 1</ambient>
+            <diffuse>0.5 0.5 0.5 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- 房间3: 圆柱设备 -->
+    <model name="cylinder_equipment">
+      <static>true</static>
+      <pose>7 -2 1 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><cylinder><radius>0.4</radius><length>2</length></cylinder></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><cylinder><radius>0.4</radius><length>2</length></cylinder></geometry>
+          <material>
+            <ambient>0.4 0.2 0.1 1</ambient>
+            <diffuse>0.4 0.2 0.1 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- ==================== 墙面标记 ==================== -->
+    
+    <!-- 右边墙上的彩色正方形标记 -->
+    <model name="wall_marker">
+      <static>true</static>
+      <pose>8.42 -3.9 0.6 1.578 0 0</pose>  <!-- 贴在x=10墙面内侧，y=4m，z=1m高度，pitch旋转90度贴墙 -->
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>0.05 0.05 0.001</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>0.05 0.05 0.001</size></box></geometry>
+          <material>
+            <ambient>1 1 0 1</ambient>  <!-- 黄色标记 -->
+            <diffuse>1 1 0 1</diffuse>
+            <specular>0.5 0.5 0.5 1</specular>
+            <emissive>0.3 0.3 0 1</emissive>  <!-- 轻微发光效果，更易识别 -->
+          </material>
+        </visual>
+      </link>
+    </model>
+
+  </world>
+</sdf>
