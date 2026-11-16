@@ -1,0 +1,9 @@
+<library path="scr_planner">
+  <class type="scr_planner::EnhancedAStarPlanner" base_class_type="nav2_core::GlobalPlanner">
+    <description>
+      Orientation-aware 4-connected A*: state (x, y, heading), cost = steps
+      (optionally costmap-weighted) + turn_penalty * turns. Axis-aligned paths
+      with the provably minimal cost.
+    </description>
+  </class>
+</library>
