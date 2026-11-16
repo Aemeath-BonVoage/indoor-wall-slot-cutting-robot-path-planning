@@ -23,8 +23,7 @@ install(TARGETS scr_planner_core EXPORT export_scr_planner
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin)
 install(DIRECTORY include/ DESTINATION include/)
-install(FILES python/scr_planner_py.py DESTINATION share/${PROJECT_NAME}/python)
-install(PROGRAMS scripts/wall_benchmark.py DESTINATION lib/${PROJECT_NAME})
+install(FILES python/scr_planner_py.py python/wall_rules.py DESTINATION share/${PROJECT_NAME}/python)
 
 if(BUILD_TESTING)
   find_package(ament_cmake_gtest REQUIRED)
