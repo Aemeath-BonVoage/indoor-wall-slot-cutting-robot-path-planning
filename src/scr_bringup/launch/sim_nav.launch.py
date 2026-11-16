@@ -25,6 +25,8 @@ def generate_launch_description():
                               description='Start Gazebo GUI (gzclient)'),
         DeclareLaunchArgument('rviz', default_value='true',
                               description='Start RViz'),
+        DeclareLaunchArgument('rtf', default_value='1.0',
+                              description='Max real-time factor (1.0 = real time, 0 = unlimited)'),
         DeclareLaunchArgument('world',
                               default_value=os.path.join(desc_share, 'worlds', 'room.world'),
                               description='Gazebo world file'),
@@ -43,6 +45,7 @@ def generate_launch_description():
         launch_arguments={
             'world': LaunchConfiguration('world'),
             'gui': LaunchConfiguration('gui'),
+            'rtf': LaunchConfiguration('rtf'),
         }.items(),
     )
 

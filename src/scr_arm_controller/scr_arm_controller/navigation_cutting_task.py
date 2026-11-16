@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
 导航+切割任务总控程序
+
 先导航到目标点，然后精确定位到黄色方块正前方，最后执行切割任务
 """
 
@@ -18,8 +19,8 @@ from geometry_msgs.msg import Twist
 from nav_msgs.msg import Odometry
 from gazebo_msgs.msg import ModelStates
 from scr_arm_controller.cartesian_cutting import CartesianCuttingController
-from scr_arm_controller.marker_scanner import MarkerScanner
 from scr_arm_controller.trajectory_visualizer import TrajectoryVisualizer
+from scr_arm_controller.base_hold import BaseHold
 from scr_arm_controller.visual_servo import pbvs_command
 from scr_arm_controller.visual_servo_ros import WallMarkerServo
 
@@ -58,9 +59,6 @@ class NavigationCuttingTask(Node):
         # 机械臂控制器
         self.arm_controller = CartesianCuttingController()
 
-        # 方块扫描器
-        self.marker_scanner = MarkerScanner()
-
         # 轨迹可视化器
         self.trajectory_visualizer = TrajectoryVisualizer()
 
@@ -80,13 +78,22 @@ class NavigationCuttingTask(Node):
         # 切割时再伸出；对位距离 0.70 m 时留出约 2.4 cm 间隙
         self.approach_joint3 = 0.02
         self.min_clearance = 0.005                 # 防碰撞守护：刀具前端与墙面的最小间隙（米）
+        self.guard_horizon = 0.5                   # 防碰撞守护：制动时间常数（秒）
         self.guard_enabled = True
         self._guard_active = False
+        # 扫描 / 切割期间底盘定点保持（机械臂反作用力会推动底盘）
+        self.hold_base = True
+        self.base_hold = BaseHold(entity=self.GAZEBO_ENTITY)
 
         # 视觉伺服测量器（激光拟合墙面 + 相机检测方块）
         self.servo = WallMarkerServo(self)
 
         self.get_logger().info('导航+切割任务控制器已初始化')
+
+    def destroy_node(self):
+        # 先停掉定点保持的后台线程，避免 rclpy.shutdown() 时进程 abort
+        self.base_hold.shutdown()
+        return super().destroy_node()
 
     def odom_callback(self, msg):
         """里程计回调"""
@@ -101,7 +108,8 @@ class NavigationCuttingTask(Node):
             pass
 
     def get_robot_position(self):
-        """获取机器人当前位置（控制用：里程计）.
+        """
+        获取机器人当前位置（控制用：里程计）.
 
         self.odom_bias = (dx, dy, dyaw) 用于实验中模拟里程计累积漂移（默认为 0）。
         """
@@ -140,13 +148,15 @@ class NavigationCuttingTask(Node):
     def navigate_to_pose(self, x, y, yaw):
         """
         导航到指定位姿
+
         x, y: 目标坐标（米）
         yaw: 目标朝向（弧度）
         """
         self.get_logger().info('='*60)
         self.get_logger().info('步骤1: 导航到目标区域')
         self.get_logger().info('='*60)
-        self.get_logger().info(f'目标位姿: x={x:.3f}, y={y:.3f}, yaw={yaw:.3f} ({math.degrees(yaw):.1f}°)')
+        self.get_logger().info(f'目标位姿: x={x:.3f}, y={y:.3f}, yaw={yaw:.3f} '
+                               f'({math.degrees(yaw):.1f}°)')
 
         # 等待导航服务器
         self.get_logger().info('等待导航服务器...')
@@ -194,6 +204,7 @@ class NavigationCuttingTask(Node):
     def precise_positioning_to_marker(self):
         """
         精确定位到黄色方块正前方
+
         使用self.distance_from_marker作为目标距离
         """
         self.get_logger().info('\n' + '='*60)
@@ -207,9 +218,11 @@ class NavigationCuttingTask(Node):
         target_y = self.marker_position['y'] + self.distance_from_marker  # 在方块北侧
         target_yaw = -math.pi / 2  # 朝向-Y方向（朝南）
 
-        self.get_logger().info(f'方块位置: x={self.marker_position["x"]:.3f}, y={self.marker_position["y"]:.3f}')
+        self.get_logger().info(f'方块位置: x={self.marker_position["x"]:.3f}, '
+                               f'y={self.marker_position["y"]:.3f}')
         self.get_logger().info(f'目标距离: {self.distance_from_marker:.2f}m')
-        self.get_logger().info(f'目标位置: x={target_x:.3f}, y={target_y:.3f}, yaw={target_yaw:.3f} ({math.degrees(target_yaw):.1f}°)')
+        self.get_logger().info(f'目标位置: x={target_x:.3f}, y={target_y:.3f}, '
+                               f'yaw={target_yaw:.3f} ({math.degrees(target_yaw):.1f}°)')
 
         if self.positioning_mode == 'visual':
             # 视觉伺服：控制只用传感器测量；上面的目标位姿仅用于真值评估
@@ -268,8 +281,11 @@ class NavigationCuttingTask(Node):
                 converged_count += 1
                 if converged_count >= required_converged:
                     self.get_logger().info('✅ 精确定位完成！')
-                    self.get_logger().info(f'   最终位置: x={current_pos["x"]:.4f}, y={current_pos["y"]:.4f}, yaw={current_pos["yaw"]:.4f}')
-                    self.get_logger().info(f'   位置误差: {distance_error*1000:.1f}mm, 角度误差: {math.degrees(abs(error_yaw)):.2f}°')
+                    self.get_logger().info(f'   最终位置: x={current_pos["x"]:.4f}, '
+                                           f'y={current_pos["y"]:.4f}, '
+                                           f'yaw={current_pos["yaw"]:.4f}')
+                    self.get_logger().info(f'   位置误差: {distance_error*1000:.1f}mm, 角度误差: '
+                                           f'{math.degrees(abs(error_yaw)):.2f}°')
                     self.get_logger().info(f'   总迭代次数: {iteration+1}')
                     self.stop_robot()
                     self.report_ground_truth_error(target_x, target_y, target_yaw)
@@ -310,14 +326,19 @@ class NavigationCuttingTask(Node):
 
         # 超过最大迭代次数：定位未收敛，按失败处理
         self.get_logger().error(f'❌ 达到最大迭代次数({max_iterations})，定位未收敛')
-        self.get_logger().error(f'   当前误差: 距离={distance_error*1000:.1f}mm, 角度={math.degrees(abs(error_yaw)):.2f}°')
+        self.get_logger().error(f'   当前误差: 距离={distance_error*1000:.1f}mm, '
+                                f'角度={math.degrees(abs(error_yaw)):.2f}°')
         self.stop_robot()
         self.report_ground_truth_error(target_x, target_y, target_yaw)
         return False
 
     def apply_wall_guard(self, cmd):
-        """激光防碰撞守护：刀具前端离墙小于 min_clearance 时，去掉速度中朝向墙面的分量.
+        """
+        激光防碰撞守护：按制动距离限制朝向墙面的速度分量.
 
+        允许的向墙速度 = max(0, (间隙 − min_clearance) / guard_horizon)，越靠近越慢，
+        间隙到 min_clearance 时降为 0。若只在间隙已小于阈值时才截断，10 Hz 控制周期内
+        机器人会以 0.1–0.2 m/s 冲过阈值 1–2 cm（实测）。
         与对位模式无关（odom / visual 都生效），只依赖激光拟合的墙面与当前机械臂位姿。
         """
         if not self.guard_enabled:
@@ -333,13 +354,15 @@ class NavigationCuttingTask(Node):
         # 刀具前端（base_link x 轴上）到墙面的垂直间隙
         clearance = wall['distance'] - front * nx
         toward = cmd.linear.x * nx + cmd.linear.y * ny
-        if clearance < self.min_clearance and toward > 0:
-            cmd.linear.x -= toward * nx
-            cmd.linear.y -= toward * ny
-            if not self._guard_active:
+        allowed = max(0.0, (clearance - self.min_clearance) / self.guard_horizon)
+        if toward > allowed:
+            cut = toward - allowed
+            cmd.linear.x -= cut * nx
+            cmd.linear.y -= cut * ny
+            if allowed == 0.0 and not self._guard_active:
                 self.get_logger().warn(
-                    f'🛡️ 防碰撞守护触发：刀具前端距墙 {clearance*1000:.1f} mm，已阻止向墙运动')
-            self._guard_active = True
+                    f'🛡️ 防碰撞守护：刀具前端距墙 {clearance*1000:.1f} mm，已阻止向墙运动')
+            self._guard_active = allowed == 0.0
         else:
             self._guard_active = False
         return cmd
@@ -458,97 +481,62 @@ class NavigationCuttingTask(Node):
             self.cmd_vel_pub.publish(cmd)
             self.sleep_sim(0.1)
 
-    def scan_for_marker(self):
+    def scan_for_marker(self, samples=5):
         """
-        上下扫描寻找黄色方块
-        返回: 方块在base_link坐标系中的位置 (x, y, z) 或 None
+        检测黄色方块的三维位置（相机射线与激光拟合墙面求交，见 visual_servo_ros）.
+
+        先在当前位姿检测（视觉伺服结束时方块通常已在视野中）；未检测到时再按高度逐步扫描。
+        返回: 方块在 base_link 中的位置 (x, y, z)（多帧平均）或 None
         """
         self.get_logger().info('\n' + '='*60)
         self.get_logger().info('步骤2.5: 扫描寻找黄色方块')
         self.get_logger().info('='*60)
 
-        # 重置检测状态
-        self.marker_scanner.reset_detection()
+        def try_measure():
+            pts = []
+            for _ in range(samples * 4):
+                m, _ = self.servo.measure(self.distance_from_marker)
+                if m is not None:
+                    pts.append(m['marker_base'])
+                    if len(pts) >= samples:
+                        break
+                self.sleep_sim(0.1)
+            if len(pts) < samples:
+                return None
+            mean = [sum(p[k] for p in pts) / len(pts) for k in range(3)]
+            return tuple(float(v) for v in mean)
 
-        # 扫描参数
-        scan_z_start = 0.3   # 起始高度（相对于base_link）
-        scan_z_end = 0.7     # 结束高度
-        scan_z_step = 0.05   # 步进
-        scan_duration = 2.0  # 每步停留时间
+        heights = [None] + [round(0.3 + 0.05 * i, 2) for i in range(9)]   # None = 当前位姿
+        marker_pos = None
+        for z in heights:
+            if z is not None:
+                self.get_logger().info(f'扫描高度 Z={z:.2f} m')
+                if not self.arm_controller.move_to_cartesian(
+                        self.arm_controller.x0 - self.approach_joint3, self.arm_controller.y0, z,
+                        rotation=0.0, duration=1.5):
+                    continue
+                self.sleep_sim(0.3)
+            marker_pos = try_measure()
+            if marker_pos is not None:
+                break
 
-        # 固定X和Y位置（机械臂初始位置）
-        scan_x = self.arm_controller.x0
-        scan_y = self.arm_controller.y0
+        if marker_pos is None:
+            self.get_logger().warn('⚠️  扫描完成，未检测到黄色方块')
+        else:
+            self.get_logger().info(
+                f'✅ 检测到黄色方块！位置: X={marker_pos[0]:.4f}, Y={marker_pos[1]:.4f}, '
+                f'Z={marker_pos[2]:.4f}（{samples} 帧平均）')
+            self.marker_detected_position = dict(zip('xyz', marker_pos))
+            self.report_perception_error({'marker_base': marker_pos})
 
-        self.get_logger().info(f'扫描范围: Z={scan_z_start:.2f}m 到 {scan_z_end:.2f}m')
-        self.get_logger().info(f'扫描步进: {scan_z_step:.2f}m')
-        self.get_logger().info(f'固定位置: X={scan_x:.3f}m, Y={scan_y:.3f}m')
-
-        # 从下往上扫描
-        current_z = scan_z_start
-        scan_count = 0
-
-        while current_z <= scan_z_end:
-            scan_count += 1
-            self.get_logger().info(f'\n扫描点 {scan_count}: Z={current_z:.3f}m')
-
-            # 移动到扫描位置
-            if not self.arm_controller.move_to_cartesian(
-                scan_x, scan_y, current_z,
-                rotation=0.0,
-                duration=1.5
-            ):
-                self.get_logger().error(f'无法移动到扫描位置 Z={current_z:.3f}m')
-                current_z += scan_z_step
-                continue
-
-            # 等待稳定并采集图像
-            self.get_logger().info('等待图像采集...')
-
-            # 重置图像计数
-            self.marker_scanner.image_count = 0
-
-            for _ in range(int(scan_duration * 10)):
-                rclpy.spin_once(self.marker_scanner, timeout_sec=0.1)
-
-                # 检查是否检测到方块
-                if self.marker_scanner.marker_detected:
-                    marker_pos = self.marker_scanner.get_marker_in_base_link()
-                    if marker_pos is not None:
-                        self.get_logger().info(
-                            f'✅ 检测到黄色方块！'
-                            f'位置: X={marker_pos[0]:.4f}, Y={marker_pos[1]:.4f}, Z={marker_pos[2]:.4f}'
-                        )
-                        self.marker_detected_position = {
-                            'x': marker_pos[0],
-                            'y': marker_pos[1],
-                            'z': marker_pos[2]
-                        }
-
-                        # 回到初始位置
-                        self.get_logger().info('\n机械臂回到初始位置')
-                        self.arm_controller.move_to_joints([0.0, 0.0, 0.0, 0.0], duration=2.0)
-
-                        return marker_pos
-
-            # 打印采集的图像数量
-            self.get_logger().info(f'本次扫描点采集了 {self.marker_scanner.image_count} 帧图像')
-
-            # 移动到下一个高度
-            current_z += scan_z_step
-
-        # 扫描完成但未找到
-        self.get_logger().warn('⚠️  扫描完成，未检测到黄色方块')
-
-        # 回到初始位置
-        self.get_logger().info('\n机械臂回到初始位置')
-        self.arm_controller.move_to_joints([0.0, 0.0, 0.0, 0.0], duration=2.0)
-
-        return None
+        # 回到接近位姿（伸缩轴缩回，保持离墙余量）
+        self.arm_controller.move_to_joints([0.0, 0.0, self.approach_joint3, 0.0], duration=2.0)
+        return marker_pos
 
     def execute_cutting_task(self, config_file):
         """
         执行切割任务
+
         config_file: 切割任务配置文件路径
         """
         self.get_logger().info('\n' + '='*60)
@@ -615,7 +603,8 @@ class NavigationCuttingTask(Node):
         # 回到初始位置
         first_rotation = points[0][3]
         self.get_logger().info('机械臂回到初始位置')
-        if not self.arm_controller.move_to_joints([0.0, 0.0, 0.0, first_rotation], duration=duration):
+        start_joints = [0.0, 0.0, 0.0, first_rotation]
+        if not self.arm_controller.move_to_joints(start_joints, duration=duration):
             return False
 
         # 依次移动到所有点
@@ -627,15 +616,14 @@ class NavigationCuttingTask(Node):
         # 回到初始位置（可选）
         if return_home:
             self.get_logger().info('\n机械臂回到初始位置')
-            if not self.arm_controller.move_to_joints([0.0, 0.0, 0.0, first_rotation], duration=duration):
+            start_joints = [0.0, 0.0, 0.0, first_rotation]
+            if not self.arm_controller.move_to_joints(start_joints, duration=duration):
                 return False
 
         return True
 
     def run_task(self, nav_x, nav_y, nav_yaw, cutting_config, enable_precise_positioning=True):
-        """
-        运行完整任务：导航 + 精确定位 + 切割
-        """
+        """运行完整任务：导航 + 精确定位 + 切割"""
         self.get_logger().info('\n' + '='*60)
         self.get_logger().info('开始执行导航+精确定位+切割任务')
         self.get_logger().info('='*60)
@@ -670,10 +658,10 @@ class NavigationCuttingTask(Node):
 
         return True
 
-
     def run_task_from_config(self, config, enable_precise_positioning=True, enable_scanning=True):
         """
         从配置文件运行完整任务
+
         config: 配置字典
         enable_precise_positioning: 是否启用精确定位
         enable_scanning: 是否启用方块扫描
@@ -706,6 +694,21 @@ class NavigationCuttingTask(Node):
             self.get_logger().info('\n等待机器人稳定...')
             self.sleep_sim(1.0)
 
+        # 从这里到切割结束，机械臂动作会推动底盘：开启定点保持（并用真值记录漂移）
+        self.base_hold.enabled = self.hold_base
+        self.base_hold.hold()
+        self.get_logger().info(
+            f'底盘定点保持: {"开启" if self.hold_base else "关闭（仅测量漂移）"}')
+        try:
+            return self._scan_and_cut(config, enable_scanning)
+        finally:
+            drift = self.base_hold.release()
+            if drift is not None:
+                self.get_logger().info(
+                    f'📏 扫描+切割期间底盘真值最大漂移: {drift[0]*1000:.1f} mm, {drift[1]:.2f}°')
+
+    def _scan_and_cut(self, config, enable_scanning):
+        """步骤 2.5 扫描 + 步骤 3 切割（在底盘定点保持下执行）."""
         # 步骤2.5: 扫描寻找黄色方块
         if enable_scanning:
             marker_pos = self.scan_for_marker()
@@ -762,6 +765,7 @@ class NavigationCuttingTask(Node):
     def _visualize_cutting_result(self):
         """
         生成切割结果可视化
+
         在方块位置生成红色边框（贴在墙上，X-Z平面）
         """
         # 使用方块的实际位置（但不在日志中透露）
@@ -882,10 +886,12 @@ def main(args=None):
         if 'position_tolerance' in precise_config:
             task_controller.position_tolerance = float(precise_config['position_tolerance'])
         if 'angle_tolerance_deg' in precise_config:
-            task_controller.angle_tolerance = math.radians(float(precise_config['angle_tolerance_deg']))
+            task_controller.angle_tolerance = math.radians(
+                float(precise_config['angle_tolerance_deg']))
         task_controller.positioning_mode = precise_config.get('mode', 'visual')
         if 'observe_joint1' in precise_config:
             task_controller.observe_joint1 = float(precise_config['observe_joint1'])
+    task_controller.hold_base = bool(config.get('base_hold', True))
 
     print('\n任务配置:')
     print(f'  导航目标: x={nav_x:.3f}, y={nav_y:.3f}, yaw={nav_yaw:.3f}')
@@ -901,7 +907,6 @@ def main(args=None):
 
     # 清理
     task_controller.trajectory_visualizer.destroy_node()
-    task_controller.marker_scanner.destroy_node()
     task_controller.arm_controller.destroy_node()
     task_controller.destroy_node()
     if rclpy.ok():

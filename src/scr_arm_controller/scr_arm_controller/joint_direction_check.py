@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
-"""
-测试各关节运动方向 - 通过改变关节值观察末端位置变化
-"""
+"""测试各关节运动方向 - 通过改变关节值观察末端位置变化"""
 
 import numpy as np
 
@@ -40,6 +38,7 @@ def create_transform_matrix(xyz, rpy):
 def forward_kinematics(j1, j2, j3, j4):
     """
     计算正向运动学
+
     j1, j2, j3: 移动关节值 (米)
     j4: 旋转关节值 (弧度)
     返回末端位置 [x, y, z]

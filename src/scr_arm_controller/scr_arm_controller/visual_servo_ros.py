@@ -42,6 +42,12 @@ class WallMarkerServo:
         self.K = None                   # (fx, fy, cx, cy)
         self._filtered = None
 
+        # 主点修正（像素）：gazebo_ros_camera 发布的 cx, cy = (W+1)/2, (H+1)/2，而按 OpenCV
+        # “整数坐标位于像素中心”的约定应为 (W-1)/2, (H-1)/2，相差 1 px。27 个位姿实测检测像素
+        # 相对真值投影偏 −0.99 / −1.01 px，导致方块横向估计偏 +1.5~3 mm（随距离增大）。
+        # 真机上应由相机标定得到内参，此修正置 0。
+        self.principal_point_shift = (-1.0, -1.0)
+
         # 实验用：额外注入的测量噪声（标准差），默认为 0
         self.pixel_noise = 0.0          # 方块像素坐标噪声（像素）
         self.range_noise = 0.0          # 激光测距噪声（米）
@@ -56,7 +62,8 @@ class WallMarkerServo:
         self.scan = msg
 
     def _on_info(self, msg):
-        self.K = (msg.k[0], msg.k[4], msg.k[2], msg.k[5])
+        dx, dy = self.principal_point_shift
+        self.K = (msg.k[0], msg.k[4], msg.k[2] + dx, msg.k[5] + dy)
 
     def _on_image(self, msg):
         try:
@@ -101,7 +108,8 @@ class WallMarkerServo:
                 'rms': wall_l['rms'], 'inliers': wall_l['inliers']}, None
 
     def tool_front_x(self, link='link4', offset=0.1594):
-        """刀具最前端在 base_link 中的 x 坐标.
+        """
+        刀具最前端在 base_link 中的 x 坐标.
 
         offset：末端网格沿 base_link x 方向相对 link4 原点的最大前伸量（由 link4.STL 包围盒得到）。
         """

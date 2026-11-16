@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
-"""
-笛卡尔空间切割控制 - 指定相对于base_link的坐标进行切割
-"""
+"""笛卡尔空间切割控制 - 指定相对于base_link的坐标进行切割"""
 
 import rclpy
 from rclpy.node import Node
@@ -54,13 +52,17 @@ class CartesianCuttingController(Node):
         }
 
         self.get_logger().info('笛卡尔空间工作范围（相对于base_link）:')
-        self.get_logger().info(f'  X: [{self.cartesian_limits["x"][0]:.4f}, {self.cartesian_limits["x"][1]:.4f}] m')
-        self.get_logger().info(f'  Y: [{self.cartesian_limits["y"][0]:.4f}, {self.cartesian_limits["y"][1]:.4f}] m')
-        self.get_logger().info(f'  Z: [{self.cartesian_limits["z"][0]:.4f}, {self.cartesian_limits["z"][1]:.4f}] m')
+        self.get_logger().info(f'  X: [{self.cartesian_limits["x"][0]:.4f}, '
+                               f'{self.cartesian_limits["x"][1]:.4f}] m')
+        self.get_logger().info(f'  Y: [{self.cartesian_limits["y"][0]:.4f}, '
+                               f'{self.cartesian_limits["y"][1]:.4f}] m')
+        self.get_logger().info(f'  Z: [{self.cartesian_limits["z"][0]:.4f}, '
+                               f'{self.cartesian_limits["z"][1]:.4f}] m')
 
     def inverse_kinematics(self, x, y, z, rotation=0.0):
         """
         逆运动学求解
+
         输入: 相对于base_link的目标位置 (x, y, z) 和旋转角度
         输出: 关节值 [j1, j2, j3, j4] 或 None（如果无解）
 
@@ -95,15 +97,18 @@ class CartesianCuttingController(Node):
                 # 同时显示笛卡尔空间的限位
                 if joint_name == 'joint1':
                     self.get_logger().error(
-                        f'  对应Z轴范围: [{self.cartesian_limits["z"][0]:.4f}, {self.cartesian_limits["z"][1]:.4f}]'
+                        f'  对应Z轴范围: [{self.cartesian_limits["z"][0]:.4f}, '
+                        f'{self.cartesian_limits["z"][1]:.4f}]'
                     )
                 elif joint_name == 'joint2':
                     self.get_logger().error(
-                        f'  对应Y轴范围: [{self.cartesian_limits["y"][0]:.4f}, {self.cartesian_limits["y"][1]:.4f}]'
+                        f'  对应Y轴范围: [{self.cartesian_limits["y"][0]:.4f}, '
+                        f'{self.cartesian_limits["y"][1]:.4f}]'
                     )
                 elif joint_name == 'joint3':
                     self.get_logger().error(
-                        f'  对应X轴范围: [{self.cartesian_limits["x"][0]:.4f}, {self.cartesian_limits["x"][1]:.4f}]'
+                        f'  对应X轴范围: [{self.cartesian_limits["x"][0]:.4f}, '
+                        f'{self.cartesian_limits["x"][1]:.4f}]'
                     )
                 return None
 
@@ -136,9 +141,12 @@ class CartesianCuttingController(Node):
         x_range = self.cartesian_limits['x']
         y_range = self.cartesian_limits['y']
         z_range = self.cartesian_limits['z']
-        self.get_logger().info(f'  X: [{x_range[0]:.5f}, {x_range[1]:.5f}] m (范围: {x_range[1]-x_range[0]:.5f} m)')
-        self.get_logger().info(f'  Y: [{y_range[0]:.5f}, {y_range[1]:.5f}] m (范围: {y_range[1]-y_range[0]:.5f} m)')
-        self.get_logger().info(f'  Z: [{z_range[0]:.5f}, {z_range[1]:.5f}] m (范围: {z_range[1]-z_range[0]:.5f} m)')
+        self.get_logger().info(f'  X: [{x_range[0]:.5f}, {x_range[1]:.5f}] m (范围: '
+                               f'{x_range[1]-x_range[0]:.5f} m)')
+        self.get_logger().info(f'  Y: [{y_range[0]:.5f}, {y_range[1]:.5f}] m (范围: '
+                               f'{y_range[1]-y_range[0]:.5f} m)')
+        self.get_logger().info(f'  Z: [{z_range[0]:.5f}, {z_range[1]:.5f}] m (范围: '
+                               f'{z_range[1]-z_range[0]:.5f} m)')
 
         self.get_logger().info('\n关节限位:')
         for joint_name, (lower, upper) in self.joint_limits.items():
@@ -186,6 +194,7 @@ class CartesianCuttingController(Node):
     def cut_rectangle(self, points, rotation=0.0):
         """
         按照矩形四个点进行切割
+
         points: 四个点的列表，每个点是 (x, y, z) 元组
         """
         if len(points) != 4:

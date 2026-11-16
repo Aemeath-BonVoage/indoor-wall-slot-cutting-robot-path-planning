@@ -4,7 +4,7 @@ from ament_index_python.packages import get_package_share_directory, get_package
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.actions import TimerAction, ExecuteProcess, DeclareLaunchArgument
 from launch.conditions import IfCondition
-from launch.substitutions import LaunchConfiguration
+from launch.substitutions import LaunchConfiguration, PythonExpression
 import os
 
 
@@ -66,6 +66,23 @@ def generate_launch_description():
         'gui',
         default_value='true',
         description='Start Gazebo GUI (gzclient)'
+    )
+
+    # rtf：仿真速度上限（相对实时的倍数）。1.0 = 实时（默认）；2.5 = 最快 2.5 倍；0 = 不限速。
+    # 控制器均按仿真时钟计时，因此加速不改变控制律；但感知 / 控制代码的计算延迟按仿真时间
+    # 计会放大 rtf 倍，批量实验前应先与 rtf=1 对比确认结果一致。
+    declare_rtf = DeclareLaunchArgument(
+        'rtf',
+        default_value='1.0',
+        description='Max real-time factor (1.0 = real time, 0 = unlimited)'
+    )
+    unthrottle = TimerAction(
+        period=3.0,
+        actions=[ExecuteProcess(
+            cmd=['gz', 'physics', '-u',
+                 PythonExpression(['str(int(1000 * float("', LaunchConfiguration('rtf'), '")))'])],
+            output='screen')],
+        condition=IfCondition(PythonExpression(['float("', LaunchConfiguration('rtf'), '") != 1.0']))
     )
 
     gzclient = ExecuteProcess(
@@ -132,6 +149,8 @@ def generate_launch_description():
     return launch.LaunchDescription([
         declare_world,
         declare_gui,
+        declare_rtf,
+        unthrottle,
         robot_state_publisher_node,
         gzserver,
         gzclient,

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
 黄色方块扫描器
+
 通过上下移动机械臂并使用相机检测黄色方块位置
 """
 
@@ -148,6 +149,7 @@ class MarkerScanner(Node):
     def get_marker_in_base_link(self):
         """
         获取方块在base_link坐标系中的位置
+
         返回: (x, y, z) 或 None
         """
         if not self.marker_detected or self.marker_position_camera is None:
@@ -158,9 +160,12 @@ class MarkerScanner(Node):
             point_camera = PointStamped()
             point_camera.header.frame_id = 'camera_optical_link'
             point_camera.header.stamp = self.get_clock().now().to_msg()  # 使用正确的时间戳格式
-            point_camera.point.x = self.marker_position_camera['z']  # 相机Z轴是前方
-            point_camera.point.y = -self.marker_position_camera['x']  # 相机X轴是右，转换为左
-            point_camera.point.z = -self.marker_position_camera['y']  # 相机Y轴是下，转换为上
+            # camera_optical_link 本身就是光学坐标系（z 前、x 右、y 下），直接填入，
+            # 由 TF 完成到 base_link 的旋转（此前这里又手动转了一次，高度会偏约 18 cm）。
+            # 注：导航切割任务已改用 visual_servo_ros（射线与激光墙面求交），本节点仅供单独调试。
+            point_camera.point.x = self.marker_position_camera['x']
+            point_camera.point.y = self.marker_position_camera['y']
+            point_camera.point.z = self.marker_position_camera['z']
 
             # 尝试多个可能的目标坐标系
             target_frames = ['base_link', 'base_footprint', 'odom']
@@ -187,7 +192,8 @@ class MarkerScanner(Node):
 
                     self.get_logger().info(
                         f'成功转换到 {target_frame} 坐标系: '
-                        f'X={point_target.point.x:.4f}, Y={point_target.point.y:.4f}, Z={point_target.point.z:.4f}'
+                        f'X={point_target.point.x:.4f}, Y={point_target.point.y:.4f}, '
+                        f'Z={point_target.point.z:.4f}'
                     )
 
                     return (point_target.point.x, point_target.point.y, point_target.point.z)

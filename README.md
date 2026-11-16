@@ -1,5 +1,7 @@
 # Indoor Wall Slot-Cutting Robot — Path Planning
 
+[![CI](https://github.com/Aemeath-BonVoage/indoor-wall-slot-cutting-robot-path-planning/actions/workflows/ci.yml/badge.svg)](https://github.com/Aemeath-BonVoage/indoor-wall-slot-cutting-robot-path-planning/actions/workflows/ci.yml)
+
 **面向室内墙体线槽开槽任务的机器人自主路径规划设计**
 
 一个基于 **ROS 2 Humble** 的室内墙面开槽机器人（SCR, *Slot Cutting Robot*）仿真系统：麦克纳姆轮全向底盘 + 直角坐标式 4 自由度机械臂，覆盖 **SLAM 建图 → Nav2 自主导航 → 视觉伺服对位 → 横平竖直开槽轨迹规划 → 机械臂执行** 的完整作业链路。
@@ -46,7 +48,7 @@
 
 ![对位鲁棒性](docs/experiments/alignment_robustness/robustness.png)
 
-无扰动时两者精度相当（6.6 / 5.5 mm）；里程计漂移 3 / 10 cm 时基线误差升至 31 / 83 mm、刀具离墙间隙被压缩到 1–2 mm，视觉伺服保持约 5.5 mm、间隙 ≥ 21 mm。接近墙面时机械臂缩回并有激光防碰撞守护，72 次试验零碰墙。详见 [实验报告](docs/experiments/alignment_robustness/README.md)。
+无扰动时两者精度相当（7.6 / 8.2 mm，均受 1 cm 收敛容差约束）；里程计漂移 3 / 10 cm 时基线误差升至 30 / 84 mm、刀具离墙间隙被压缩到 4–7 mm，视觉伺服保持 6–8 mm、间隙 ≥ 20 mm。接近墙面时机械臂缩回，并有按制动距离限速的激光防碰撞守护，72 次试验零碰墙。详见 [实验报告](docs/experiments/alignment_robustness/README.md)。
 
 ---
 
@@ -132,6 +134,7 @@ source install/setup.bash
 ros2 launch scr_bringup sim_nav.launch.py                        # Gazebo + Nav2 + RViz
 ros2 launch scr_bringup sim_nav.launch.py gui:=false             # 不开 Gazebo 窗口
 ros2 launch scr_bringup sim_nav.launch.py gui:=false rviz:=false # 纯后台，最省内存
+ros2 launch scr_description gazebo.launch.py gui:=false rtf:=2.5  # 批量实验：只启动仿真，约 2.3 倍速
 
 # 导航就绪后（约 20–30 s）发送目标点
 ros2 run scr_navigation send_goal.py 1.5 0.0 0.0

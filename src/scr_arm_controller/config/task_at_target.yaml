@@ -16,6 +16,9 @@ precise_positioning:
   angle_tolerance_deg: 1.0    # 角度容差（度）
   observe_joint1: -0.15       # visual 模式下滑台高度（米），使方块成像在机械臂遮挡区域之上
 
+# 扫描 / 切割期间底盘定点保持（机械臂反作用力会推动底盘；false 时只测量漂移）
+base_hold: true
+
 # 方块扫描参数
 scanning:
   enabled: true

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""对位鲁棒性基准测试.
+"""
+对位鲁棒性基准测试.
 
 每次试验：用 Gazebo 服务把机器人传送到墙前的随机起点 → 只运行精确对位阶段 →
 用 Gazebo 真值计算最终误差。比较两种对位模式在不同扰动下的表现：
@@ -127,7 +128,7 @@ def plot(summary, path):
 
 
 def main():
-    ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
+    ap = argparse.ArgumentParser(description=__doc__.strip().split('\n')[0])
     ap.add_argument('--trials', type=int, default=5, help='每个条件的试验次数')
     ap.add_argument('--seed', type=int, default=42)
     ap.add_argument('--out', default='alignment_results')

@@ -1,4 +1,5 @@
-"""相机 + 激光融合的基于位置的视觉伺服（PBVS）——纯算法部分.
+"""
+相机 + 激光融合的基于位置的视觉伺服（PBVS）——纯算法部分.
 
 不依赖 ROS，便于单元测试。坐标约定：
 - base_link：x 前、y 左、z 上
@@ -37,7 +38,8 @@ def detect_marker(bgr, hsv_lower=(20, 100, 100), hsv_upper=(30, 255, 255), min_a
 
 def fit_wall(ranges, angle_min, angle_increment, half_fov=math.radians(35.0),
              max_range=4.0, min_points=10, inlier_tol=0.03, iterations=3):
-    """在雷达正前方 ±half_fov 内拟合墙面直线.
+    """
+    在雷达正前方 ±half_fov 内拟合墙面直线.
 
     直线表示为 n·p = d（n 为指向墙面的单位法向，d > 0 为垂直距离）。
     采用总体最小二乘 + 迭代剔除离群点。
@@ -97,7 +99,8 @@ def intersect_ray_wall(origin, direction, normal_xy, distance):
 
 
 def pbvs_error(marker_base, wall, desired_distance):
-    """计算 PBVS 误差（均在 base_link 中）.
+    """
+    计算 PBVS 误差（均在 base_link 中）.
 
     返回 dict:
       yaw     朝向误差（使 x 轴对准墙面法向）

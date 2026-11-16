@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
 轨迹可视化器
+
 在Gazebo中动态显示切割轨迹
 """
 
@@ -111,7 +112,8 @@ class TrajectoryVisualizer(Node):
             self._spawn_model(model_name, sdf, pose)
 
     def _create_line_sdf_for_wall(self, length, color, is_horizontal):
-        """创建贴墙线条的SDF描述
+        """
+        创建贴墙线条的SDF描述
 
         Box的本地坐标系：
         - X轴：长度方向（线条延伸方向）

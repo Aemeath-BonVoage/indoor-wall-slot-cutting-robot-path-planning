@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
-"""
-用joint1(上下)和joint2(左右)画5cm正方形
-"""
+"""用joint1(上下)和joint2(左右)画5cm正方形"""
 
 import rclpy
 from rclpy.node import Node
@@ -47,7 +45,8 @@ class SquareDemo(Node):
         trajectory.points = [point]
         goal_msg.trajectory = trajectory
 
-        self.get_logger().info(f'移动到: j1={positions[0]:.3f}, j2={positions[1]:.3f}, j3={positions[2]:.3f}, j4={positions[3]:.2f}')
+        self.get_logger().info(f'移动到: j1={positions[0]:.3f}, j2={positions[1]:.3f}, '
+                               f'j3={positions[2]:.3f}, j4={positions[3]:.2f}')
 
         future = self._action_client.send_goal_async(goal_msg)
         rclpy.spin_until_future_complete(self, future)
@@ -87,8 +86,8 @@ class SquareDemo(Node):
         # 角点: [joint1, joint2, joint3, joint4]
         corner1 = [-half_size, -half_size, 0.0, 0.0]  # 下左
         corner2 = [-half_size,  half_size, 0.0, 0.0]  # 下右
-        corner3 = [ half_size,  half_size, 0.0, 0.0]  # 上右
-        corner4 = [ half_size, -half_size, 0.0, 0.0]  # 上左
+        corner3 = [half_size,  half_size, 0.0, 0.0]   # 上右
+        corner4 = [half_size, -half_size, 0.0, 0.0]   # 上左
 
         self.get_logger().info('\n>>> 下左角')
         self.move_to(corner1, 2.0)

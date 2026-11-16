@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
 测试Gazebo轨迹可视化
+
 单独测试红色边框在Gazebo中的显示效果
 """
 

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
 自定义切割控制 - 通过YAML配置文件指定切割任务
+
 用法: ros2 run scr_arm_controller custom_cutting <config_file.yaml>
 """
 
@@ -15,6 +16,7 @@ from scr_arm_controller.cartesian_cutting import CartesianCuttingController
 def parse_rotation(rotation_str):
     """
     解析旋转角度，支持多种格式：
+
     - "90deg" 或 "90" -> 转换为弧度
     - "1.57rad" -> 直接使用弧度
     - 1.57 (数字) -> 直接使用弧度
@@ -163,7 +165,8 @@ def main(args=None):
     controller.get_logger().info(f'\n配置文件: {config_file}')
     controller.get_logger().info('\n输入的四个点:')
     for i, (x, y, z, rotation) in enumerate(points):
-        controller.get_logger().info(f'  点{i+1}: X={x:.4f}, Y={y:.4f}, Z={z:.4f}, R={math.degrees(rotation):.1f}°')
+        controller.get_logger().info(f'  点{i+1}: X={x:.4f}, Y={y:.4f}, Z={z:.4f}, '
+                                     f'R={math.degrees(rotation):.1f}°')
     controller.get_logger().info('\n运动参数:')
     controller.get_logger().info(f'  运动时长: {duration:.1f}s')
     controller.get_logger().info(f'  完成后回原点: {return_home}')
@@ -196,9 +199,11 @@ def execute_cutting(controller, points, duration, return_home):
     for i, (x, y, z, rotation) in enumerate(points):
         reachable, joints = controller.check_reachability(x, y, z, rotation)
         if not reachable:
-            controller.get_logger().error(f'点{i+1} ({x}, {y}, {z}, {math.degrees(rotation):.1f}°) 不可达！')
+            controller.get_logger().error(f'点{i+1} ({x}, {y}, {z}, '
+                                          f'{math.degrees(rotation):.1f}°) 不可达！')
             return False
-        controller.get_logger().info(f'点{i+1}: X={x:.4f}, Y={y:.4f}, Z={z:.4f}, R={math.degrees(rotation):.1f}° ✓')
+        controller.get_logger().info(f'点{i+1}: X={x:.4f}, Y={y:.4f}, Z={z:.4f}, '
+                                     f'R={math.degrees(rotation):.1f}° ✓')
 
     controller.get_logger().info('\n所有点都可达，开始执行...\n')
 
