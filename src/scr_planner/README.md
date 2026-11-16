@@ -24,21 +24,26 @@
 | `goal_tolerance_cells` | 0 | 终点被占时在此半径内找最近可通行格 |
 | `timeout_s` / `max_expansions` | 0 / 0 | 超时 / 扩展上限，0 = 不限 |
 
-## 用法
+## 开槽任务：离线规划 → 逐站执行
 
-```python
-import sys; sys.path.insert(0, 'src/scr_planner/python')
-from scr_planner_py import OrientedAStar
-import wall_rules as wr, random
-
-scene = wr.random_scene(random.Random(0), load_bearing=False)
-res = OrientedAStar().plan(scene.grid(), scene.start, scene.goal, **scene.params())
-print(res['status'], res['corners'], scene.violations(wr.densify(res['corners'])))
+```bash
+# 离线规划（不需要 ROS）：槽线、停靠站（按执行顺序）、每站机械臂点、预测时间
+python3 src/scr_planner/scripts/plan_wall_slots.py src/scr_planner/config/wall_task_room3_south.yaml /tmp/plan.yaml
+# Gazebo 中执行（只读规划文件；--dry-run-gap 为空切，仿真墙是刚体）
+ros2 run scr_planner execute_slot_plan.py /tmp/plan.yaml /tmp/run --dry-run-gap=0.01
 ```
+
+- 切割只沿直角折线：每刀只动一个轴，刀片 0° / 90°；弯曲半径只作规划约束。
+- 线盒高度须在机械臂可切范围内（离地约 0.27–0.80 m，任务约束）。
+- 停靠站划分 `--partition=dp|greedy|per_slot`，访问顺序 `--order=sweep|slot_by_slot`。
+
+## 测试与实验
 
 ```bash
 colcon build --packages-select scr_planner && colcon test --packages-select scr_planner
-PYTHONUNBUFFERED=1 python3 src/scr_planner/scripts/wall_benchmark.py   # 对比实验
+PYTHONUNBUFFERED=1 python3 src/scr_planner/scripts/wall_benchmark.py          # 2a：规范对比
+PYTHONUNBUFFERED=1 python3 src/scr_planner/scripts/station_order_benchmark.py  # 2b：停靠站顺序优化
 ```
 
-实验报告见 [`docs/experiments/cpp_planner`](../../docs/experiments/cpp_planner/README.md)。
+报告：[`docs/experiments/cpp_planner`](../../docs/experiments/cpp_planner/README.md)（规划算法与规范）、
+[`docs/experiments/slot_execution`](../../docs/experiments/slot_execution/README.md)（离线规划、多站执行、顺序优化）。

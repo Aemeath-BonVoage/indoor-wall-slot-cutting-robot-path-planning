@@ -1,0 +1,5 @@
+method,partition,order,stations_mean,points_mean,travel_m_mean,t_total_mean,saving_vs_naive_mean_pct,saving_vs_naive_median_pct,saving_vs_naive_max_pct
+naive,per_slot,slot_by_slot,11.09,61.7,4.548,234.6,0.0,0.0,0.0
+sweep,per_slot,sweep,11.09,61.7,2.586,223.2,6.6,4.6,30.4
+greedy,greedy,sweep,9.57,62.4,2.583,214.3,8.4,7.5,30.4
+dp,dp,sweep,9.58,62.1,2.55,213.5,8.6,7.5,30.4

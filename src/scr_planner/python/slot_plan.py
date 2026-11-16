@@ -282,10 +282,14 @@ def station_points(st: Station, wall: WallFrame, robot: RobotModel, depth,
 # ---------------------------------------------------------------------------
 @dataclass
 class TimeModel:
-    """执行时间模型（仿真时间，秒）。数值由 Gazebo 运行标定，见报告。"""
-    t_settle: float = 12.0      # 每站：横移收敛 + 定点 + 测残差的固定开销
-    v_strafe: float = 0.05      # 沿墙横移的等效速度（m/s）
-    t_point: float = 2.0        # 每个机械臂点（= 任务 YAML motion.duration）
+    """执行时间模型（仿真时间，秒）.
+
+    由 Gazebo 中两次完整执行（27 个停靠站）最小二乘标定：
+    calibrate_time_model.py → R² = 0.956，每站 RMSE 1.8 s（docs/experiments/slot_execution）。
+    """
+    t_settle: float = 6.85      # 每站：横移收敛 + 定点 + 测残差的固定开销
+    v_strafe: float = 0.1722    # 沿墙横移的等效速度（m/s）
+    t_point: float = 2.144      # 每个机械臂点（motion.duration = 2.0 s + 通信开销）
 
     def move(self, d):
         return self.t_settle + abs(d) / self.v_strafe
