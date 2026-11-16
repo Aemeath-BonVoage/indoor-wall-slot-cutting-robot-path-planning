@@ -69,8 +69,9 @@ class SlotExecutor(NavigationCuttingTask):
             'slot_tool_tracer',
             parameter_overrides=[rclpy.parameter.Parameter('use_sim_time', value=True)])
         self.tracer.create_subscription(LinkStates, '/gazebo/link_states', self._links_cb, 50)
-        # 定点保持：机械臂运动的反作用力会推动底盘（Gazebo 中轮子无摩擦、底盘由 planar_move
-        # 驱动，实测一站内可漂移 10 cm）。切割期间用里程计闭环把底盘保持在到站位姿。
+        # 定点保持：机械臂运动时底盘会漂移（Gazebo 中实测一站内可达 10 cm；与 gazebo_ros2_control
+        # 以运动学方式驱动机械臂关节有关，见 docs/ROADMAP.md 已知局限）。切割期间用里程计闭环
+        # 把底盘保持在到站位姿。
         self.hold_target = None
         self._odom = None
         self.tracer.create_subscription(Odometry, '/odom', self._odom_cb, 20)
