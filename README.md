@@ -46,7 +46,7 @@
 
 ![对位鲁棒性](docs/experiments/alignment_robustness/robustness.png)
 
-无扰动时两者精度相当（5.7 mm）；里程计漂移 3 / 10 cm 时基线误差升至 35 / 160 mm 并多次刀具碰墙，视觉伺服保持约 5 mm。详见 [实验报告](docs/experiments/alignment_robustness/README.md)。
+无扰动时两者精度相当（6.6 / 5.5 mm）；里程计漂移 3 / 10 cm 时基线误差升至 31 / 83 mm、刀具离墙间隙被压缩到 1–2 mm，视觉伺服保持约 5.5 mm、间隙 ≥ 21 mm。接近墙面时机械臂缩回并有激光防碰撞守护，72 次试验零碰墙。详见 [实验报告](docs/experiments/alignment_robustness/README.md)。
 
 ---
 
@@ -181,7 +181,7 @@ python3 wall_cutting_planner.py  # 墙面层：开槽轨迹三算法对比
 | 项目 | 参数 |
 |---|---|
 | 底盘 | 麦克纳姆轮，轮径 100 mm，轮距 593.16 × 493.80 mm |
-| 机械臂工作空间 | X 0.492–0.582 m，Y −0.080–0.060 m，Z 0.157–0.707 m（相对 `base_link`） |
+| 机械臂工作空间 | X 0.517–0.582 m，Y −0.060–0.080 m，Z 0.157–0.707 m（相对 `base_link`，TF 实测） |
 | 关节 | joint1 Z 升降 / joint2 Y 横移 / joint3 X 伸缩 / joint4 末端旋转 ±90° |
 | 传感器 | 2D 激光雷达、前视 RGB 相机 |
 

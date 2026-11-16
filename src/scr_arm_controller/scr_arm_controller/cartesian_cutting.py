@@ -43,11 +43,12 @@ class CartesianCuttingController(Node):
         self.z0 = 0.50679
 
         # 笛卡尔空间限位（基于关节限位计算）
+        # 与 inverse_kinematics 一致：x = x0 - j3，y = y0 - j2（已用 TF 实测验证）
         self.cartesian_limits = {
-            'x': (self.x0 - (-self.joint_limits['joint3'][0]),  # joint3控制X，反向
-                  self.x0 - (-self.joint_limits['joint3'][1])),
-            'y': (self.y0 - (-self.joint_limits['joint2'][0]),  # joint2控制Y，反向
-                  self.y0 - (-self.joint_limits['joint2'][1])),
+            'x': (self.x0 - self.joint_limits['joint3'][1],     # joint3控制X，反向
+                  self.x0 - self.joint_limits['joint3'][0]),
+            'y': (self.y0 - self.joint_limits['joint2'][1],     # joint2控制Y，反向
+                  self.y0 - self.joint_limits['joint2'][0]),
             'z': (self.z0 + self.joint_limits['joint1'][0],     # joint1控制Z
                   self.z0 + self.joint_limits['joint1'][1])
         }

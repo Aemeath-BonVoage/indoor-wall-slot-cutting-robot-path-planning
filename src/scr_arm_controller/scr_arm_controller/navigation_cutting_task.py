@@ -76,6 +76,12 @@ class NavigationCuttingTask(Node):
         self.positioning_mode = 'visual'
         self.observe_joint1 = -0.15                # 视觉伺服时的滑台高度（避开机械臂自遮挡）
         self.odom_bias = (0.0, 0.0, 0.0)           # 实验用：注入里程计漂移 (dx, dy, dyaw)
+        # 接近墙面时机械臂完全缩回（joint3 = +0.02 → 刀具前端距底盘中心 0.676 m），
+        # 切割时再伸出；对位距离 0.70 m 时留出约 2.4 cm 间隙
+        self.approach_joint3 = 0.02
+        self.min_clearance = 0.005                 # 防碰撞守护：刀具前端与墙面的最小间隙（米）
+        self.guard_enabled = True
+        self._guard_active = False
 
         # 视觉伺服测量器（激光拟合墙面 + 相机检测方块）
         self.servo = WallMarkerServo(self)
@@ -210,6 +216,7 @@ class NavigationCuttingTask(Node):
             return self.precise_positioning_visual(target_x, target_y, target_yaw)
 
         self.get_logger().info('对位模式: odom（里程计 + 已知方块坐标，基线）')
+        self.move_arm_for_approach(joint1=0.0)
         # 等待获取机器人位置
         self.get_logger().info('等待获取机器人位置...')
         for _ in range(50):
@@ -286,8 +293,8 @@ class NavigationCuttingTask(Node):
                 w = min(max(kp_angular * abs(error_yaw), min_angular_vel), max_angular_vel)
                 cmd.angular.z = math.copysign(w, error_yaw)
 
-            # 发布速度命令
-            self.cmd_vel_pub.publish(cmd)
+            # 发布速度命令（经激光防碰撞守护）
+            self.cmd_vel_pub.publish(self.apply_wall_guard(cmd))
 
             # 每20次迭代打印一次状态
             if iteration % 20 == 0:
@@ -308,6 +315,42 @@ class NavigationCuttingTask(Node):
         self.report_ground_truth_error(target_x, target_y, target_yaw)
         return False
 
+    def apply_wall_guard(self, cmd):
+        """激光防碰撞守护：刀具前端离墙小于 min_clearance 时，去掉速度中朝向墙面的分量.
+
+        与对位模式无关（odom / visual 都生效），只依赖激光拟合的墙面与当前机械臂位姿。
+        """
+        if not self.guard_enabled:
+            return cmd
+        wall, _ = self.servo.wall_in_base()
+        if wall is None:
+            return cmd
+        try:
+            front = self.servo.tool_front_x()
+        except Exception:  # noqa: BLE001
+            return cmd
+        nx, ny = wall['normal']
+        # 刀具前端（base_link x 轴上）到墙面的垂直间隙
+        clearance = wall['distance'] - front * nx
+        toward = cmd.linear.x * nx + cmd.linear.y * ny
+        if clearance < self.min_clearance and toward > 0:
+            cmd.linear.x -= toward * nx
+            cmd.linear.y -= toward * ny
+            if not self._guard_active:
+                self.get_logger().warn(
+                    f'🛡️ 防碰撞守护触发：刀具前端距墙 {clearance*1000:.1f} mm，已阻止向墙运动')
+            self._guard_active = True
+        else:
+            self._guard_active = False
+        return cmd
+
+    def move_arm_for_approach(self, joint1=0.0):
+        """接近墙面前把机械臂移到安全位姿：滑台高度 joint1，伸缩轴完全缩回."""
+        self.get_logger().info(
+            f'机械臂移至接近位姿 joint1={joint1:.2f} m, joint3={self.approach_joint3:+.3f} m（缩回）')
+        self.arm_controller.move_to_joints([joint1, 0.0, self.approach_joint3, 0.0], duration=2.0)
+        self.sleep_sim(0.5)
+
     def precise_positioning_visual(self, target_x, target_y, target_yaw):
         """相机 + 激光融合 PBVS 对位（不使用里程计与已知方块坐标）."""
         D = self.distance_from_marker
@@ -322,9 +365,7 @@ class NavigationCuttingTask(Node):
 
         # 观测位姿：相机与机械臂同在升降滑台上，机械臂会遮挡画面中下部；
         # 降低滑台使相机略低于方块，方块成像在画面上部，避开自遮挡区域
-        self.get_logger().info(f'机械臂移至观测位姿 joint1={self.observe_joint1:.2f} m')
-        self.arm_controller.move_to_joints([self.observe_joint1, 0.0, 0.0, 0.0], duration=2.0)
-        self.sleep_sim(0.5)
+        self.move_arm_for_approach(joint1=self.observe_joint1)
         self.servo.reset_filter()
 
         converged, lost, required = 0, 0, 5
@@ -363,7 +404,7 @@ class NavigationCuttingTask(Node):
             vx, vy, wz = pbvs_command(e, pos_deadband=pos_tol * 0.5, ang_deadband=ang_tol * 0.5)
             cmd = Twist()
             cmd.linear.x, cmd.linear.y, cmd.angular.z = vx, vy, wz
-            self.cmd_vel_pub.publish(cmd)
+            self.cmd_vel_pub.publish(self.apply_wall_guard(cmd))
 
             if it % 20 == 0:
                 w = m['wall']

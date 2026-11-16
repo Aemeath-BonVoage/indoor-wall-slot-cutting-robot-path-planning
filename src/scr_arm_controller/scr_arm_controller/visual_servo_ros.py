@@ -77,15 +77,10 @@ class WallMarkerServo:
         t = tf.transform.translation
         return np.array([t.x, t.y, t.z]), _quat_to_rot(tf.transform.rotation)
 
-    def measure(self, desired_distance):
-        """返回一次 PBVS 测量 dict，或 (None, 原因)."""
-        if self.K is None:
-            return None, '未收到相机内参'
+    def wall_in_base(self):
+        """仅用激光拟合前方墙面，返回 base_link 中的墙面 dict，或 (None, 原因)."""
         if self.scan is None or not self._fresh(Time.from_msg(self.scan.header.stamp)):
             return None, '激光数据过期'
-        if self.detection is None or not self._fresh(self.detection[2]):
-            return None, '未检测到方块'
-
         s = self.scan
         ranges = np.asarray(s.ranges, dtype=float)
         if self.range_noise > 0:
@@ -95,18 +90,38 @@ class WallMarkerServo:
             return None, '前方未拟合到墙面'
         try:
             p_lb, R_lb = self._lookup(self.base_frame, self.lidar_frame)
+        except Exception as e:  # noqa: BLE001
+            return None, f'TF 查询失败: {e}'
+        # 激光系墙面 → base_link（雷达只有平移与绕 z 旋转时法向在水平面内）
+        n_b = R_lb @ np.array([wall_l['normal'][0], wall_l['normal'][1], 0.0])
+        n_b2 = n_b[:2] / np.linalg.norm(n_b[:2])
+        d_b = wall_l['distance'] + float(n_b2 @ p_lb[:2])
+        return {'normal': tuple(n_b2), 'distance': d_b,
+                'yaw_error': math.atan2(n_b2[1], n_b2[0]),
+                'rms': wall_l['rms'], 'inliers': wall_l['inliers']}, None
+
+    def tool_front_x(self, link='link4', offset=0.1594):
+        """刀具最前端在 base_link 中的 x 坐标.
+
+        offset：末端网格沿 base_link x 方向相对 link4 原点的最大前伸量（由 link4.STL 包围盒得到）。
+        """
+        p, _ = self._lookup(self.base_frame, link)
+        return float(p[0]) + offset
+
+    def measure(self, desired_distance):
+        """返回一次 PBVS 测量 dict，或 (None, 原因)."""
+        if self.K is None:
+            return None, '未收到相机内参'
+        if self.detection is None or not self._fresh(self.detection[2]):
+            return None, '未检测到方块'
+        wall, why = self.wall_in_base()
+        if wall is None:
+            return None, why
+        try:
             p_cb, R_cb = self._lookup(self.base_frame, self.camera_frame)
         except Exception as e:  # noqa: BLE001
             return None, f'TF 查询失败: {e}'
-
-        # 激光系墙面 → base_link（雷达只有平移与绕 z 旋转时法向在水平面内）
-        n_l = np.array([wall_l['normal'][0], wall_l['normal'][1], 0.0])
-        n_b = R_lb @ n_l
-        n_b2 = n_b[:2] / np.linalg.norm(n_b[:2])
-        d_b = wall_l['distance'] + float(n_b2 @ p_lb[:2])
-        wall = {'normal': tuple(n_b2), 'distance': d_b,
-                'yaw_error': math.atan2(n_b2[1], n_b2[0]),
-                'rms': wall_l['rms'], 'inliers': wall_l['inliers']}
+        n_b2, d_b = np.array(wall['normal']), wall['distance']
 
         u, v, _ = self.detection
         if self.pixel_noise > 0:
