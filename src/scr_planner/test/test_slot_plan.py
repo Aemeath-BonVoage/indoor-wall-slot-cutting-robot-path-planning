@@ -126,8 +126,8 @@ def test_cover_stations_complete_and_minimal():
         w = rng.choice((0.12, 0.25, 0.5))
         wins = sp.cover_stations(ivs, w)
         samples = [s + (e - s) * k / 200 for s, e in ivs for k in range(201)]
-        for x in samples:  # every point in exactly one half-open window
-            assert sum(lo <= x < hi for lo, hi in wins) == 1
+        for x in samples:  # every point in exactly one window
+            assert sum(lo - sp.EPS <= x < hi - sp.EPS for lo, hi in wins) == 1
         # optimality certificate: window left edges lie on the covered set and are
         # pairwise >= w apart, so no window of width w can contain two of them and
         # any cover needs at least len(wins) windows
@@ -147,20 +147,29 @@ def _check_plan(plan, scene, wall):
             assert p['x'] in (pytest.approx(xc), pytest.approx(ROBOT.x_retract))
         assert st.points[0]['x'] == pytest.approx(ROBOT.x_retract)
         assert st.points[-1]['x'] == pytest.approx(ROBOT.x_retract)
-        # cutting points map back onto the conduit inside this station's window
+        # single-axis cuts: blade 0 / 90 deg, each move at cutting depth changes only y or z
+        for a, b in zip(st.points[:-1], st.points[1:]):
+            assert b['rotation'] in (0.0, 90.0)
+            if a['x'] == pytest.approx(xc) and b['x'] == pytest.approx(xc):
+                moved_y = abs(b['y'] - a['y']) > 1e-9
+                moved_z = abs(b['z'] - a['z']) > 1e-9
+                assert not (moved_y and moved_z), 'cut moves two axes at once'
+                assert a['rotation'] == b['rotation']
+                assert b['rotation'] == (90.0 if moved_y else 0.0) or not (moved_y or moved_z)
+        # cutting points map back onto the cut path inside this station's window
         for p in st.points:
             u, v = st.u_c - p['y'], p['z'] + ROBOT.base_height
             assert st.u_lo - 1e-4 <= u <= st.u_hi + 1e-4
             assert band[0] - 1e-4 <= v <= band[1] + 1e-4
-            d = min(_dist_to_polyline((u, v), plan.conduit), 1.0)
+            d = min(_dist_to_polyline((u, v), plan.cut_path), 1.0)
             assert d < 1e-4
-    # every reachable conduit point is cut by exactly one station
-    for piece in sp.clip_polyline(plan.conduit, band[0], band[1], axis=1):
+    # every reachable point of the cut path is cut by exactly one station
+    for piece in sp.clip_polyline(plan.cut_path, band[0], band[1], axis=1):
         for q in sp._densify(piece, 0.003)[1:-1]:
             n = sum(any(_dist_to_polyline(q, pc) < 1e-6 for pc in st.pieces)
                     for st in plan.stations)
             assert n >= 1
-            owners = [st for st in plan.stations if st.u_lo <= q[0] < st.u_hi]
+            owners = [st for st in plan.stations if st.u_lo - sp.EPS <= q[0] < st.u_hi - sp.EPS]
             assert len(owners) == 1
 
 
@@ -184,7 +193,7 @@ def test_example_config_plans_and_is_executable(planner):
                         for u, v in plan.corners_m])
     assert sum(scene.violations(cells).values()) == 0
     # horizontal extent 1.10 m with 0.12 m windows needs at least 10 stations
-    extent = max(u for u, _ in plan.conduit) - min(u for u, _ in plan.conduit)
+    extent = max(u for u, _ in plan.cut_path) - min(u for u, _ in plan.cut_path)
     assert len(plan.stations) == math.ceil(extent / ROBOT.window_width - 1e-9)
     _check_plan(plan, scene, wall)
     d = sp.plan_to_dict(plan, wall, ROBOT)

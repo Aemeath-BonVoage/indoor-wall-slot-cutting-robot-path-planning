@@ -9,6 +9,10 @@
 复用 scr_arm_controller.navigation_cutting_task.NavigationCuttingTask（不修改它）。
 
   ros2 run scr_planner execute_slot_plan.py <task.yaml> [结果目录] [--dry-run-gap=0.01]
+                                           [--no-compensation]
+
+到站后用里程计（横向）和激光拟合墙面（离墙距离、朝向）测出残余误差，按它修正本站的
+机械臂点（刀尖离底盘中心约 0.69 m，0.5° 的朝向误差就会让刀尖横移约 6 mm）。
 
 --dry-run-gap：空切。Gazebo 的墙是刚体，刀具下刀会把整台机器人顶开（实测约 35 mm），
 切深无法仿真，接触力还会扭曲轨迹；空切时把切割位置改为刀尖停在墙面前 gap 处，
@@ -23,6 +27,7 @@ import time
 
 import numpy as np
 import rclpy
+import rclpy.parameter
 import yaml
 from gazebo_msgs.msg import LinkStates
 from nav_msgs.msg import Odometry
@@ -60,7 +65,9 @@ class SlotExecutor(NavigationCuttingTask):
         # 真值记录放在独立节点 + 后台线程：机械臂运动时 cartesian_cutting 会阻塞在自己的
         # 节点上，主节点的回调此时得不到处理
         self.robot = sp.RobotModel()
-        self.tracer = rclpy.create_node('slot_tool_tracer')
+        self.tracer = rclpy.create_node(
+            'slot_tool_tracer',
+            parameter_overrides=[rclpy.parameter.Parameter('use_sim_time', value=True)])
         self.tracer.create_subscription(LinkStates, '/gazebo/link_states', self._links_cb, 50)
         # 定点保持：机械臂运动的反作用力会推动底盘（Gazebo 中轮子无摩擦、底盘由 planar_move
         # 驱动，实测一站内可漂移 10 cm）。切割期间用里程计闭环把底盘保持在到站位姿。
@@ -127,8 +134,8 @@ class SlotExecutor(NavigationCuttingTask):
         """横移到相对参考位姿 du_target（沿墙向右为正，米）处，保持离墙 standoff.
 
         横向用里程计（短距离内几乎无漂移、无噪声）；离墙距离与朝向用激光拟合墙面，
-        单帧拟合 rms 约 9 mm、朝向抖动约 ±1°，故做指数平滑（alpha）。容差与视觉对位一致
-        （task_at_target.yaml：角度 1°）。
+        单帧拟合 rms 约 9 mm、朝向抖动约 ±1°，故做指数平滑（alpha）。朝向容差 1°（再收紧到
+        0.3° 时实测横移常常 60 s 内不收敛）；剩余朝向误差由到站后的机械臂点补偿消除。
         """
         D = self.distance_from_marker
         right = np.array([math.sin(ref['yaw']), -math.cos(ref['yaw'])])   # 面墙时的右方
@@ -164,18 +171,55 @@ class SlotExecutor(NavigationCuttingTask):
         self.stop_robot()
         return False
 
-    def run_points(self, points, x_cut, duration):
+    def run_points(self, points, is_cut, duration):
         """逐点执行机械臂点，并标注阶段：相邻两点都在切割深度时为 'cut'."""
         prev_cut = False
-        for i, (x, y, z, rot) in enumerate(points):
-            is_cut = abs(x - x_cut) < 1e-6
-            self.phase = 'cut' if (prev_cut and is_cut) else 'move'
+        for (x, y, z, rot), cut in zip(points, is_cut):
+            self.phase = 'cut' if (prev_cut and cut) else 'move'
             if not self.arm_controller.move_to_cartesian(x, y, z, rot, duration=duration):
                 self.phase = 'idle'
                 return False
-            prev_cut = is_cut
+            prev_cut = cut
         self.phase = 'idle'
         return True
+
+    def measure_residual(self, du_target, ref, n=10):
+        """到站后的残余误差（只用机器人自身传感器）：横向 e_l（里程计，米，沿墙向右为正）、
+        离墙 e_n（激光拟合墙面，米，>0 表示离墙偏远）、朝向 psi（rad，逆时针为正）."""
+        right = np.array([math.sin(ref['yaw']), -math.cos(ref['yaw'])])
+        ls, ns, ys = [], [], []
+        for _ in range(n * 3):
+            pose = self.get_robot_position()
+            wall, _ = self.servo.wall_in_base()
+            if pose is not None and wall is not None:
+                ls.append(float((np.array([pose['x'], pose['y']]) - ref['p']) @ right) - du_target)
+                ns.append(wall['distance'] - self.distance_from_marker)
+                ys.append(-wall['yaw_error'])   # yaw_error > 0 需逆时针转 → 机器人偏顺时针
+                if len(ls) >= n:
+                    break
+            self.sleep_sim(0.1)
+        if not ls:
+            return 0.0, 0.0, 0.0
+        return float(np.mean(ls)), float(np.mean(ns)), float(np.mean(ys))
+
+    @staticmethod
+    def compensate(points, is_cut, e_l, e_n, psi, robot):
+        """把机械臂点修正到实际停靠位姿下（小角度近似）.
+
+        刀尖在 base 系的横向位置 fy 对应墙面 u ≈ u_base - fx·psi - fy；令其等于名义值
+        得 fy' = fy + e_l - fx·psi（u_base = 目标 + e_l）。切割深度处的点离墙偏远则多伸出
+        e_n；退刀点不动。超出关节限位的分量钳制到限位并计数。
+        """
+        (xlo, xhi), (ylo, yhi) = robot.x_range, robot.y_range
+        out, clamped = [], 0
+        for (x, y, z, rot), cut in zip(points, is_cut):
+            fx = x + robot.tool_offset
+            y2 = y + e_l - fx * psi
+            x2 = x + e_n if cut else x
+            y3, x3 = min(max(y2, ylo), yhi), min(max(x2, xlo), xhi)
+            clamped += int(abs(y3 - y2) > 1e-9 or abs(x3 - x2) > 1e-9)
+            out.append((x3, y3, z, rot))
+        return out, clamped
 
     def gt_station_error(self, st, robot):
         self.sleep_sim(0.3)
@@ -206,7 +250,7 @@ def evaluate(trace, plan, robot, depth_target):
     res = dict(trace_samples=len(trace), cutting_samples=len(deep))
     if not deep:
         return res
-    dist = np.array([_dist_poly((r[2], r[3]), plan.conduit) for r in deep])
+    dist = np.array([_dist_poly((r[2], r[3]), plan.cut_path) for r in deep])
     res.update(path_err_mean_mm=float(dist.mean() * 1000), path_err_p95_mm=float(
         np.percentile(dist, 95) * 1000), path_err_max_mm=float(dist.max() * 1000),
         tip_depth_mean_mm=float(np.mean([r[4] for r in deep]) * 1000),
@@ -214,7 +258,7 @@ def evaluate(trace, plan, robot, depth_target):
         arm_x_mean=float(np.mean([r[5] for r in deep])))
     # 覆盖率：可达槽线每 5 mm 取样，3 mm 内有刀尖经过即算已切
     band = robot.reach_band
-    pts = [q for piece in sp.clip_polyline(plan.conduit, band[0], band[1], axis=1)
+    pts = [q for piece in sp.clip_polyline(plan.cut_path, band[0], band[1], axis=1)
            for q in sp._densify(piece, 0.005)]
     uv = np.array([(r[2], r[3]) for r in deep])
     covered = sum(np.min(np.hypot(uv[:, 0] - q[0], uv[:, 1] - q[1])) < 0.003 for q in pts)
@@ -238,6 +282,7 @@ def main():
         sys.exit(1)
     args = [a for a in sys.argv[1:] if not a.startswith('--')]
     dry_gap = None
+    compensate = '--no-compensation' not in sys.argv
     for a in sys.argv[1:]:
         if a.startswith('--dry-run-gap='):
             dry_gap = float(a.split('=', 1)[1])
@@ -293,26 +338,36 @@ def main():
     for st in plan.stations:
         log.info(f'\n===== 停靠站 S{st.index}: u = {st.u_c:.3f} m（横移 '
                  f'{(st.u_c - u_marker) * 100:+.1f} cm），{len(st.points)} 个点 =====')
-        t0 = ex.get_clock().now()
+        t0 = ex.tracer.get_clock().now()
         ok_move = ex.strafe_to(st.u_c - u_marker, ref)
-        t_move = (ex.get_clock().now() - t0).nanoseconds * 1e-9
+        ex.hold_here()      # 到站即定点保持，直到本站切完
+        t_move = (ex.tracer.get_clock().now() - t0).nanoseconds * 1e-9
         gt_err = ex.gt_station_error(st, robot) or {}
         log.info(f'到位 {"✓" if ok_move else "✗"}，用时 {t_move:.1f} s，真值误差 '
                  + ', '.join(f'{k}={v:.2f}' for k, v in gt_err.items()))
         ex.cur_station = st.index
         x_cut = robot.x_cut(plan.slot_depth)
         x_exec = x_cut if dry_gap is None else robot.standoff - dry_gap - robot.tool_offset
-        pts = [(x_exec if abs(p['x'] - x_cut) < 1e-6 else p['x'], p['y'], p['z'],
-                math.radians(p['rotation'])) for p in st.points]
-        t1 = ex.get_clock().now()
-        ex.hold_here()
-        ok_cut = ex.run_points(pts, x_exec, duration)
+        is_cut = [abs(p['x'] - x_cut) < 1e-6 for p in st.points]
+        pts = [(x_exec if c else p['x'], p['y'], p['z'], math.radians(p['rotation']))
+               for p, c in zip(st.points, is_cut)]
+        e_l, e_n, psi = ex.measure_residual(st.u_c - u_marker, ref)
+        if compensate:
+            pts, clamped = ex.compensate(pts, is_cut, e_l, e_n, psi, robot)
+            if clamped:
+                log.warn(f'S{st.index}: {clamped} 个点的补偿量被关节限位钳制')
+        log.info(f'残余误差（传感器）: 横向 {e_l * 1000:+.1f} mm, 离墙 {e_n * 1000:+.1f} mm, '
+                 f'朝向 {math.degrees(psi):+.2f}°' + ('，已补偿' if compensate else ''))
+        t1 = ex.tracer.get_clock().now()
+        ok_cut = ex.run_points(pts, is_cut, duration)
         ex.release_hold()
-        t_cut = (ex.get_clock().now() - t1).nanoseconds * 1e-9
+        t_cut = (ex.tracer.get_clock().now() - t1).nanoseconds * 1e-9
         ex.cur_station = -1
         bs = [(r[7], r[8]) for r in ex.trace if r[1] == st.index]
         drift = (max(math.hypot(a - bs[0][0], d - bs[0][1]) for a, d in bs) * 1000) if bs else float('nan')
         rows.append(dict(station=st.index, u_c=st.u_c, points=len(st.points),
+                         sensed_lateral_mm=e_l * 1000, sensed_standoff_mm=e_n * 1000,
+                         sensed_yaw_deg=math.degrees(psi),
                          base_drift_mm=drift,
                          cut_cm=st.cut_length * 100, moved=int(ok_move), cut_ok=int(ok_cut),
                          move_s=t_move, cut_s=t_cut, **gt_err))
@@ -323,7 +378,7 @@ def main():
     sim_total = (ex.get_clock().now() - sim_start).nanoseconds * 1e-9
 
     summary = evaluate(ex.trace, plan, robot, plan.slot_depth)
-    summary.update(dry_run_gap=dry_gap, stations=len(plan.stations), stations_done=len(rows),
+    summary.update(dry_run_gap=dry_gap, compensation=compensate, stations=len(plan.stations), stations_done=len(rows),
                    all_ok=all(r['moved'] and r['cut_ok'] for r in rows) and len(rows) == len(
                        plan.stations), sim_time_s=sim_total, wall_time_s=time.time() - t_start,
                    slot_length_m=plan.length)

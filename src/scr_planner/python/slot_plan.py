@@ -1,5 +1,10 @@
 # -*- coding: utf-8 -*-
-"""开槽任务规划：墙面障碍 → 正交槽线 → 弯管圆弧 → 底盘停靠站 → 机械臂切割点.
+"""开槽任务规划：墙面障碍 → 正交槽线 → 底盘停靠站 → 机械臂切割点.
+
+切割只沿正交折线进行：机械臂为直角坐标解耦结构（joint1 = Z、joint2 = Y、joint3 = X 切深、
+joint4 = 刀片方向），每一刀只动一个轴，刀片只取 0°（竖切）/ 90°（横切）。线管弯曲半径
+（GB 50303-2015 12.2.1）只作为规划约束（两弯间直线段 ≥ 2r、拐角内侧圆弧无障碍），
+保证管子能敷进直角槽并在拐角处弯过去；圆弧本身不切，仅用于显示。
 
 坐标系
   墙面系 (u, v)：u 沿墙水平向右（面对墙面时），v 为离地高度，单位米。
@@ -18,6 +23,8 @@ import numpy as np
 import wall_rules as wr
 
 RES = 0.01  # 规划栅格分辨率 1 cm
+# 窗口边界容差：站 k 负责 u ∈ [lo - EPS, hi - EPS)，落在边界上的竖切只归右侧站
+EPS = 1e-7
 
 
 # ---------------------------------------------------------------------------
@@ -194,12 +201,12 @@ def cover_stations(intervals, width):
     last = -math.inf
     for s, e in sorted(intervals):
         if s == e:
-            if s >= last - 1e-12:
+            if s >= last - EPS:
                 windows.append((s, s + width))
                 last = s + width
             continue
         pos = s if s >= last else last
-        while e > last + 1e-12:
+        while e > last - EPS:
             windows.append((pos, pos + width))
             last = pos + width
             pos = last
@@ -277,6 +284,9 @@ def station_points(st: Station, wall: WallFrame, robot: RobotModel, depth,
 class SlotPlan:
     status: str
     corners_m: list = field(default_factory=list)
+    # 切割路径：正交折线（直角坐标解耦机械臂每一刀只动一个轴，刀片 0° / 90°）
+    cut_path: list = field(default_factory=list)
+    # 仅供显示：线管中心线（拐角处按弯曲半径画圆弧，说明管子在直角槽内如何弯）
     conduit: list = field(default_factory=list)
     stations: list = field(default_factory=list)
     unreachable: list = field(default_factory=list)   # 机械臂够不到的子折线
@@ -286,7 +296,7 @@ class SlotPlan:
 
     @property
     def length(self):
-        return polyline_length(self.conduit) if self.conduit else 0.0
+        return polyline_length(self.cut_path) if self.cut_path else 0.0
 
     @property
     def unreachable_length(self):
@@ -314,18 +324,18 @@ def plan_task(scene, wall: WallFrame, robot: RobotModel, planner,
     if not res['ok']:
         return plan
     plan.corners_m = corners_to_m(res['corners'])
+    plan.cut_path = [tuple(p) for p in plan.corners_m]
     plan.conduit = conduit_polyline(plan.corners_m, wr.BEND_RADIUS / 100.0)
 
-    reach = clip_polyline(plan.conduit, band[0], band[1], axis=1)
-    plan.unreachable = _complement(plan.conduit, band)
+    reach = clip_polyline(plan.cut_path, band[0], band[1], axis=1)
+    plan.unreachable = _complement(plan.cut_path, band)
     intervals = [(min(a[0], b[0]), max(a[0], b[0]))
                  for piece in reach for a, b in zip(piece[:-1], piece[1:])]
-    eps = 1e-7
     for k, (lo, hi) in enumerate(cover_stations(intervals, robot.window_width)):
         # 窗口 [lo, hi) 对应机械臂 y ∈ (y_max - margin - width, y_max - margin]
         u_c = lo + (robot.y_range[1] - robot.margin)
         st = Station(k, lo, hi, u_c, wall.station_pose(u_c, robot.standoff))
-        st.pieces = [q for piece in reach for q in clip_polyline(piece, lo, hi - eps, axis=0)]
+        st.pieces = [q for piece in reach for q in clip_polyline(piece, lo - EPS, hi - EPS, axis=0)]
         if st.pieces:
             station_points(st, wall, robot, plan.slot_depth, retract_between_turns)
             plan.stations.append(st)
@@ -384,7 +394,8 @@ def plan_to_dict(plan: SlotPlan, wall: WallFrame, robot: RobotModel, duration=2.
                   bend_radius=r3(wr.BEND_RADIUS / 100.0), length=r3(plan.length),
                   unreachable_length=r3(plan.unreachable_length),
                   corners=[[r3(u), r3(v)] for u, v in plan.corners_m],
-                  conduit=[[r3(u), r3(v)] for u, v in plan.conduit]),
+                  cut_path=[[r3(u), r3(v)] for u, v in plan.cut_path],
+                  conduit_display=[[r3(u), r3(v)] for u, v in plan.conduit]),
         planner=plan.planner,
         robot=dict(standoff=robot.standoff, reach_band=[r3(b) for b in robot.reach_band],
                    window_width=r3(robot.window_width), x_cut=r3(robot.x_cut(plan.slot_depth)),

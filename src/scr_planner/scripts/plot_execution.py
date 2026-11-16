@@ -36,7 +36,8 @@ def main():
     fig = plt.figure(figsize=(13, 6.2))
     gs = fig.add_gridspec(2, 3, height_ratios=[1.6, 1], width_ratios=[2.2, 1, 1])
     ax = fig.add_subplot(gs[0, :])
-    conduit = np.array(plan['slot']['conduit'])
+    conduit = np.array(plan['slot']['cut_path'])
+    centerline = np.array(plan['slot']['conduit_display'])
     u0, u1 = conduit[:, 0].min() - 0.25, conduit[:, 0].max() + 0.25
     lo, hi = robot.reach_band
     ax.add_patch(Rectangle((u0, lo), u1 - u0, hi - lo, color='#D9EAD3', alpha=0.6,
@@ -52,7 +53,9 @@ def main():
         ax.axvspan(a, b, ymin=0, ymax=0.04, color='#1F4E9C' if s['index'] % 2 == 0 else '#E69138')
         ax.text((a + b) / 2, 0.02, f"S{s['index']}", ha='center', fontsize=7, color='w')
     ax.plot(conduit[:, 0], conduit[:, 1], '-', color='#C00000', lw=7, alpha=0.35,
-            label=f'规划槽线（槽宽 {plan["slot"]["width"] * 1000:.0f} mm）')
+            label=f'规划槽线（直角折线，槽宽 {plan["slot"]["width"] * 1000:.0f} mm）')
+    ax.plot(centerline[:, 0], centerline[:, 1], '--', color='#7F0000', lw=0.8,
+            label='线管中心线（R12 cm 弯，仅示意）')
     deep = [(float(r['u']), float(r['v'])) for r in trace
             if int(r['station']) >= 0 and r['phase'] == 'cut']
     if deep:
@@ -73,13 +76,14 @@ def main():
     # 拐弯处放大
     ax2 = fig.add_subplot(gs[1, 0])
     c = np.array(st['corners'])[2]
-    ax2.plot(conduit[:, 0], conduit[:, 1], '-', color='#C00000', lw=1.2, label='规划中心线')
+    ax2.plot(conduit[:, 0], conduit[:, 1], '-', color='#C00000', lw=1.2, label='规划槽线')
+    ax2.plot(centerline[:, 0], centerline[:, 1], '--', color='#7F0000', lw=0.8, label='线管弯（示意）')
     if deep:
         ax2.plot(d[:, 0], d[:, 1], '.', color='#1F4E9C', ms=2, label='真值刀尖')
     ax2.set_xlim(c[0] - 0.16, c[0] + 0.04)
     ax2.set_ylim(c[1] - 0.16, c[1] + 0.04)
     ax2.set_aspect('equal')
-    ax2.set_title('拐弯处放大（弯曲半径 12 cm，15° 弦逼近）', fontsize=9)
+    ax2.set_title('拐角处放大：直角切割，管子在槽内按 R12 cm 弯过', fontsize=9)
     ax2.legend(fontsize=7)
 
     idx = [int(s['station']) for s in stations]
@@ -95,13 +99,15 @@ def main():
     ax3.set_title('停靠误差', fontsize=9)
 
     ax4 = fig.add_subplot(gs[1, 2])
-    ax4.bar(idx, [float(s['move_s']) for s in stations], color='#999999', label='横移+对位')
-    ax4.bar(idx, [float(s['cut_s']) for s in stations],
-            bottom=[float(s['move_s']) for s in stations], color='#1F4E9C', label='切割')
+    ax4.bar(idx, [float(s['move_s']) for s in stations], color='#999999', label='横移+到位')
+    has_cut = any(float(s['cut_s']) > 0 for s in stations)
+    if has_cut:
+        ax4.bar(idx, [float(s['cut_s']) for s in stations],
+                bottom=[float(s['move_s']) for s in stations], color='#1F4E9C', label='切割')
     ax4.set_xlabel('停靠站')
     ax4.set_ylabel('仿真时间 (s)')
     ax4.legend(fontsize=7)
-    ax4.set_title('每站耗时', fontsize=9)
+    ax4.set_title('每站耗时' if has_cut else '每站横移+到位耗时', fontsize=9)
     fig.tight_layout()
     fig.savefig(out, dpi=110)
     print('saved', out)
