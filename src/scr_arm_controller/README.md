@@ -47,8 +47,7 @@ scr_arm_controller/
 │   ├── square_demo.py           # 方形演示（关节空间）
 │   ├── cartesian_cutting.py     # 笛卡尔切割（固定示例）
 │   ├── custom_cutting.py        # 自定义切割（命令行参数）
-│   ├── fk_calculator.py         # 正向运动学计算
-│   └── test_joint_directions.py # 关节方向测试
+│   └── joint_direction_check.py # 关节方向测试（需仿真运行）
 ├── config/                      # 配置文件
 │   └── arm_params.yaml          # 机械臂参数
 └── test/                        # 测试文件

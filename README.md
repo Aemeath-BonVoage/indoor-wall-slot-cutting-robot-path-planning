@@ -109,6 +109,8 @@ sudo apt install ros-humble-navigation2 ros-humble-nav2-bringup ros-humble-slam-
 ```bash
 git clone git@github.com:Aemeath-BonVoage/indoor-wall-slot-cutting-robot-path-planning.git ~/colcon_ws
 cd ~/colcon_ws
+# 也可以用 rosdep 一键安装依赖（首次需 sudo rosdep init && rosdep update）
+rosdep install --from-paths src --ignore-src -r -y
 colcon build --symlink-install
 source install/setup.bash
 ```

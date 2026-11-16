@@ -10,7 +10,7 @@ from scr_arm_controller.trajectory_visualizer import TrajectoryVisualizer
 
 def main(args=None):
     rclpy.init(args=args)
-    
+
     print('\n' + '='*60)
     print('测试Gazebo轨迹可视化')
     print('='*60)
@@ -22,20 +22,20 @@ def main(args=None):
     print('- 边框位置：方块外扩1cm')
     print('- 边框尺寸：7cm × 7cm')
     print('='*60 + '\n')
-    
+
     # 创建可视化器
     visualizer = TrajectoryVisualizer()
-    
+
     # 方块位置（从world文件）
     marker_x = 8.42
     marker_y = -3.9
     marker_z = 0.6
-    
+
     # 方块大小：5cm x 5cm
     half_size = 0.025
     offset = 0.01  # 外扩1cm
     size_with_offset = half_size + offset
-    
+
     # 生成边框的4个顶点（X-Z平面，贴在墙上）
     points = [
         (marker_x - size_with_offset, marker_y, marker_z - size_with_offset, 0),  # 左下
@@ -43,15 +43,15 @@ def main(args=None):
         (marker_x + size_with_offset, marker_y, marker_z + size_with_offset, 0),  # 右上
         (marker_x - size_with_offset, marker_y, marker_z + size_with_offset, 0),  # 左上
     ]
-    
+
     print('生成红色边框...')
     print(f'方块位置: X={marker_x:.2f}, Y={marker_y:.2f}, Z={marker_z:.2f}')
     print(f'边框尺寸: {(size_with_offset*2)*100:.1f}cm × {(size_with_offset*2)*100:.1f}cm')
     print(f'外扩距离: {offset*100:.1f}cm\n')
-    
+
     # 在Gazebo中生成红色边框
     visualizer.visualize_in_map_frame(points, color='red', frame_id='map')
-    
+
     print('\n' + '='*60)
     print('✅ 边框已生成！')
     print('='*60)
@@ -70,14 +70,14 @@ def main(args=None):
     print('\n查看模型列表:')
     print('gz model --list')
     print('='*60 + '\n')
-    
+
     # 保持节点运行一小段时间以确保服务调用完成
     print('等待服务调用完成...')
     for _ in range(10):
         rclpy.spin_once(visualizer, timeout_sec=0.5)
-    
+
     print('测试完成！\n')
-    
+
     visualizer.destroy_node()
     rclpy.shutdown()
 

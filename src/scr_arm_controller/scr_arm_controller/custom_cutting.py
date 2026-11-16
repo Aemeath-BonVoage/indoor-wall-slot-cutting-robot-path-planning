@@ -21,9 +21,9 @@ def parse_rotation(rotation_str):
     """
     if isinstance(rotation_str, (int, float)):
         return float(rotation_str)
-    
+
     rotation_str = str(rotation_str).strip().lower()
-    
+
     if rotation_str.endswith('deg'):
         # 角度格式
         degrees = float(rotation_str[:-3])
@@ -41,7 +41,7 @@ def load_config(config_file):
     if not os.path.exists(config_file):
         print(f"错误: 配置文件不存在: {config_file}")
         return None
-    
+
     try:
         with open(config_file, 'r', encoding='utf-8') as f:
             config = yaml.safe_load(f)
@@ -56,11 +56,11 @@ def validate_config(config):
     if 'points' not in config:
         print("错误: 配置文件缺少 'points' 字段")
         return False
-    
+
     if len(config['points']) < 2:
         print(f"错误: 至少需要2个点，但配置了{len(config['points'])}个")
         return False
-    
+
     for i, point in enumerate(config['points']):
         if 'x' not in point or 'y' not in point or 'z' not in point:
             print(f"错误: 点{i+1}缺少x/y/z坐标")
@@ -68,7 +68,7 @@ def validate_config(config):
         if 'rotation' not in point:
             print(f"错误: 点{i+1}缺少rotation角度")
             return False
-    
+
     return True
 
 
@@ -107,9 +107,9 @@ def main(args=None):
     if len(sys.argv) < 2:
         print_usage()
         return
-    
+
     config_file = sys.argv[1]
-    
+
     # 如果是相对路径，尝试在多个位置查找
     if not os.path.isabs(config_file) and not os.path.exists(config_file):
         # 尝试1: 在源码config目录中查找
@@ -132,50 +132,50 @@ def main(args=None):
                     ament_config = os.path.join(pkg_share, 'config', config_file)
                     if os.path.exists(ament_config):
                         config_file = ament_config
-                except:
+                except Exception:
                     pass
-    
+
     # 加载配置
     config = load_config(config_file)
     if config is None:
         return
-    
+
     # 验证配置
     if not validate_config(config):
         return
-    
+
     # 解析配置
     points = [(p['x'], p['y'], p['z'], math.radians(p['rotation'])) for p in config['points']]
     duration = config.get('motion', {}).get('duration', 3.0)
     return_home = config.get('motion', {}).get('return_home', True)
-    
+
     # 初始化ROS2
     rclpy.init(args=args)
-    
+
     controller = CartesianCuttingController()
-    
+
     # 显示工作空间信息
     controller.print_workspace_info()
-    
+
     controller.get_logger().info('='*60)
     controller.get_logger().info('自定义切割任务')
     controller.get_logger().info('='*60)
     controller.get_logger().info(f'\n配置文件: {config_file}')
-    controller.get_logger().info(f'\n输入的四个点:')
+    controller.get_logger().info('\n输入的四个点:')
     for i, (x, y, z, rotation) in enumerate(points):
         controller.get_logger().info(f'  点{i+1}: X={x:.4f}, Y={y:.4f}, Z={z:.4f}, R={math.degrees(rotation):.1f}°')
-    controller.get_logger().info(f'\n运动参数:')
+    controller.get_logger().info('\n运动参数:')
     controller.get_logger().info(f'  运动时长: {duration:.1f}s')
     controller.get_logger().info(f'  完成后回原点: {return_home}')
-    
+
     # 执行切割（使用配置的参数）
     success = execute_cutting(controller, points, duration, return_home)
-    
+
     if success:
         controller.get_logger().info('任务成功完成！')
     else:
         controller.get_logger().error('任务失败！')
-    
+
     controller.destroy_node()
     rclpy.shutdown()
 
@@ -185,11 +185,11 @@ def execute_cutting(controller, points, duration, return_home):
     if len(points) < 2:
         controller.get_logger().error(f'至少需要2个点，但提供了{len(points)}个')
         return False
-    
+
     controller.get_logger().info('='*60)
     controller.get_logger().info('开始轨迹执行任务')
     controller.get_logger().info('='*60)
-    
+
     # 检查所有点是否可达
     controller.get_logger().info('\n检查所有点的可达性...')
     for i, (x, y, z, rotation) in enumerate(points):
@@ -198,21 +198,21 @@ def execute_cutting(controller, points, duration, return_home):
             controller.get_logger().error(f'点{i+1} ({x}, {y}, {z}, {math.degrees(rotation):.1f}°) 不可达！')
             return False
         controller.get_logger().info(f'点{i+1}: X={x:.4f}, Y={y:.4f}, Z={z:.4f}, R={math.degrees(rotation):.1f}° ✓')
-    
+
     controller.get_logger().info('\n所有点都可达，开始执行...\n')
-    
+
     # 1. 回到初始位置（使用第一个点的旋转角度）
     first_rotation = points[0][3]
     controller.get_logger().info('步骤1: 回到初始位置')
     if not controller.move_to_joints([0.0, 0.0, 0.0, first_rotation], duration=duration):
         return False
-    
+
     # 2. 依次移动到所有点
     for i, (x, y, z, rotation) in enumerate(points):
         controller.get_logger().info(f'\n步骤{i+2}: 移动到点{i+1}')
         if not controller.move_to_cartesian(x, y, z, rotation, duration=duration):
             return False
-    
+
     # 3. 回到初始位置（可选）
     if return_home:
         controller.get_logger().info(f'\n步骤{len(points)+2}: 回到初始位置')
@@ -220,11 +220,11 @@ def execute_cutting(controller, points, duration, return_home):
             return False
     else:
         controller.get_logger().info('\n跳过回到初始位置（配置: return_home=false）')
-    
+
     controller.get_logger().info('\n' + '='*60)
     controller.get_logger().info('轨迹执行任务完成！')
     controller.get_logger().info('='*60)
-    
+
     return True
 
 
