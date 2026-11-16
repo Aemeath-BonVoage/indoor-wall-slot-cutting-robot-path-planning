@@ -23,12 +23,21 @@ install(TARGETS scr_planner_core EXPORT export_scr_planner
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin)
 install(DIRECTORY include/ DESTINATION include/)
-install(FILES python/scr_planner_py.py python/wall_rules.py DESTINATION share/${PROJECT_NAME}/python)
+install(FILES python/scr_planner_py.py python/wall_rules.py python/slot_plan.py python/slot_ros.py
+  DESTINATION share/${PROJECT_NAME}/python)
+install(DIRECTORY config DESTINATION share/${PROJECT_NAME})
+install(PROGRAMS scripts/wall_slot_planner_node.py scripts/execute_slot_plan.py
+  DESTINATION lib/${PROJECT_NAME})
 
 if(BUILD_TESTING)
   find_package(ament_cmake_gtest REQUIRED)
   ament_add_gtest(test_oriented_astar test/test_oriented_astar.cpp)
   target_link_libraries(test_oriented_astar scr_planner_core)
+
+  find_package(ament_cmake_pytest REQUIRED)
+  ament_add_pytest_test(test_slot_plan test/test_slot_plan.py
+    ENV SCR_PLANNER_LIB=$<TARGET_FILE:scr_planner_core>
+    TIMEOUT 300)
 endif()
 
 ament_export_include_directories(include)
