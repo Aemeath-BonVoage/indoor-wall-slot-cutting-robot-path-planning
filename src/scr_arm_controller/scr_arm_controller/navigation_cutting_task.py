@@ -679,18 +679,16 @@ def main(args=None):
 
     config_file = sys.argv[1]
 
-    # 如果是相对路径，尝试在config目录中查找
+    # 如果是相对路径，到功能包的 config 目录中查找
     if not os.path.isabs(config_file) and not os.path.exists(config_file):
-        src_config = os.path.join('/workspace/src/scr_arm_controller/config', config_file)
-        if os.path.exists(src_config):
-            config_file = src_config
-        else:
-            install_config = os.path.join(
-                '/workspace/install/scr_arm_controller/share/scr_arm_controller/config',
-                config_file
-            )
-            if os.path.exists(install_config):
-                config_file = install_config
+        try:
+            from ament_index_python.packages import get_package_share_directory
+            pkg_config = os.path.join(
+                get_package_share_directory('scr_arm_controller'), 'config', config_file)
+            if os.path.exists(pkg_config):
+                config_file = pkg_config
+        except Exception:
+            pass
 
     # 加载配置文件
     if not os.path.exists(config_file):
