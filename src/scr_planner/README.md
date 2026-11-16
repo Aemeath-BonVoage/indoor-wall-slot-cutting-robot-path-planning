@@ -29,7 +29,7 @@
 ```bash
 # 离线规划（不需要 ROS）：槽线、停靠站（按执行顺序）、每站机械臂点、预测时间
 python3 src/scr_planner/scripts/plan_wall_slots.py src/scr_planner/config/wall_task_room3_south.yaml /tmp/plan.yaml
-# Gazebo 中执行（只读规划文件；--dry-run-gap 为空切，仿真墙是刚体）
+# Gazebo 中执行（只读规划文件；--dry-run-gap 为空切：按轨迹走一遍，不真正开槽）
 ros2 run scr_planner execute_slot_plan.py /tmp/plan.yaml /tmp/run --dry-run-gap=0.01
 ```
 
