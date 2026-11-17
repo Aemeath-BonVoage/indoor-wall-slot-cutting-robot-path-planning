@@ -584,7 +584,7 @@ class NavigationCuttingTask(Node):
                         self.base_hold.hold()
                     else:
                         self.stop_robot()
-                    log.info(f'精对位收敛：误差 法向 {errs[0] * 1000:+.2f} mm、沿墙 '
+                    log.info(f'墙面闭环收敛：误差 法向 {errs[0] * 1000:+.2f} mm、沿墙 '
                              f'{errs[1] * 1000:+.2f} mm、朝向 {math.degrees(errs[2]):+.3f}°，'
                              f'σ = ({sig[0] * 1000:.2f} mm, {sig[1] * 1000:.2f} mm, '
                              f'{math.degrees(sig[2]):.3f}°)，用时 {now - t0:.1f} s')
