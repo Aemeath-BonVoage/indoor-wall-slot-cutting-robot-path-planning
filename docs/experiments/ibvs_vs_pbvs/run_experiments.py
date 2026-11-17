@@ -256,7 +256,8 @@ def write_summary(summ):
 def md_tables(summ):
     """生成 results.md：各实验的 Markdown 表格."""
     idx = {(s['exp'], s['cond'], s['method']): s for s in summ}
-    lines = []
+    lines = ['# 视觉伺服方法对比：完整结果表', '',
+             '由 `run_experiments.py` 生成，说明见 [README.md](README.md)。', '']
 
     def row(s, label):
         return (f"| {label} | {s['success']}/{s['n']} | "
@@ -334,7 +335,7 @@ def md_tables(summ):
                         f"{s['min_clear']:.1f} |")
         lines.append('')
 
-    lines += ['### E6 方块高度与参考不一致（无噪声，稳态）', '',
+    lines += ['### E6 定位标记高度与参考不一致（无噪声，稳态）', '',
               '每格：法向误差 / 横向误差 mm，偏航 °（10 个起点平均，带符号）。', '',
               '| Δh (mm) | 参考 | ' + ' | '.join(METHODS) + ' |', '|---|---|---|---|---|']
     for dz in [-30, -10, 10, 30]:
@@ -347,7 +348,7 @@ def md_tables(summ):
             lines.append(f'| {dz:+d} | {ref} | ' + ' | '.join(cells) + ' |')
     lines.append('')
 
-    lines += ['### E7 方块尺寸', '', head]
+    lines += ['### E7 定位标记尺寸', '', head]
     for size in ['0.05', '0.1', '0.2']:
         for nl in ['基准噪声', '2px/2cm']:
             for mode in ['stop', 'steady']:

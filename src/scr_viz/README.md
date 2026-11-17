@@ -58,7 +58,7 @@ ros2 run scr_viz spawn_wall_fixtures src/scr_viz/config/wall_task_room3_south_de
 
 - `obstacles` 中 `kind: box` 的物体按标签推断种类（配电箱 / 开关 / 插座 / 线盒），尺寸取 YAML；
   `tasks` 的起终点：“已有…”生成插座面板，其余生成半透明蓝色“新装位置”。
-- 标签含“定位标记”的跳过（world 里已有黄色方块）。
+- 标签含“定位标记”的物体跳过（`room.world` 中已有定位标记）。
 - 默认**只有 visual、没有 collision**：激光（ray 只看 collision）和机械臂都碰不到，不影响对位与切割；
   `--collision` 可加。盒子背面贴墙面内表面，正面带插孔 / 开关键 / 箱门缝等细节。
 
