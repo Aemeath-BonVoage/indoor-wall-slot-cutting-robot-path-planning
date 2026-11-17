@@ -20,7 +20,7 @@ slots:
     turns: 4
     cost: 345.09126984126993
     expansions: 1905
-    time_ms: 5.894098
+    time_ms: 5.70883
   length: 1.58
   cut_path:
   - - 1.205
@@ -98,7 +98,7 @@ slots:
     turns: 3
     cost: 240.55158730158723
     expansions: 559
-    time_ms: 0.359565
+    time_ms: 0.377925
   length: 1.18
   cut_path:
   - - 2.455
@@ -164,9 +164,9 @@ prediction:
   stations: 11
   points: 92
   travel_m: 1.3652
-  t_move: 159.3
-  t_cut: 184.0
-  t_total: 343.3
+  t_move: 83.3
+  t_cut: 197.2
+  t_total: 280.5
 robot:
   standoff: 0.7
   reach_band:
