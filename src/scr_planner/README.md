@@ -30,6 +30,9 @@
 # 离线规划（不需要 ROS）：槽线、停靠站（按执行顺序）、每站机械臂点、预测时间
 python3 src/scr_planner/scripts/plan_wall_slots.py src/scr_planner/config/wall_task_room3_south.yaml /tmp/plan.yaml
 # Gazebo 中执行（只读规划文件；--dry-run-gap 为空切：按轨迹走一遍，不真正开槽）
+# 执行主路径是主任务：Nav2 → 视觉对位 → 逐站横移（远站 Nav2）/ 定点保持 / 补偿 / 切割
+ros2 run scr_arm_controller navigation_cutting_task /tmp/plan.yaml --dry-run-gap=0.01
+# 实验记录器：同一执行路径 + Gazebo 真值评估（刀尖轨迹、到站误差、漂移 → CSV / YAML）
 ros2 run scr_planner execute_slot_plan.py /tmp/plan.yaml /tmp/run --dry-run-gap=0.01
 ```
 
