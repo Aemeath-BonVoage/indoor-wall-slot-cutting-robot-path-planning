@@ -1,0 +1,7 @@
+wall,method,n,found,compliant,violating,no_path,length_cm_mean,turns_mean,time_ms_median,time_ms_max,paths_with_diagonal,paths_with_horizontal_on_load_bearing,paths_with_horizontal_too_long,paths_with_short_leg,paths_with_arc_blocked,paths_with_blocked_cell
+partition,py_enhanced,100,100,0,100,0,258.3,1.35,99.743,543.814,0,0,100,17,8,0
+partition,cpp_plain,100,100,0,100,0,258.3,1.19,0.841,198.58,0,0,100,8,4,0
+partition,cpp_rules,100,99,99,0,1,290.2,5.86,35.348,347.384,0,0,0,0,0,0
+load_bearing,py_enhanced,40,40,34,6,0,129.8,0.45,2.885,114.192,0,6,0,4,6,0
+load_bearing,cpp_plain,40,40,34,6,0,129.8,0.3,0.784,32.551,0,6,0,3,0,0
+load_bearing,cpp_rules,40,34,34,0,6,107.1,0.0,0.043,0.066,0,0,0,0,0,0
