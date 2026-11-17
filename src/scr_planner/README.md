@@ -1,52 +1,62 @@
 # scr_planner
 
-墙面开槽（暗敷电线管）路径规划：方向感知、按整段直线搜索的增强 A*。
+墙面开槽（暗敷电线管）路径规划：C++ 方向感知、按整段直线搜索的增强 A\*，施工规范作为硬约束；以及多条槽的停靠站划分、访问顺序优化和多站执行的实验记录。底盘导航不使用本规划器，由 Nav2 完成。
 
-- 搜索的每一步是“一整段横 / 竖直线 + 一次转弯”，状态为 `(x, y, 上一段方向)`。
-- 目标函数：Σ(轴向权重 + 代价权重 × 格代价) + `turn_penalty` × 弯数。在下列约束下**可证最优**：
-  - 某个方向整体禁止（承重墙不得开横槽）；
+## 功能
+
+- **`OrientedAStar`（C++，不依赖 ROS）**：每一步走一整段横 / 竖直线，下一段必须转 90°，状态为 `(x, y, 上一段方向)`。目标函数为 Σ(轴向权重 + 代价权重 × 格代价) + `turn_penalty` × 弯数，在下列约束下可证最优：
+  - 禁用某个方向（承重墙不得开横槽）；
   - 单段直线最大长度（非承重墙横槽 ≤ 50 cm）；
-  - 弯曲半径 r：与弯相邻的直线段 ≥ r（两弯之间 ≥ 2r），并且半径 r 的弯管圆弧不碰障碍。
-- C++ 核心不依赖 ROS；提供 C 接口（`include/scr_planner/c_api.h`）和 Python ctypes 封装（`python/scr_planner_py.py`）。
-- `python/wall_rules.py`：开槽规范常量（逐条标注国标 / 参照 / 行业 / 假设）、规则 → 栅格与参数、独立的合规检查、随机墙面场景生成。
+  - 弯曲半径 r：与弯相邻的直线段 ≥ r（两弯之间 ≥ 2r），且半径 r 的弯管圆弧不碰障碍。
+- **接口**：C 接口 `include/scr_planner/c_api.h`，Python ctypes 封装 `python/scr_planner_py.py`。
+- **`python/wall_rules.py`**：开槽规范常量（逐条标注来源：国标 / 参照 / 行业 / 假设）、规则 → 栅格与搜索参数、独立的合规检查、随机墙面场景生成。
+- **`python/slot_plan.py`**：开槽任务规划。槽线限制在机械臂可切高度带内；按机械臂每站 12 cm 的可切宽度划分停靠站（每条槽单独贪心 / 合并贪心 / 合并动态规划）；访问顺序（逐条槽 / 一维最优扫掠）；每站的机械臂切割点（每刀只动一个轴，刀片 0° / 90°）；标定后的时间模型。
 
-## 参数（`SearchParams` / Python 关键字参数同名）
+## 搜索参数（`SearchParams`，Python 关键字参数同名）
 
 | 参数 | 默认 | 说明 |
 |---|---|---|
 | `turn_penalty` | 4.0 | 每个弯折算的格数 |
 | `weight_x` / `weight_y` | 1.0 | 横 / 竖每格代价（非承重墙取 `weight_x = 2`，竖槽优先） |
 | `allow_x` / `allow_y` | true | 是否允许横 / 竖向（承重墙 `allow_x = false`） |
-| `max_run_x` / `max_run_y` | 0 | 单段最大长度（格），0 = 不限 |
-| `bend_radius` | 0 | 弯曲半径（格），0 = 不考虑 |
+| `max_run_x` / `max_run_y` | 0 | 单段最大长度（格），0 为不限 |
+| `bend_radius` | 0 | 弯曲半径（格），0 为不考虑 |
 | `cost_weight` | 0.0 | 每格附加 `cost_weight × cost / 252`（用于“电上水下”等软偏好） |
 | `allow_unknown` / `obstacle_threshold` | true / 253 | 255 是否可通行；≥ 阈值的格不可通行 |
 | `goal_tolerance_cells` | 0 | 终点被占时在此半径内找最近可通行格 |
-| `timeout_s` / `max_expansions` | 0 / 0 | 超时 / 扩展上限，0 = 不限 |
+| `timeout_s` / `max_expansions` | 0 / 0 | 超时 / 扩展上限，0 为不限 |
 
-## 开槽任务：离线规划 → 逐站执行
+## 用法：离线规划 → 逐站执行
 
 ```bash
 # 离线规划（不需要 ROS）：槽线、停靠站（按执行顺序）、每站机械臂点、预测时间
-python3 src/scr_planner/scripts/plan_wall_slots.py src/scr_planner/config/wall_task_room3_south.yaml /tmp/plan.yaml
-# Gazebo 中执行（只读规划文件；--dry-run-gap 为空切：按轨迹走一遍，不真正开槽）
-# 执行主路径是主任务：Nav2 → 视觉对位 → 逐站横移（远站 Nav2）/ 定点保持 / 补偿 / 切割
+python3 src/scr_planner/scripts/plan_wall_slots.py src/scr_planner/config/wall_task_room3_south.yaml /tmp/plan.yaml \
+    [--partition=dp|greedy|per_slot] [--order=sweep|slot_by_slot]
+
+# 执行（scr_arm_controller 的任务总流程，只读规划文件）；--dry-run-gap 为空切
 ros2 run scr_arm_controller navigation_cutting_task /tmp/plan.yaml --dry-run-gap=0.01
-# 实验记录器：同一执行路径 + Gazebo 真值评估（刀尖轨迹、到站误差、漂移 → CSV / YAML）
+
+# 实验记录器：同一执行路径 + Gazebo 真值评估，输出 stations.csv / tool_trace.csv / summary.yaml
 ros2 run scr_planner execute_slot_plan.py /tmp/plan.yaml /tmp/run --dry-run-gap=0.01
+
+# ROS 节点：规划并在 /wall_slot_plan/markers 发布 RViz 显示
+ros2 run scr_planner wall_slot_planner_node.py --ros-args \
+    -p task_file:=$(ros2 pkg prefix scr_planner)/share/scr_planner/config/wall_task_room3_south.yaml \
+    -p output_file:=/tmp/slot_plan.yaml
 ```
 
-- 切割只沿直角折线：每刀只动一个轴，刀片 0° / 90°；弯曲半径只作规划约束。
-- 线盒高度须在机械臂可切范围内（离地约 0.27–0.80 m，任务约束）。
-- 停靠站划分 `--partition=dp|greedy|per_slot`，访问顺序 `--order=sweep|slot_by_slot`。
+墙面任务文件的格式见 `config/wall_task_room3_south.yaml` 和 [使用指南](../../docs/USER_GUIDE.md#7-多站开槽离线规划--逐站执行)。线盒高度须在机械臂可切范围内（离地约 0.27–0.80 m）。
 
-## 测试与实验
+其他脚本：`wall_benchmark.py`（规划器与施工规范的随机墙面对比）、`station_order_benchmark.py`（停靠站划分与顺序的离线对比）、`calibrate_time_model.py`（由执行记录标定时间模型）、`plot_execution.py` / `plot_station_order.py`（作图）。
+
+## 测试
 
 ```bash
-colcon build --packages-select scr_planner && colcon test --packages-select scr_planner
-PYTHONUNBUFFERED=1 python3 src/scr_planner/scripts/wall_benchmark.py          # 2a：规范对比
-PYTHONUNBUFFERED=1 python3 src/scr_planner/scripts/station_order_benchmark.py  # 2b：停靠站顺序优化
+colcon build --packages-select scr_planner
+colcon test --packages-select scr_planner && colcon test-result --verbose
 ```
 
-报告：[`docs/experiments/cpp_planner`](../../docs/experiments/cpp_planner/README.md)（规划算法与规范）、
-[`docs/experiments/slot_execution`](../../docs/experiments/slot_execution/README.md)（离线规划、多站执行、顺序优化）。
+- `test/test_oriented_astar.cpp`（gtest）：基本行为、各项规范约束，以及在 400 张随机栅格、随机规则组合上与独立实现的逐格 Dijkstra 比较最优值；
+- `test/test_slot_plan.py`（pytest）：停靠站覆盖、动态规划划分不劣于贪心、扫掠顺序与暴力枚举一致、单轴切割、规划文件读写、主任务对规划文件的解析与补偿公式。
+
+实验报告：[开槽规划算法与施工规范](../../docs/experiments/cpp_planner/README.md)、[多站执行与停靠站顺序优化](../../docs/experiments/slot_execution/README.md)。

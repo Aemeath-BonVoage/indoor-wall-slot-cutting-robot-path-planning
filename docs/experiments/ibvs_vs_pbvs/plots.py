@@ -205,7 +205,7 @@ def laser_sigma(range_noise=0.01, n=2000, seed=0):
 def observability_table():
     """返回 Markdown 表：每 1 px / 1 cm 噪声下单帧测量的标准差."""
     ly, ld = laser_sigma()
-    lines = ['| 方块边长 | J 条件数 | IBVS σ_法向 mm | IBVS σ_横向 mm | IBVS σ_偏航 ° |',
+    lines = ['| 标记边长 | J 条件数 | IBVS σ_法向 mm | IBVS σ_横向 mm | IBVS σ_偏航 ° |',
              '|---|---|---|---|---|']
     for s in [0.05, 0.10, 0.20, 0.30]:
         sd, cond = crlb(s, sim.D_DES)
