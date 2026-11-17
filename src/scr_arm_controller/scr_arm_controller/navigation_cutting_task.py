@@ -1,13 +1,23 @@
 #!/usr/bin/env python3
 """
-导航+切割任务总控程序
+导航+切割任务总控程序（项目唯一的执行主路径）.
 
-先导航到目标点，然后精确定位到黄色方块正前方，最后执行切割任务
+两种任务文件：
+1. 单站任务（task_at_target.yaml 格式）：导航到目标点 → 视觉对位到黄色方块正前方
+   → 扫描 → 定点保持下切割。
+2. 离线开槽规划（scr_planner/scripts/plan_wall_slots.py 的输出，含 wall / stations）：
+   导航到标记前 → 视觉对位（确定墙面坐标原点）→ 逐站：横移（远站先用 Nav2）到站
+   → 定点保持 → 测残差并补偿机械臂点 → 切割 → 下一站。执行中不重新规划。
+
+  ros2 run scr_arm_controller navigation_cutting_task <task.yaml | plan.yaml>
+      [--dry-run-gap=0.01] [--no-compensation] [--max-strafe=1.5]
 """
 
 import sys
 import os
 import math
+import time
+import numpy as np
 import rclpy
 import yaml
 from rclpy.node import Node
@@ -23,6 +33,70 @@ from scr_arm_controller.trajectory_visualizer import TrajectoryVisualizer
 from scr_arm_controller.base_hold import BaseHold
 from scr_arm_controller.visual_servo import pbvs_command
 from scr_arm_controller.visual_servo_ros import WallMarkerServo
+
+
+# ---------------------------------------------------------------------------
+# 离线开槽规划文件的解析（纯函数，不依赖 ROS；格式见 scr_planner/python/slot_plan.py
+# plan_to_dict）。墙面坐标：u 沿墙向右（面对墙面时），v 离地高度。
+# ---------------------------------------------------------------------------
+def is_slot_plan(config):
+    """任务文件是否为离线开槽规划（而不是单站任务）."""
+    return isinstance(config, dict) and 'stations' in config and 'wall' in config
+
+
+def plan_wall_axes(plan):
+    """墙面系 → map：返回 (p0 左端点, t 沿墙向右单位向量, n 指向房间的法向)."""
+    p0 = np.array(plan['wall']['left_end'], dtype=float)
+    p1 = np.array(plan['wall']['right_end'], dtype=float)
+    t = (p1 - p0) / np.linalg.norm(p1 - p0)
+    return p0, t, np.array([t[1], -t[0]])
+
+
+def plan_wall_pose(plan, u, standoff):
+    """正对墙面、base_link 中心离墙 standoff、位于墙面 u 处的 map 位姿 (x, y, yaw)."""
+    p0, t, n = plan_wall_axes(plan)
+    p = p0 + u * t + standoff * n
+    return float(p[0]), float(p[1]), math.atan2(-n[1], -n[0])
+
+
+def station_arm_points(station, plan, dry_run_gap=None):
+    """
+    一个停靠站的机械臂点 → ([(x, y, z, rotation_rad)], [是否处于切深]).
+
+    dry_run_gap（米）：空切，切深处的点改为刀尖停在规划墙面前 gap 处（Gazebo 的墙是
+    刚体，真的下刀会把整台机器人顶开）；退刀点不变。
+    """
+    r = plan['robot']
+    x_cut = r['x_cut']
+    x_dry = None if dry_run_gap is None else r['standoff'] - dry_run_gap - r['tool_offset']
+    pts, is_cut = [], []
+    for p in station['points']:
+        cut = abs(p['x'] - x_cut) < 1e-6
+        x = x_dry if (cut and x_dry is not None) else p['x']
+        pts.append((x, p['y'], p['z'], math.radians(p['rotation'])))
+        is_cut.append(cut)
+    return pts, is_cut
+
+
+def compensate_points(points, is_cut, e_l, e_n, psi, tool_offset, x_range, y_range):
+    """
+    把机械臂点修正到实际停靠位姿下（小角度近似）.
+
+    e_l：底盘横向误差（米，沿墙向右为正）；e_n：离墙偏远量（米）；psi：朝向误差（rad，
+    逆时针为正）。刀尖在 base 系的横向位置 fy 对应墙面 u ≈ u_base - fx·psi - fy，令其等于
+    名义值得 fy' = fy + e_l - fx·psi（fx = 刀尖在 base 系的前伸）。切深处的点离墙偏远则
+    多伸出 e_n；退刀点不动。超出关节限位的分量钳制到限位，返回 (新点列, 被钳制点数)。
+    """
+    (xlo, xhi), (ylo, yhi) = x_range, y_range
+    out, clamped = [], 0
+    for (x, y, z, rot), cut in zip(points, is_cut):
+        fx = x + tool_offset
+        y2 = y + e_l - fx * psi
+        x2 = x + e_n if cut else x
+        y3, x3 = min(max(y2, ylo), yhi), min(max(x2, xlo), xhi)
+        clamped += int(abs(y3 - y2) > 1e-9 or abs(x3 - x2) > 1e-9)
+        out.append((x3, y3, z, rot))
+    return out, clamped
 
 
 class NavigationCuttingTask(Node):
@@ -87,6 +161,14 @@ class NavigationCuttingTask(Node):
         self.hold_base = True
         self.base_hold = BaseHold(entity=self.GAZEBO_ENTITY)
 
+        # 多站开槽规划执行（run_slot_plan）
+        self.max_strafe = 1.5          # 站间横移超过该距离（米）时先退到离墙 nav_standoff 用 Nav2 过去
+        self.nav_standoff = 1.2        # Nav2 目标离墙距离（米）：远离墙面，留出代价地图膨胀余量
+        self.strafe_tol = (0.003, 0.005, math.radians(1.0))   # 到站容差：横向 / 离墙 / 朝向
+        self.compensate = True         # 到站后按残余误差修正机械臂点
+        self.cur_station = -1          # 当前停靠站序号（-1 = 不在站上）；供实验记录读取
+        self.phase = 'idle'            # idle / move / cut：相邻两点都在切深时为 cut
+
         # 视觉伺服测量器（激光拟合墙面 + 相机检测方块）
         self.servo = WallMarkerServo(self)
 
@@ -147,12 +229,13 @@ class NavigationCuttingTask(Node):
         cosy_cosp = 1 - 2 * (q.y * q.y + q.z * q.z)
         return math.atan2(siny_cosp, cosy_cosp)
 
-    def navigate_to_pose(self, x, y, yaw):
+    def navigate_to_pose(self, x, y, yaw, nav_retries=10):
         """
         导航到指定位姿
 
         x, y: 目标坐标（米）
         yaw: 目标朝向（弧度）
+        nav_retries: 目标被拒绝时的重试次数
         """
         self.get_logger().info('='*60)
         self.get_logger().info('步骤1: 导航到目标区域')
@@ -180,14 +263,21 @@ class NavigationCuttingTask(Node):
 
         self.get_logger().info('发送导航目标...')
 
-        # 发送目标
-        send_goal_future = self._nav_action_client.send_goal_async(goal_msg)
-        rclpy.spin_until_future_complete(self, send_goal_future)
-
-        goal_handle = send_goal_future.result()
-        if not goal_handle.accepted:
-            self.get_logger().error('❌ 导航目标被拒绝')
-            return False
+        # 发送目标。action 服务器先于 bt_navigator 激活出现，激活前的目标会被拒绝
+        # （启动后立即运行任务时实测如此），故被拒时等待后重试
+        for attempt in range(nav_retries + 1):
+            send_goal_future = self._nav_action_client.send_goal_async(goal_msg)
+            rclpy.spin_until_future_complete(self, send_goal_future)
+            goal_handle = send_goal_future.result()
+            if goal_handle.accepted:
+                break
+            if attempt == nav_retries:
+                self.get_logger().error('❌ 导航目标被拒绝')
+                return False
+            self.get_logger().warn(f'导航目标被拒绝（Nav2 可能尚未激活），3 s 后重试 '
+                                   f'{attempt + 1}/{nav_retries}')
+            self.sleep_sim(3.0)
+            goal_msg.pose.header.stamp = self.get_clock().now().to_msg()
 
         self.get_logger().info('导航目标已接受，机器人正在移动...')
 
@@ -828,9 +918,215 @@ class NavigationCuttingTask(Node):
             frame_id='map'
         )
 
+    # ------------------------------------------------------------------
+    # 多站开槽：执行 plan_wall_slots.py 离线生成的规划文件
+    # ------------------------------------------------------------------
+    def sim_now(self):
+        """仿真时间（秒）：取自定点保持的后台节点（机械臂动作时主节点不处理回调，时钟会停）."""
+        return self.base_hold.node.get_clock().now().nanoseconds * 1e-9
+
+    def strafe_to(self, du_target, ref, max_iter=600, alpha=0.3):
+        """
+        横移到相对参考位姿 du_target（沿墙向右为正，米）处，保持离墙 distance_from_marker.
+
+        横向用里程计（短距离内几乎无漂移、无噪声）；离墙距离与朝向用激光拟合墙面，
+        单帧拟合 rms 约 9 mm、朝向抖动约 ±1°，故做指数平滑（alpha）。剩余朝向误差由
+        到站后的机械臂点补偿消除。也用于从 Nav2 的离墙位姿（nav_standoff）接近墙面。
+        """
+        tol_lat, tol_norm, tol_yaw = self.strafe_tol
+        D = self.distance_from_marker
+        right = np.array([math.sin(ref['yaw']), -math.cos(ref['yaw'])])   # 面墙时的右方
+        ok, filt = 0, None
+        for _ in range(max_iter):
+            pose = self.get_robot_position()
+            wall, _ = self.servo.wall_in_base()
+            if pose is None or wall is None:
+                self.cmd_vel_pub.publish(Twist())
+                self.sleep_sim(0.1)
+                continue
+            raw = np.array([wall['distance'] - D, wall['yaw_error']])
+            filt = raw if filt is None else (1 - alpha) * filt + alpha * raw
+            du = float((np.array([pose['x'], pose['y']]) - ref['p']) @ right)
+            n = np.array(wall['normal'])
+            err = {'normal': float(filt[0]), 'lateral': -(du_target - du),
+                   'yaw': float(filt[1]), 'n': n, 't': np.array([-n[1], n[0]])}
+            if abs(err['lateral']) < tol_lat and abs(err['normal']) < tol_norm and \
+                    abs(err['yaw']) < tol_yaw:
+                ok += 1
+                if ok >= 5:
+                    self.stop_robot()
+                    return True
+            else:
+                ok = 0
+            vx, vy, wz = pbvs_command(err, max_lin=0.1, pos_deadband=tol_lat * 0.5,
+                                      ang_deadband=tol_yaw * 0.5)
+            cmd = Twist()
+            cmd.linear.x, cmd.linear.y, cmd.angular.z = vx, vy, wz
+            self.cmd_vel_pub.publish(self.apply_wall_guard(cmd))
+            self.sleep_sim(0.1)
+        self.stop_robot()
+        return False
+
+    def measure_residual(self, du_target, ref, n=10):
+        """
+        到站后的残余误差（只用机器人自身传感器）→ (e_l, e_n, psi).
+
+        e_l：横向（里程计，米，沿墙向右为正）；e_n：离墙（激光拟合墙面，米，>0 表示
+        离墙偏远）；psi：朝向（rad，逆时针为正）。
+        """
+        right = np.array([math.sin(ref['yaw']), -math.cos(ref['yaw'])])
+        ls, ns, ys = [], [], []
+        for _ in range(n * 3):
+            pose = self.get_robot_position()
+            wall, _ = self.servo.wall_in_base()
+            if pose is not None and wall is not None:
+                ls.append(float((np.array([pose['x'], pose['y']]) - ref['p']) @ right)
+                          - du_target)
+                ns.append(wall['distance'] - self.distance_from_marker)
+                ys.append(-wall['yaw_error'])   # yaw_error > 0 需逆时针转 → 机器人偏顺时针
+                if len(ls) >= n:
+                    break
+            self.sleep_sim(0.1)
+        if not ls:
+            return 0.0, 0.0, 0.0
+        return float(np.mean(ls)), float(np.mean(ns)), float(np.mean(ys))
+
+    def run_points(self, points, is_cut, duration):
+        """逐点执行机械臂点，并标注阶段（self.phase）：相邻两点都在切深时为 'cut'."""
+        prev_cut = False
+        for (x, y, z, rot), cut in zip(points, is_cut):
+            self.phase = 'cut' if (prev_cut and cut) else 'move'
+            if not self.arm_controller.move_to_cartesian(x, y, z, rot, duration=duration):
+                self.phase = 'idle'
+                return False
+            prev_cut = cut
+        self.phase = 'idle'
+        return True
+
+    def on_station_arrived(self, station):
+        """钩子：到站并进入定点保持后调用，返回并入本站记录的字段（实验记录用，默认无）."""
+        return {}
+
+    def run_slot_plan(self, plan, dry_run_gap=None):
+        """按离线规划逐站执行，返回 (是否全部完成, 每站记录列表)."""
+        log = self.get_logger()
+        if plan.get('status') != 'success' or not plan.get('stations'):
+            log.error(f'规划结果不可执行: {plan.get("status")}')
+            return False, []
+        r = plan['robot']
+        self.distance_from_marker = r['standoff']
+        p0, t, _ = plan_wall_axes(plan)
+        u_marker = float((np.array([self.marker_position['x'], self.marker_position['y']])
+                          - p0) @ t)
+        if 'marker_u' in plan and abs(plan['marker_u'] - u_marker) > 1e-3:
+            log.warn(f"规划时的标记位置 u={plan['marker_u']:.3f} 与执行器不一致 ({u_marker:.3f})")
+        stations = plan['stations']
+        log.info(f'离线规划：{len(plan["slots"])} 条槽 {plan["length"]:.2f} m，'
+                 f'{len(stations)} 个停靠站（{plan["partition"]} / {plan["order"]}），'
+                 f'预测 {plan.get("prediction", {}).get("t_total")} s；定位标记 u = {u_marker:.3f} m')
+
+        # 1. Nav2 导航到标记正前方；2. 视觉伺服对位（确定墙面坐标原点）
+        if not self.navigate_to_pose(*plan_wall_pose(plan, u_marker, self.nav_standoff)):
+            log.error('任务失败：导航到定位标记失败')
+            return False, []
+        self.sleep_sim(2.0)
+        if not self.precise_positioning_to_marker():
+            log.error('任务失败：视觉对位失败')
+            return False, []
+        pose = self.get_robot_position()
+        ref = {'p': np.array([pose['x'], pose['y']]), 'yaw': pose['yaw']}
+        limits = self.arm_controller.cartesian_limits
+
+        # 3. 逐站：到站 → 定点保持 → 测残差、补偿 → 切割
+        rows, u_prev = [], u_marker
+        for st in stations:
+            du = st['u_c'] - u_marker
+            log.info(f'\n===== 停靠站 S{st["index"]}: u = {st["u_c"]:.3f} m（距标记 '
+                     f'{du * 100:+.1f} cm），{len(st["points"])} 个点 =====')
+            t0 = self.sim_now()
+            nav_leg = abs(st['u_c'] - u_prev) > self.max_strafe
+            if nav_leg:
+                # 远站：机械臂缩回，退到离墙 nav_standoff 用 Nav2 过去，再横移 / 接近到站
+                self.move_arm_for_approach(joint1=0.0)
+                if not self.navigate_to_pose(
+                        *plan_wall_pose(plan, st['u_c'], self.nav_standoff)):
+                    log.error(f'S{st["index"]}: Nav2 导航失败，停止')
+                    break
+            ok_move = self.strafe_to(du, ref)
+            self.base_hold.enabled = self.hold_base
+            self.base_hold.hold()
+            t_move = self.sim_now() - t0
+            self.cur_station = st['index']
+            extra = self.on_station_arrived(st) or {}
+            pts, is_cut = station_arm_points(st, plan, dry_run_gap)
+            e_l, e_n, psi = self.measure_residual(du, ref)
+            clamped = 0
+            if self.compensate:
+                pts, clamped = compensate_points(pts, is_cut, e_l, e_n, psi, r['tool_offset'],
+                                                 limits['x'], limits['y'])
+            log.info(f'到位 {"✓" if ok_move else "✗（未收敛，按残差补偿后继续）"}，'
+                     f'用时 {t_move:.1f} s；残余误差（传感器）: 横向 {e_l * 1000:+.1f} mm, '
+                     f'离墙 {e_n * 1000:+.1f} mm, 朝向 {math.degrees(psi):+.2f}°'
+                     + ('，已补偿' if self.compensate else '')
+                     + (f'；{clamped} 个点被关节限位钳制' if clamped else ''))
+            t1 = self.sim_now()
+            ok_cut = self.run_points(pts, is_cut, st['motion']['duration'])
+            drift = self.base_hold.release()
+            self.cur_station = -1
+            t_end = self.sim_now()
+            row = dict(station=st['index'], u_c=st['u_c'], points=len(st['points']),
+                       move_dist_m=abs(st['u_c'] - u_prev), nav_leg=int(nav_leg),
+                       station_s=t_end - t0, move_s=t_move, cut_s=t_end - t1,
+                       sensed_lateral_mm=e_l * 1000, sensed_standoff_mm=e_n * 1000,
+                       sensed_yaw_deg=math.degrees(psi), clamped=clamped,
+                       cut_cm=st['cut_length'] * 100, moved=int(ok_move), cut_ok=int(ok_cut))
+            if drift is not None:
+                row.update(hold_drift_mm=drift[0] * 1000, hold_drift_deg=drift[1])
+            row.update(extra)
+            rows.append(row)
+            u_prev = st['u_c']
+            if not ok_cut:
+                log.error(f'S{st["index"]} 切割失败，停止')
+                break
+        self.arm_controller.move_to_joints([0.0, 0.0, self.approach_joint3, 0.0], duration=2.0)
+        ok = len(rows) == len(stations) and all(r_['cut_ok'] for r_ in rows)
+        log.info(f'{"✅" if ok else "❌"} 多站开槽完成 {len(rows)}/{len(stations)} 站，'
+                 f'各站耗时之和 {sum(r_["station_s"] for r_ in rows):.1f} s')
+        return ok, rows
+
+
+def run_plan_main(plan, flags, args=None):
+    """离线开槽规划的执行入口（main 识别到规划文件时调用）."""
+    rclpy.init(args=args)
+    task = NavigationCuttingTask()
+    task.compensate = 'no-compensation' not in flags
+    if 'max-strafe' in flags:
+        task.max_strafe = float(flags['max-strafe'])
+    gap = flags.get('dry-run-gap')
+    t_wall = time.time()
+    ok, rows = task.run_slot_plan(plan, None if gap is None else float(gap))
+    for r in rows:
+        task.get_logger().info(
+            f'  S{r["station"]:>2}: {r["station_s"]:6.1f} s  残差 横向 '
+            f'{r["sensed_lateral_mm"]:+5.1f} mm 朝向 {r["sensed_yaw_deg"]:+5.2f}°  '
+            f'切割 {"✓" if r["cut_ok"] else "✗"}')
+    task.get_logger().info(f'墙钟耗时 {time.time() - t_wall:.0f} s')
+    task.trajectory_visualizer.destroy_node()
+    task.arm_controller.destroy_node()
+    task.destroy_node()
+    if rclpy.ok():
+        rclpy.shutdown()
+    sys.exit(0 if ok else 1)
+
 
 def main(args=None):
-    if len(sys.argv) < 2:
+    # 本程序的 --key[=value] 选项（--ros-args 之后的参数留给 rclpy）
+    argv = rclpy.utilities.remove_ros_args(sys.argv)
+    flags = dict((a[2:].partition('=')[0], a[2:].partition('=')[2] or True)
+                 for a in argv[1:] if a.startswith('--'))
+    pos = [a for a in argv if not a.startswith('--')]
+    if len(pos) < 2:
+        print(__doc__)
         print('用法: ros2 run scr_arm_controller navigation_cutting_task <task_config.yaml>')
         print('\n示例:')
         print('  ros2 run scr_arm_controller navigation_cutting_task task_at_target.yaml')
@@ -856,7 +1152,7 @@ def main(args=None):
         print('    return_home: true')
         return
 
-    config_file = sys.argv[1]
+    config_file = pos[1]
 
     # 如果是相对路径，到功能包的 config 目录中查找
     if not os.path.isabs(config_file) and not os.path.exists(config_file):
@@ -879,6 +1175,11 @@ def main(args=None):
             config = yaml.safe_load(f)
     except Exception as e:
         print(f'错误: 无法解析配置文件: {e}')
+        return
+
+    # 离线开槽规划文件（plan_wall_slots.py 输出）→ 多站执行
+    if is_slot_plan(config):
+        run_plan_main(config, flags, args)
         return
 
     # 验证配置

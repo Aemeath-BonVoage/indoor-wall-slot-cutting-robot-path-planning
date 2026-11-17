@@ -225,6 +225,75 @@ def test_plan_file_round_trip(planner):
     assert plan2.length == pytest.approx(plan.length, abs=1e-3)
 
 
+def _main_task_module():
+    """navigation_cutting_task（执行主路径）的纯函数；需要 ROS 环境（colcon test 中有）."""
+    sys.path.insert(0, os.path.join(SRC, 'scr_arm_controller'))
+    pytest.importorskip('rclpy')
+    from scr_arm_controller import navigation_cutting_task as nct
+    return nct
+
+
+def test_main_task_executes_plan_file(planner):
+    """plan_wall_slots.py 的输出能被主任务直接读取：位姿、切割点、空切、补偿一致."""
+    nct = _main_task_module()
+    cfg = yaml.safe_load(open(os.path.join(PKG, 'config', 'wall_task_room3_south.yaml')))
+    scene, wall = sp.scene_from_config(cfg)
+    plan = sp.plan_task(scene, wall, ROBOT, planner, start_u=1.505)
+    d = yaml.safe_load(yaml.safe_dump(sp.plan_to_dict(plan, wall, ROBOT, scene=scene,
+                                                      marker_u=1.505), allow_unicode=True))
+    assert nct.is_slot_plan(d)
+    single = yaml.safe_load(_read('scr_arm_controller/config/task_at_target.yaml'))
+    assert not nct.is_slot_plan(single)
+    x_rng, y_rng = ROBOT.x_range, ROBOT.y_range
+    gap = 0.01
+    for st in d['stations']:
+        assert nct.plan_wall_pose(d, st['u_c'], ROBOT.standoff) == pytest.approx(
+            (st['pose']['x'], st['pose']['y'], st['pose']['yaw']), abs=2e-4)
+        pts, is_cut = nct.station_arm_points(st, d)
+        assert [p[:3] for p in pts] == [(p['x'], p['y'], p['z']) for p in st['points']]
+        assert sum(is_cut) >= 2 and not is_cut[0] and not is_cut[-1]
+        dry, _ = nct.station_arm_points(st, d, dry_run_gap=gap)
+        for (x, y, z, rot), cut in zip(dry, is_cut):
+            # 空切：刀尖停在规划墙面前 gap 处
+            if cut:
+                assert x + ROBOT.tool_offset == pytest.approx(ROBOT.standoff - gap)
+            assert ROBOT.reachable(x, y, z, math.degrees(rot))
+        same, n = nct.compensate_points(dry, is_cut, 0.0, 0.0, 0.0, ROBOT.tool_offset,
+                                        x_rng, y_rng)
+        assert same == dry and n == 0
+
+
+def test_main_task_compensation_cancels_station_error():
+    """到站误差 (横向 e_l, 离墙 e_n, 朝向 psi) 下，补偿后的刀尖仍落在名义墙面位置上."""
+    nct = _main_task_module()
+    x_rng, y_rng = ROBOT.x_range, ROBOT.y_range
+    pts = [(0.52, 0.0, 0.5, 0.0), (0.56, 0.02, 0.5, 0.0), (0.56, -0.03, 0.4, 0.0)]
+    is_cut = [False, True, True]
+
+    def tip_on_wall(p, e_l, e_n, psi):
+        # 底盘：墙面系中 u 向右、离墙 D + e_n、朝向偏 psi（逆时针）；base y 向左
+        fx, fy = p[0] + ROBOT.tool_offset, p[1]
+        c, s = math.cos(psi), math.sin(psi)
+        # 面墙时 base x = -n，base y = -t；逆时针 psi 让刀尖向右（+u）偏 fx·sin(psi)
+        u = e_l - (s * fx + c * fy)
+        depth = (ROBOT.standoff + e_n) - (c * fx - s * fy)
+        return u, depth
+
+    for e_l, e_n, psi in ((0.004, -0.003, math.radians(0.6)), (-0.008, 0.002, -0.01)):
+        comp, n = nct.compensate_points(pts, is_cut, e_l, e_n, psi, ROBOT.tool_offset,
+                                        x_rng, y_rng)
+        assert n == 0
+        for p0, p1, cut in zip(pts, comp, is_cut):
+            u0, d0 = tip_on_wall(p0, 0.0, 0.0, 0.0)
+            u1, d1 = tip_on_wall(p1, e_l, e_n, psi)
+            assert u1 == pytest.approx(u0, abs=3e-4)       # 横向：小角度近似误差 < 0.3 mm
+            if cut:
+                assert d1 == pytest.approx(d0, abs=1e-3)
+    # 超出 Y 行程的补偿被钳制并计数
+    _, n = nct.compensate_points(pts, is_cut, 0.2, 0.0, 0.0, ROBOT.tool_offset, x_rng, y_rng)
+    assert n == len(pts)
+
+
 def test_dp_partition_never_worse_and_complete(planner):
     rng = random.Random(21)
     wall = sp.WallFrame((10.0, 0.0), (5.0, 0.0))
