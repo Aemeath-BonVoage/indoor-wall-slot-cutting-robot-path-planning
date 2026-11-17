@@ -108,6 +108,7 @@ class WallStateEstimator:
         """开始新一次对位：清空滤波器（标记位置重新由测量确定）."""
         self.ekf.x = None
         self.ekf.P = None
+        self.ekf.stats = {'wall': [0, 0], 'tag': [0, 0]}
         self._last_pose = None
         self._last_wall = None
         self._last_tag = None

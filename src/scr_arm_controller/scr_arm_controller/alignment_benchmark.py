@@ -270,8 +270,9 @@ def plot(summary, path):
     conds = [c for c in COND_ORDER if any(s['condition'] == c for s in summary)]
     pipes = [p for p in PIPELINES if any(s['pipeline'] == p for s in summary)]
     colors = {'v1': '#9AA5B1', 'v2': '#2F6FDE', 'v2_blob': '#7FB069', 'v2_taught': '#D9480F'}
-    labels = {'v1': '第一版（色块 + 平滑 + 比例/死区）', 'v2': '新版（AprilTag + EKF + 平方根律）',
-              'v2_blob': '新版估计与控制 + 色块', 'v2_taught': '新版 + 零位标定'}
+    labels = {'v1': '第一版（色块 + 平滑 + 比例/死区）', 'v2': '本版（AprilTag + EKF + 平方根律）',
+              'v2_blob': '本版估计与控制 + 色块', 'v2_taught': '本版 + 示教零位'}
+    top = 16.0          # 纵轴上限（mm）；全部失败的条件不画柱高，只标注
     fig, ax = plt.subplots(figsize=(11, 4.4))
     width = 0.8 / len(pipes)
     labelled = set()
@@ -281,19 +282,24 @@ def plot(summary, path):
             if s is None:
                 continue
             x = j + (i - (len(pipes) - 1) / 2) * width
-            ax.bar(x, s['pos_mean_mm'], width, yerr=s['pos_std_mm'], capsize=2,
-                   color=colors[p], label=None if p in labelled else labels[p])
+            lab = None if p in labelled else labels[p]
             labelled.add(p)
+            if s['success'] == 0:
+                ax.bar(x, top, width, color='none', edgecolor=colors[p], hatch='///', label=lab)
+                ax.text(x, top * 0.55, f"失败\n0/{s['n']}", ha='center', va='center', fontsize=7)
+                continue
+            ax.bar(x, s['pos_mean_mm'], width, yerr=s['pos_std_mm'], capsize=2,
+                   color=colors[p], label=lab)
             note = f"{s['pos_mean_mm']:.1f}"
             if s['success'] < s['n']:
                 note += f"\n{s['success']}/{s['n']}"
-            ax.text(x, s['pos_mean_mm'] + s['pos_std_mm'] + 0.3, note, ha='center', va='bottom',
-                    fontsize=6.5)
+            ax.text(x, min(s['pos_mean_mm'] + s['pos_std_mm'] + 0.2, top - 1), note,
+                    ha='center', va='bottom', fontsize=6.5)
     ax.set_xticks(range(len(conds)))
     ax.set_xticklabels(conds, rotation=18, fontsize=8)
-    ax.set_ylabel('真值位置误差（mm，均值 ± 标准差）')
-    ax.set_yscale('symlog', linthresh=10)
-    ax.legend(frameon=False, fontsize=8, ncol=2)
+    ax.set_ylabel('真值位置误差（mm，均值 ± 标准差，n = 8）')
+    ax.set_ylim(0, top)
+    ax.legend(frameon=False, fontsize=8, ncol=2, loc='upper left')
     ax.spines[['top', 'right']].set_visible(False)
     fig.tight_layout()
     fig.savefig(path, dpi=150)
