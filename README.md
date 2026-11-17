@@ -94,7 +94,8 @@
 │   ├── scr_description/      # URDF/网格模型、Gazebo 世界、控制器配置、麦轮控制器
 │   ├── scr_navigation/       # SLAM Toolbox / Nav2 配置、地图、RViz 配置
 │   ├── scr_arm_controller/   # 笛卡尔运动学、YAML 轨迹任务、标记扫描、导航+切割总流程
-│   └── path_planning/        # 标准/改进/增强 A* 实现与对比实验（纯 Python，可离线运行）
+│   ├── scr_planner/          # C++ 方向感知增强 A* + 施工规范约束的墙面开槽规划、停靠站划分与顺序优化
+│   └── path_planning/        # 标准/改进/增强 A* 实现与对比实验（第一版规划器纯 Python 参考实现）
 ├── docker/                   # Docker 环境（osrf/ros:humble-desktop-full）
 ├── docs/images/              # README 图片
 └── *.md                      # 操作文档与专题指南
