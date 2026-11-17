@@ -2,7 +2,11 @@
 # -*- coding: utf-8 -*-
 """任务级联合规划实验的统计与作图（读取 task_planning_benchmark.py 的输出）.
 
-  python3 src/scr_planner/scripts/task_planning_report.py [data_dir] [out_dir]
+  python3 src/scr_planner/scripts/task_planning_report.py [data_dir] [out_dir] [--time-model=NAME]
+
+data_dir 默认 docs/experiments/task_planning/align_v2/data，out_dir 默认为 data_dir 的上一级。
+--time-model 只用于重新规划示例墙（fig_example.png），须与生成 data_dir 时所用的预设一致：
+align_v2/data 用 align_v2（默认），data/ 用 align_v1。
 
 统计口径
   配对样本：per_slot、current、joint 三者都得到可行方案的墙（current 可行时 joint 必可行）。
@@ -134,9 +138,12 @@ def setup_mpl():
 
 
 def main():
-    data = sys.argv[1] if len(sys.argv) > 1 else os.path.join(
-        REPO, 'docs', 'experiments', 'task_planning', 'data')
-    out = sys.argv[2] if len(sys.argv) > 2 else os.path.dirname(os.path.abspath(data))
+    args = [a for a in sys.argv[1:] if not a.startswith('--')]
+    kw = dict(a[2:].split('=', 1) for a in sys.argv[1:] if a.startswith('--'))
+    data = args[0] if args else os.path.join(
+        REPO, 'docs', 'experiments', 'task_planning', 'align_v2', 'data')
+    out = args[1] if len(args) > 1 else os.path.dirname(os.path.abspath(data))
+    time_model = kw.get('time-model', 'align_v2')
     rows = load(os.path.join(data, 'results.csv'))
     S = by_seed(rows)
     n_walls = len(S)
@@ -280,7 +287,7 @@ def main():
         write_csv(os.path.join(out, 'sensitivity_summary.csv'), sens_rows)
 
     plot_results(S, P, nlb, gaps, out)
-    plot_example(S, nlb, out)
+    plot_example(S, nlb, out, time_model)
 
 
 def plot_results(S, P, nlb, gaps, out):
@@ -359,7 +366,7 @@ def plot_results(S, P, nlb, gaps, out):
     print('\n已保存', os.path.join(out, 'fig_results.png'))
 
 
-def plot_example(S, nlb, out):
+def plot_example(S, nlb, out, time_model='align_v2'):
     """节省最多的一面 2–3 条槽的非承重墙：现有方法与联合规划的槽线和停靠站对比."""
     import random
 
@@ -375,8 +382,9 @@ def plot_example(S, nlb, out):
     scene, meta = wg.residential_wall(seed, routable=tp.standalone_routable(pl, robot))
     su = random.Random(seed * 7919 + 1).uniform(0.3, scene.width / 100 - 0.3)
     wall = sp.WallFrame((0.0, 0.0), (6.0, 0.0))
-    cur = sp.plan_task(scene, wall, robot, pl, start_u=su)
-    joint = sp.plan_task(scene, wall, robot, pl, start_u=su, routes='joint')
+    tm = sp.TimeModel.preset(time_model)
+    cur = sp.plan_task(scene, wall, robot, pl, start_u=su, tm=tm)
+    joint = sp.plan_task(scene, wall, robot, pl, start_u=su, routes='joint', tm=tm)
     us = [p[0] for s in cur.slots + joint.slots for p in s.cut_path]
     u0, u1 = min(us + [su]) - 0.35, max(us + [su]) + 0.35
     band = robot.reach_band

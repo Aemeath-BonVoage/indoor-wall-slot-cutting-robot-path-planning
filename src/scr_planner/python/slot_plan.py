@@ -282,18 +282,37 @@ def station_points(st: Station, wall: WallFrame, robot: RobotModel, depth,
 # ---------------------------------------------------------------------------
 @dataclass
 class TimeModel:
-    """执行时间模型（仿真时间，秒）.
+    """执行时间模型（仿真时间，秒）：每站 t_settle + 横移距离 / v_strafe + 点数 × t_point.
 
-    由 Gazebo 中四次完整执行（54 个停靠站；main a43d3dd 力控机械臂 / 底盘仿真，执行主路径
-    navigation_cutting_task.run_slot_plan）最小二乘标定：calibrate_time_model.py →
-    R² = 1.000，每站 RMSE 0.10 s（docs/experiments/slot_execution）。仿真或执行代码改动后应重标定。
+    默认值为当前执行路径（精对位 v2：AprilTag + 激光 EKF，站间横移用同一 EKF 与平方根整形
+    控制律）的标定结果，即 TIME_MODELS['align_v2']；第一版精对位下的标定保留为
+    TIME_MODELS['align_v1']，用于复现此前的报告。标定数据与方法见 calibrate_time_model.py 与
+    docs/experiments/slot_execution。仿真或执行代码改动后应重标定。
     """
-    t_settle: float = 4.40      # 每站：横移收敛 + 定点 + 测残差的固定开销
-    v_strafe: float = 0.0945    # 沿墙横移的等效速度（m/s）
-    t_point: float = 2.034      # 每个机械臂点（motion.duration = 2.0 s + 通信开销）
+    t_settle: float = 2.83      # 每站：横移启停 + 到位 + 测残差的固定开销
+    v_strafe: float = 0.0984    # 沿墙横移的等效速度（m/s）
+    t_point: float = 2.049      # 每个机械臂点（motion.duration = 2.0 s + 通信开销，含偶发停顿）
 
     def move(self, d):
         return self.t_settle + abs(d) / self.v_strafe
+
+    @classmethod
+    def preset(cls, name):
+        """按名称取标定预设（见 TIME_MODELS）."""
+        if name not in TIME_MODELS:
+            raise ValueError(f'unknown time model {name!r}; choose from {sorted(TIME_MODELS)}')
+        return TIME_MODELS[name]
+
+
+# 时间模型标定预设（Gazebo 仿真配置 v2，主任务执行路径 navigation_cutting_task.run_slot_plan）
+TIME_MODELS = {
+    # 第一版精对位（色块 + PBVS，站间横移用激光朝向平滑）：runs/dp、dp_repeat、per_slot、
+    # per_slot_repeat 共 54 站，整体最小二乘，每站 RMSE 0.10 s
+    'align_v1': TimeModel(t_settle=4.40, v_strafe=0.0945, t_point=2.034),
+    # 精对位 v2：runs/fine_align_dp、fine_align_dp_repeat、fine_align_dp_nofold 共 33 站，
+    # 按阶段拟合（横移阶段回归 + 固定开销均值 + 切割总时间 / 总点数），每站 RMSE 0.68 s
+    'align_v2': TimeModel(),
+}
 
 
 @dataclass
