@@ -79,7 +79,15 @@ class SlotExecutor(NavigationCuttingTask):
         self.tracer.create_timer(0.05, self._hold_step)
         self._tracer_exec = SingleThreadedExecutor()
         self._tracer_exec.add_node(self.tracer)
-        threading.Thread(target=self._tracer_exec.spin, daemon=True).start()
+        self._tracer_thread = threading.Thread(target=self._tracer_exec.spin, daemon=True)
+        self._tracer_thread.start()
+
+    def shutdown_tracer(self):
+        """先停后台执行器并等线程退出，再销毁节点（否则退出时 C++ 层会 abort）."""
+        self.hold_target = None
+        self._tracer_exec.shutdown()
+        self._tracer_thread.join(timeout=2.0)
+        self.tracer.destroy_node()
 
     # --- 定点保持 -----------------------------------------------------------
     def _odom_cb(self, msg):
@@ -411,6 +419,7 @@ def main():
     ex.marker_pub.publish(build_markers(plan, scene, wall, robot, ex.get_clock().now().to_msg(),
                                         executed=executed[::5]))
     log.info('\n' + '\n'.join(f'  {k}: {v}' for k, v in summary.items()))
+    ex.shutdown_tracer()
     ex.destroy_node()
     if rclpy.ok():
         rclpy.shutdown()
