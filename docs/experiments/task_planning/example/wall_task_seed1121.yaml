@@ -1,0 +1,78 @@
+# 随机住宅墙示例（wall_gen.residential_wall(seed=1121)，任务各自单独可行）。
+# 墙面放在 map 中使 Gazebo 定位标记 (8.42, -3.9245) 恰好落在基准实验的标记位置 u 上，
+# 只用于演示命令行与输出格式，并非 Gazebo 场景中的墙。
+wall:
+  frame_id: map
+  left_end:
+  - 7.9464
+  - -3.9245
+  right_end:
+  - 13.546399999999998
+  - -3.9245
+  height: 2.8
+  load_bearing: false
+obstacles:
+- kind: beam
+  label: 梁
+  u: 0.0
+  v: 2.2
+  w: 5.6
+  h: 0.6
+- kind: box
+  label: 已有插座
+  u: 0.76
+  v: 0.26
+  w: 0.09
+  h: 0.09
+- kind: box
+  label: 已有弱电口
+  u: 1.05
+  v: 0.26
+  w: 0.09
+  h: 0.09
+tasks:
+- start:
+  - 3.43
+  - 0.3
+  start_label: 已有插座
+  goal:
+  - 4.58
+  - 0.68
+  goal_label: 床头插座
+  circuit: strong
+  start_box:
+    u: 3.39
+    v: 0.26
+    w: 0.09
+    h: 0.09
+  goal_box:
+    u: 4.54
+    v: 0.64
+    w: 0.09
+    h: 0.09
+- start:
+  - 1.65
+  - 0.3
+  start_label: 已有插座
+  goal:
+  - 2.83
+  - 0.55
+  goal_label: 电视柜插座
+  circuit: strong
+  start_box:
+    u: 1.61
+    v: 0.26
+    w: 0.09
+    h: 0.09
+  goal_box:
+    u: 2.79
+    v: 0.51
+    w: 0.09
+    h: 0.09
+options:
+  restrict_to_reach: true
+  retract_between_turns: true
+  duration: 2.0
+  partition: dp
+  order: sweep
+  routes: joint

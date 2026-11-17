@@ -141,7 +141,7 @@ def _check_plan(plan, scene, wall):
     band = ROBOT.reach_band
     xc = ROBOT.x_cut(plan.slot_depth)
     for st in plan.stations:
-        assert st.u_hi - st.u_lo <= ROBOT.window_width + 1e-9
+        assert st.u_hi - st.u_lo <= ROBOT.window_width + sp.REACH_TOL
         for p in st.points:
             assert ROBOT.reachable(p['x'], p['y'], p['z'], p['rotation'])
             assert p['x'] in (pytest.approx(xc), pytest.approx(ROBOT.x_retract))

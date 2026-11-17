@@ -64,14 +64,25 @@ class WallScene:
     goal_label: str = ''
     # 多条槽：[(start, goal, start_label, goal_label)]；为空时只有 start → goal 一条
     tasks: list = field(default_factory=list)
+    # 每条槽的回路类型 'strong' / 'weak'（为空时全部为强电）
+    circuits: list = field(default_factory=list)
+    # 每条槽两端线盒 [(Rect, Rect)]：只作为其他槽的障碍（本槽从线盒中心出发）
+    task_boxes: list = field(default_factory=list)
 
     # -- 规则 → 栅格 -------------------------------------------------------
-    def margin_of(self, o):
-        return {'door': OPENING_MARGIN, 'window': OPENING_MARGIN, 'beam': BEAM_MARGIN,
-                'column': BEAM_MARGIN, 'box': BOX_MARGIN, 'weak_line': WEAK_CURRENT_SPACING,
-                'pier': 0, 'slot': SLOT_SPACING}[o.kind]
+    def circuit_of(self, k):
+        return self.circuits[k] if k < len(self.circuits) else 'strong'
 
-    def grid(self, top_preference=True):
+    def margin_of(self, o, circuit='strong'):
+        """障碍外扩距离.  circuit 为正在规划的槽的回路类型：弱电槽与已有弱电线槽只需
+        同类槽间距；'slot' / 'slot_x' 为已规划的同类 / 异类（强弱电）槽."""
+        if o.kind == 'weak_line':
+            return SLOT_SPACING if circuit == 'weak' else WEAK_CURRENT_SPACING
+        return {'door': OPENING_MARGIN, 'window': OPENING_MARGIN, 'beam': BEAM_MARGIN,
+                'column': BEAM_MARGIN, 'box': BOX_MARGIN, 'pier': 0, 'slot': SLOT_SPACING,
+                'slot_x': WEAK_CURRENT_SPACING}[o.kind]
+
+    def grid(self, top_preference=True, circuit='strong'):
         """uint8 栅格：254 = 不可开槽；其余为“电上水下”代价（0 顶部 ~ 252 底部）."""
         g = np.zeros((self.height, self.width), dtype=np.uint8)
         if top_preference:
@@ -82,7 +93,7 @@ class WallScene:
         blocked[:, :e] = blocked[:, -e:] = True
         blocked[:e, :] = blocked[-e:, :] = True
         for o in self.obstacles:
-            r = o.grown(self.margin_of(o))
+            r = o.grown(self.margin_of(o, circuit))
             x0, y0 = max(0, r.x), max(0, r.y)
             x1, y1 = min(self.width, r.x + r.w), min(self.height, r.y + r.h)
             if x1 > x0 and y1 > y0:
@@ -103,13 +114,13 @@ class WallScene:
         return p
 
     # -- 合规检查（与 C++ 实现无关的独立检查） -----------------------------
-    def violations(self, cells):
+    def violations(self, cells, circuit='strong'):
         """逐格路径 → 违规项计数 dict."""
         v = dict(diagonal=0, horizontal_on_load_bearing=0, horizontal_too_long=0,
                  short_leg=0, arc_blocked=0, blocked_cell=0)
         if len(cells) < 2:
             return v
-        blocked = self.grid(top_preference=False) >= 253
+        blocked = self.grid(top_preference=False, circuit=circuit) >= 253
         segs = segments(cells)
         for (a, b, kind) in segs:
             if kind == 'diag':

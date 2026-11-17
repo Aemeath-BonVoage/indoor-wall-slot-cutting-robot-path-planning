@@ -93,6 +93,24 @@ struct SearchParams
   double timeout_s{0.0};
   /// Abort after this many expanded states (0: no limit).
   size_t max_expansions{0};
+
+  /// Optional column costs of horizontal moves (all >= 0; empty or shorter
+  /// than the grid width means 0 for the missing columns).  They price the
+  /// window boundaries of chassis stations in task-level planning
+  /// (python/task_plan.py), where the cost of a route depends on which
+  /// station windows its horizontal segments cross:
+  ///   step_cost_pos[x]  added when a horizontal segment moves from column x to x + 1,
+  ///   step_cost_neg[x]  added when it moves from column x to x - 1,
+  ///   through_cost_x[x] added when column x lies strictly inside a horizontal segment.
+  /// Step costs enter the heuristic (every path to the goal makes each step
+  /// between the current and the goal column at least once in that direction),
+  /// so the search stays optimal.
+  std::vector<double> step_cost_pos;
+  std::vector<double> step_cost_neg;
+  std::vector<double> through_cost_x;
+  /// run_cost_x[k]: extra cost of one horizontal segment that is k cells long
+  /// (>= 0; k beyond the vector size costs 0).
+  std::vector<double> run_cost_x;
 };
 
 enum class Status

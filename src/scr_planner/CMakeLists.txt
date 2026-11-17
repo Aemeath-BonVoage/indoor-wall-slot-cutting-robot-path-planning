@@ -24,6 +24,7 @@ install(TARGETS scr_planner_core EXPORT export_scr_planner
   RUNTIME DESTINATION bin)
 install(DIRECTORY include/ DESTINATION include/)
 install(FILES python/scr_planner_py.py python/wall_rules.py python/slot_plan.py python/slot_ros.py
+  python/task_plan.py python/wall_gen.py
   DESTINATION share/${PROJECT_NAME}/python)
 install(DIRECTORY config DESTINATION share/${PROJECT_NAME})
 install(PROGRAMS scripts/wall_slot_planner_node.py scripts/execute_slot_plan.py
@@ -39,6 +40,9 @@ if(BUILD_TESTING)
   ament_add_pytest_test(test_slot_plan test/test_slot_plan.py
     ENV SCR_PLANNER_LIB=$<TARGET_FILE:scr_planner_core>
     TIMEOUT 300)
+  ament_add_pytest_test(test_task_plan test/test_task_plan.py
+    ENV SCR_PLANNER_LIB=$<TARGET_FILE:scr_planner_core>
+    TIMEOUT 600)
 endif()
 
 ament_export_include_directories(include)

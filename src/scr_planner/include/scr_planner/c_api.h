@@ -53,6 +53,18 @@ int32_t scr_planner_plan(
   const scr_params_t * params, scr_result_t * result,
   int32_t * corners_xy, int32_t max_corners);
 
+/* As scr_planner_plan, with the optional column costs of SearchParams
+ * (step_cost_pos / step_cost_neg / through_cost_x: n_cols values each,
+ * run_cost_x: n_run values; any pointer may be NULL). */
+int32_t scr_planner_plan_ex(
+  void * planner, const uint8_t * grid, int32_t width, int32_t height,
+  int32_t sx, int32_t sy, int32_t gx, int32_t gy,
+  const scr_params_t * params,
+  const double * step_cost_pos, const double * step_cost_neg,
+  const double * through_cost_x, int32_t n_cols,
+  const double * run_cost_x, int32_t n_run,
+  scr_result_t * result, int32_t * corners_xy, int32_t max_corners);
+
 #ifdef __cplusplus
 }
 #endif

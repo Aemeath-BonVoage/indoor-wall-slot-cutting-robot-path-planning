@@ -2,6 +2,8 @@
 
 #include "scr_planner/c_api.h"
 
+#include <vector>
+
 #include "scr_planner/oriented_astar.hpp"
 
 namespace
@@ -61,10 +63,32 @@ int32_t scr_planner_plan(
   const scr_params_t * params, scr_result_t * result,
   int32_t * corners_xy, int32_t max_corners)
 {
+  return scr_planner_plan_ex(
+    planner, grid, width, height, sx, sy, gx, gy, params, nullptr, nullptr, nullptr, 0,
+    nullptr, 0, result, corners_xy, max_corners);
+}
+
+int32_t scr_planner_plan_ex(
+  void * planner, const uint8_t * grid, int32_t width, int32_t height,
+  int32_t sx, int32_t sy, int32_t gx, int32_t gy,
+  const scr_params_t * params,
+  const double * step_cost_pos, const double * step_cost_neg,
+  const double * through_cost_x, int32_t n_cols,
+  const double * run_cost_x, int32_t n_run,
+  scr_result_t * result, int32_t * corners_xy, int32_t max_corners)
+{
   auto * pl = static_cast<scr_planner::OrientedAStar *>(planner);
   scr_planner::GridView view{static_cast<unsigned int>(width),
     static_cast<unsigned int>(height), grid};
-  const auto r = pl->plan(view, {sx, sy}, {gx, gy}, toParams(*params));
+  scr_planner::SearchParams p = toParams(*params);
+  auto copy = [](const double * src, int32_t n, std::vector<double> & dst) {
+      if (src != nullptr && n > 0) {dst.assign(src, src + n);}
+    };
+  copy(step_cost_pos, n_cols, p.step_cost_pos);
+  copy(step_cost_neg, n_cols, p.step_cost_neg);
+  copy(through_cost_x, n_cols, p.through_cost_x);
+  copy(run_cost_x, n_run, p.run_cost_x);
+  const auto r = pl->plan(view, {sx, sy}, {gx, gy}, p);
   result->status = static_cast<int32_t>(r.status);
   result->turns = r.turns;
   result->n_corners = static_cast<int32_t>(r.corners.size());

@@ -1,0 +1,21 @@
+[   0]     15 s  {'current': None, 'joint': 424.3, 'lower_bound': 385.0}
+[  20]     43 s  {'current': 19.2, 'joint': 19.2, 'lower_bound': 19.2}
+[  40]     76 s  {'current': 68.8, 'joint': 68.8, 'lower_bound': 68.8}
+[  60]    105 s  {'current': 27.9, 'joint': 27.9, 'lower_bound': 27.9}
+[  80]    156 s  {'current': 509.6, 'joint': 485.2, 'lower_bound': 485.2}
+[ 100]    192 s  {'current': 80.4, 'joint': 80.4, 'lower_bound': 80.4}
+[ 120]    229 s  {'current': 183.9, 'joint': 175.7, 'lower_bound': 175.7}
+[ 140]    275 s  {'current': 316.4, 'joint': 308.3, 'lower_bound': 308.3}
+[ 160]    309 s  {'current': None, 'joint': None, 'lower_bound': 448.0}
+[ 180]    349 s  {'current': None, 'joint': None, 'lower_bound': 426.4}
+[ 200]    394 s  {'current': 259.3, 'joint': 259.3, 'lower_bound': 259.3}
+[ 220]    429 s  {'current': 324.7, 'joint': 316.6, 'lower_bound': 300.3}
+[ 240]    462 s  {'current': None, 'joint': None, 'lower_bound': 405.3}
+[ 260]    509 s  {'current': 16.3, 'joint': 16.3, 'lower_bound': 16.3}
+[ 280]    559 s  {'current': 393.5, 'joint': 369.1, 'lower_bound': 369.1}
+[ 300]    600 s  {'current': 54.9, 'joint': 54.9, 'lower_bound': 54.9}
+[ 320]    642 s  {'current': 48.3, 'joint': 48.3, 'lower_bound': 48.3}
+[ 340]    694 s  {'current': None, 'joint': None, 'lower_bound': 251.8}
+[ 360]    737 s  {'current': 201.5, 'joint': 189.0, 'lower_bound': 189.0}
+[ 380]    783 s  {'current': None, 'joint': None, 'lower_bound': 565.3}
+400 面墙，956 s
