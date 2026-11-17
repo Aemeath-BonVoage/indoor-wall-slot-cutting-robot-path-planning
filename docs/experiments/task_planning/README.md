@@ -6,6 +6,8 @@
 
 **结论**：在 400 面随机住宅墙上，联合规划在所有方案可比的墙上**从不比现有方法慢**；非承重墙上预测执行时间平均再降 **3.5 %**（95 % CI [3.1, 4.0] %，n = 156，Wilcoxon p < 1e-10），相对逐槽划分的基线共降 **11.9 %**。用下界证书可以证明它在 **92 %** 的墙上已是该时间模型下的最优解。代价是规划耗时从约 25 ms 增加到约 0.4 s（中位数）。
 
+（本报告正文的数字都使用第一版精对位下标定的时间模型，即预设 `align_v1`。按当前执行路径重标定后（预设 `align_v2`，现为默认值），非承重墙上的节省为 3.84 %，相对基线共 12.41 %，证明最优的比例为 92.0 %，见文末“时间模型重标定（精对位第二版）”。）
+
 ## 问题
 
 单条槽线的规划已经做到了规范约束下的最优（[cpp_planner](../cpp_planner/README.md)：分段 A*，GB 50203 / GB 50303 等硬约束），停靠站的划分与访问顺序也已优化（[slot_execution](../slot_execution/README.md)）。但两步是先后做的：先按“槽长 + 弯数 + 规范偏好”选线，再给选好的线划分停靠站。机械臂沿墙只能覆盖 12 cm，同样合规、长度和弯数都相同的两条走法，需要的停靠站数和机械臂点数可能不同。本实验回答：**把选线和停靠站一起优化，执行时间能降多少？离最优还有多远？代价是什么？**
@@ -22,7 +24,7 @@
 2. 停靠站划分：若干宽度不超过 w = 12 cm 的墙面窗口，每段槽线归某一站切；
 3. 停靠站访问顺序。
 
-目标是 `slot_plan.TimeModel` 的预测执行时间（Gazebo 中 54 个停靠站标定，每站 RMSE 0.10 s）：
+目标是 `slot_plan.TimeModel` 的预测执行时间（本报告正文使用预设 `align_v1`：第一版精对位下 Gazebo 中 54 个停靠站标定，每站 RMSE 0.10 s）：
 
 ```
 T = Σ_站 (t_settle + 横移距离 / v_strafe) + t_point × 机械臂点数
@@ -258,6 +260,36 @@ r_rb = 1.00 表示所有非零差值方向相同（没有一面墙变慢），�
 
 三处修正合起来，使现有方法在配对墙上平均快 2.54 %（179 面更快，0 面更慢），示例任务从 250.0 s 降到 241.8 s。下文“联合规划相对现有方法”的比较都在修正后的评估上进行，不含这部分收益。
 
+## 时间模型重标定（精对位第二版）
+
+上文全部结果使用 `align_v1` 时间模型（t_settle 4.40 s）。精对位第二版下每站“横移 + 到位”从约 4.5 s 降到 2.8 s，按 33 个停靠站重新标定得到 `align_v2`：t_settle 2.83 s、v_strafe 0.0984 m/s、t_point 2.049 s（每站 RMSE 0.68 s，旧模型在同一数据上 1.65 s；标定方法与数据见 [slot_execution](../slot_execution/README.md#时间模型重标定精对位第二版)）。用 `align_v2` 重跑同一组 400 面墙（种子 1000–1399，其余设置不变），结果在 [`align_v2/`](align_v2/)。以下仍是模型预测，不是 Gazebo 实测。
+
+| 指标 | `align_v1`（上文） | `align_v2` |
+|---|---|---|
+| 配对墙平均预测时间：逐槽基线 / 现有 / 联合 / 下界 | 174.3 / 155.8 / 150.6 / 149.3 s | 159.5 / 142.2 / 137.0 / 135.7 s |
+| 现有 → 联合，非承重墙（n = 156）平均节省 | 3.53 %，95 % CI [3.08, 3.98] % | **3.84 %**，95 % CI [3.34, 4.34] %（中位 4.32 %，最大 10.4 %） |
+| 　快 / 持平 / 慢 | 106 / 50 / 0 | 105 / 51 / 0 |
+| 　按槽数 1 / 2 / 3 / 4 | 3.22 / 4.43 / 3.07 / 2.83 % | 3.55 / 4.86 / 3.26 / 2.93 % |
+| 逐槽基线 → 联合，全部（n = 275） | 11.93 % | 12.41 %，95 % CI [11.32, 13.52] % |
+| 逐槽基线 → 现有，全部 | 10.06 % | 10.37 % |
+| 联合规划证明最优（配对墙） | 254 / 275（92.4 %） | 253 / 275（92.0 %） |
+| 得到合规方案的墙：现有 / 联合 | 275 / 294 | 275 / 293 |
+| 规划耗时中位数：现有 / 联合 | 25 ms / 0.40 s | 25 ms / 0.42 s |
+
+- **结论不变，相对节省略增**：t_settle 降低后，停靠站数在总时间中的权重下降，而联合规划的收益来自机械臂点数（非承重墙平均 −4.39 个），所以节省的绝对量基本不变（9.2 → 9.1 s）、占比上升。上文“时间模型敏感性”一节曾预计新模型下的节省落在 t_settle × 0.5 与标定值之间（3.1–3.6 %）；在同一 42 面墙子集上，`align_v2` 的结果是 3.46 %（95 % CI [2.49, 4.47] %），在该区间内。
+- **逐墙对比**：配对样本完全相同（275 面）。两种模型下联合规划都更快的墙有 105 面；只在 `align_v1` 下更快的有 1 面（种子 1220，3 条槽）。这面墙在 `align_v2` 下，“站感知·各槽独立”变体比联合规划快 8.2 s，即跨槽共享窗口的候选反而更差。原因是“进入新窗口”的近似代价（t_settle + w / v）随模型变小后，共享窗口的搜索选了不同的走法；联合规划只包含共享窗口变体与规则路线的候选，不包含各槽独立变体，所以不保证不劣于它。另有 1 面墙（种子 1249）在 `align_v1` 下有解、在 `align_v2` 下无解，同样因为候选走法随代价变化。其余 273 面配对墙上，两种模型下联合规划的站数与点数相同。
+- **room3 南墙示例任务**（`plan_wall_slots.py`，两种选线方式在两种模型下得到的槽线与停靠站相同，只有预测时间不同）：
+
+  | 流程 | 停靠站 | 机械臂点 | `align_v1` 预测 | `align_v2` 预测 |
+  |---|---|---|---|---|
+  | 逐槽划分（基线） | 16 | 92 | 283.3 s | 258.6 s |
+  | Gazebo 中执行过的方案（修正前评估，`runs/dp/slot_plan.yaml`） | 11 | 92 | 250.0 s | 233.5 s（实测 233.2–233.7 s，精对位第二版，样本内） |
+  | 现有方法，修正后评估（`--routes=rule`） | 11 | 88 | 241.8 s | 225.3 s |
+  | 联合规划（`--routes=joint`） | 11 | 80 | 225.5 s | 208.9 s（−7.3 %） |
+
+  后两行仍未在 Gazebo 中执行；新模型下的规划文件在 [`align_v2/example_room3/`](align_v2/example_room3/)。
+- **示例墙（种子 1121）**：现有 335.6 s → 联合 302.8 s（−9.8 %；`align_v1` 下为 366.9 → 334.4 s，−8.9 %），图见 [`align_v2/fig_example.png`](align_v2/fig_example.png)，汇总图 [`align_v2/fig_results.png`](align_v2/fig_results.png)。
+
 ## 分析
 
 **已证实**：
@@ -289,10 +321,15 @@ r_rb = 1.00 表示所有非零差值方向相同（没有一面墙变慢），�
 ```bash
 colcon build --symlink-install --packages-up-to scr_planner
 # 主实验：400 面墙，2 个进程，约 16 min（4 核 / 4 GB 机器，与 Gazebo 共用）
+# 正文（align_v1，输出 data/）：
+python3 src/scr_planner/scripts/task_planning_benchmark.py --scenes 400 --seed0 1000 --jobs 2 --time-model align_v1
+# 时间模型敏感性：120 面墙 × 5 组参数，约 6 min
+python3 src/scr_planner/scripts/task_planning_benchmark.py --sensitivity --scenes 120 --seed0 1000 --time-model align_v1
+# 统计、表格与图（本报告正文的数字都来自它的输出）
+python3 src/scr_planner/scripts/task_planning_report.py docs/experiments/task_planning/data docs/experiments/task_planning --time-model=align_v1
+# 重标定后（align_v2，默认，输出 align_v2/data/ 与 align_v2/）：主实验 15 min，敏感性 5 min
 python3 src/scr_planner/scripts/task_planning_benchmark.py --scenes 400 --seed0 1000 --jobs 2
-# 时间模型敏感性：120 面墙 × 5 组参数
 python3 src/scr_planner/scripts/task_planning_benchmark.py --sensitivity --scenes 120 --seed0 1000
-# 统计、表格与图（本报告的数字都来自它的输出）
 python3 src/scr_planner/scripts/task_planning_report.py
 # 用联合规划生成执行文件（格式与原来相同，navigation_cutting_task 可直接执行）
 python3 src/scr_planner/scripts/plan_wall_slots.py src/scr_planner/config/wall_task_room3_south.yaml plan.yaml --routes=joint
@@ -304,7 +341,8 @@ python3 src/scr_planner/scripts/plan_wall_slots.py src/scr_planner/config/wall_t
 | [`data/lee.csv`](data/lee.csv) | 每条槽的 Lee 布线 / 分段 A* 对照（1024 行） |
 | [`data/sensitivity.csv`](data/sensitivity.csv) | 敏感性实验原始数据 |
 | [`summary.csv`](summary.csv)、[`paired_tests.csv`](paired_tests.csv)、[`gap.csv`](gap.csv)、[`lee_summary.csv`](lee_summary.csv)、[`sensitivity_summary.csv`](sensitivity_summary.csv) | 统计结果 |
-| [`example/`](example/) | 示例墙（种子 1121）的任务文件及两种方法的规划结果 |
+| [`example/`](example/) | 示例墙（种子 1121）的任务文件及两种方法的规划结果（`align_v1`） |
+| [`align_v2/`](align_v2/) | 用 `align_v2` 时间模型重跑的原始数据（`align_v2/data/`）、统计结果、图，以及 room3 南墙示例任务的规划文件（`align_v2/example_room3/`） |
 
 代码：
 
