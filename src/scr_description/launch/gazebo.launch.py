@@ -46,6 +46,8 @@ def generate_launch_description():
     
     # 设置 Gazebo 插件路径
     gazebo_plugin_path = os.path.join(get_package_prefix('gazebo_ros'), 'lib')
+    # 本包的 Gazebo 插件（libscr_planar_move.so）
+    gazebo_plugin_path += os.pathsep + os.path.join(get_package_prefix('scr_description'), 'lib')
     if 'GAZEBO_PLUGIN_PATH' in os.environ:
         os.environ['GAZEBO_PLUGIN_PATH'] = os.environ['GAZEBO_PLUGIN_PATH'] + os.pathsep + gazebo_plugin_path
     else:

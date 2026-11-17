@@ -49,3 +49,6 @@ points:
 motion:
   duration: 2.0
   return_home: true
+  # 空切间隙（米）：Gazebo 墙为刚体无法切入，刀具最深处停在墙前该距离，只验证轨迹位置。
+  # 真机上删去此项，按切割点切入墙面。
+  dry_run_gap: 0.005

@@ -79,6 +79,8 @@ class NavigationCuttingTask(Node):
         self.approach_joint3 = 0.02
         self.min_clearance = 0.005                 # 防碰撞守护：刀具前端与墙面的最小间隙（米）
         self.guard_horizon = 0.5                   # 防碰撞守护：制动时间常数（秒）
+        # 空切间隙（米）：仿真墙为刚体，切割时刀具停在墙前该距离；None 表示按原切割点执行
+        self.dry_run_gap = None
         self.guard_enabled = True
         self._guard_active = False
         # 扫描 / 切割期间底盘定点保持（机械臂反作用力会推动底盘）
@@ -583,8 +585,36 @@ class NavigationCuttingTask(Node):
 
         return success
 
+    def apply_dry_run_gap(self, points):
+        """
+        空切：把整组切割点沿 x 平移，使最深点的刀具前端停在墙前 dry_run_gap 处.
+
+        Gazebo 的墙是刚体，刀具压到墙上会把整台机器人顶开（实测约 9 mm、3–4°），
+        因此仿真中只验证切割轨迹在墙面上的位置，不模拟切入。墙面距离由激光实时测量。
+        """
+        # 机械臂动作期间主节点回调被阻塞，先处理一会儿回调以刷新激光数据
+        self.sleep_sim(0.3)
+        wall, why = self.servo.wall_in_base()
+        if wall is None:
+            self.get_logger().warn(f'空切：无法测量墙面（{why}），按原切割点执行')
+            return points
+        tool_offset = self.servo.tool_front_x() - self.servo._lookup('base_link', 'link4')[0][0]
+        x_max = wall['distance'] / max(wall['normal'][0], 1e-3) - self.dry_run_gap - tool_offset
+        deepest = max(p[0] for p in points)
+        if deepest <= x_max:
+            return points
+        shift = x_max - deepest
+        x_min = self.arm_controller.cartesian_limits['x'][0]
+        shifted = [(max(x + shift, x_min), y, z, r) for x, y, z, r in points]
+        self.get_logger().info(
+            f'空切：墙面距离 {wall["distance"]:.3f} m，切割点整体后移 {-shift*1000:.1f} mm，'
+            f'刀具最深处停在墙前 {self.dry_run_gap*1000:.0f} mm')
+        return shifted
+
     def execute_cutting_points(self, points, duration, return_home):
         """执行切割点序列"""
+        if self.dry_run_gap is not None:
+            points = self.apply_dry_run_gap(points)
         # 检查所有点是否可达
         self.get_logger().info('\n检查所有点的可达性...')
         for i, (x, y, z, rotation) in enumerate(points):
@@ -603,7 +633,7 @@ class NavigationCuttingTask(Node):
         # 回到初始位置
         first_rotation = points[0][3]
         self.get_logger().info('机械臂回到初始位置')
-        start_joints = [0.0, 0.0, 0.0, first_rotation]
+        start_joints = [0.0, 0.0, self.approach_joint3, first_rotation]
         if not self.arm_controller.move_to_joints(start_joints, duration=duration):
             return False
 
@@ -616,7 +646,7 @@ class NavigationCuttingTask(Node):
         # 回到初始位置（可选）
         if return_home:
             self.get_logger().info('\n机械臂回到初始位置')
-            start_joints = [0.0, 0.0, 0.0, first_rotation]
+            start_joints = [0.0, 0.0, self.approach_joint3, first_rotation]
             if not self.arm_controller.move_to_joints(start_joints, duration=duration):
                 return False
 
@@ -892,6 +922,8 @@ def main(args=None):
         if 'observe_joint1' in precise_config:
             task_controller.observe_joint1 = float(precise_config['observe_joint1'])
     task_controller.hold_base = bool(config.get('base_hold', True))
+    gap = config.get('motion', {}).get('dry_run_gap')
+    task_controller.dry_run_gap = None if gap is None else float(gap)
 
     print('\n任务配置:')
     print(f'  导航目标: x={nav_x:.3f}, y={nav_y:.3f}, yaw={nav_yaw:.3f}')

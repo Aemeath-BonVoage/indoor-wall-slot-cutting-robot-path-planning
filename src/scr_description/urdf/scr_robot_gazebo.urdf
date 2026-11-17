@@ -386,56 +386,106 @@
   <ros2_control name="GazeboSystem" type="system">
     <hardware>
       <plugin>gazebo_ros2_control/GazeboSystem</plugin>
+      <!-- 关闭默认的关节“保持”电机（对每个关节施加 fmax=力限 的 ODE 电机），由 PID 力控负责保持 -->
+      <param name="hold_joints">false</param>
     </hardware>
     <joint name="joint1">
-      <command_interface name="position">
+      <command_interface name="position_pid">
         <param name="min">-0.35</param>
         <param name="max">0.2</param>
       </command_interface>
+      <param name="pos_kp">20000</param>
+      <param name="pos_ki">20000</param>
+      <param name="pos_kd">600</param>
+      <param name="pos_max_integral_error">200</param>
+      <param name="pos_min_integral_error">-200</param>
+      <param name="pos_antiwindup">true</param>
       <state_interface name="position"/>
       <state_interface name="velocity"/>
     </joint>
     <joint name="joint2">
-      <command_interface name="position">
+      <command_interface name="position_pid">
         <param name="min">-0.08</param>
         <param name="max">0.06</param>
       </command_interface>
+      <param name="pos_kp">5000</param>
+      <param name="pos_ki">5000</param>
+      <param name="pos_kd">200</param>
+      <param name="pos_max_integral_error">50</param>
+      <param name="pos_min_integral_error">-50</param>
+      <param name="pos_antiwindup">true</param>
       <state_interface name="position"/>
       <state_interface name="velocity"/>
     </joint>
     <joint name="joint3">
-      <command_interface name="position">
+      <command_interface name="position_pid">
         <param name="min">-0.045</param>
         <param name="max">0.02</param>
       </command_interface>
+      <param name="pos_kp">5000</param>
+      <param name="pos_ki">5000</param>
+      <param name="pos_kd">150</param>
+      <param name="pos_max_integral_error">50</param>
+      <param name="pos_min_integral_error">-50</param>
+      <param name="pos_antiwindup">true</param>
       <state_interface name="position"/>
       <state_interface name="velocity"/>
     </joint>
     <joint name="joint4">
-      <command_interface name="position">
+      <command_interface name="position_pid">
         <param name="min">-1.57</param>
         <param name="max">1.57</param>
       </command_interface>
+      <param name="pos_kp">60</param>
+      <param name="pos_ki">60</param>
+      <param name="pos_kd">1.2</param>
+      <param name="pos_max_integral_error">5</param>
+      <param name="pos_min_integral_error">-5</param>
+      <param name="pos_antiwindup">true</param>
       <state_interface name="position"/>
       <state_interface name="velocity"/>
     </joint>
     <joint name="joint_lf_link">
-      <command_interface name="velocity"/>
+      <command_interface name="velocity_pid"/>
+      <param name="vel_kp">0.05</param>
+      <param name="vel_ki">0.0</param>
+      <param name="vel_kd">0.0</param>
+      <param name="vel_max_integral_error">0.0</param>
+      <param name="vel_min_integral_error">0.0</param>
+      <param name="vel_antiwindup">true</param>
       <state_interface name="position"/>
       <state_interface name="velocity"/>
     </joint>
     <joint name="joint_rf_link">
-      <command_interface name="velocity"/>
+      <command_interface name="velocity_pid"/>
+      <param name="vel_kp">0.05</param>
+      <param name="vel_ki">0.0</param>
+      <param name="vel_kd">0.0</param>
+      <param name="vel_max_integral_error">0.0</param>
+      <param name="vel_min_integral_error">0.0</param>
+      <param name="vel_antiwindup">true</param>
       <state_interface name="position"/>
       <state_interface name="velocity"/>
     </joint>
     <joint name="joint_lb_link">
-      <command_interface name="velocity"/>
+      <command_interface name="velocity_pid"/>
+      <param name="vel_kp">0.05</param>
+      <param name="vel_ki">0.0</param>
+      <param name="vel_kd">0.0</param>
+      <param name="vel_max_integral_error">0.0</param>
+      <param name="vel_min_integral_error">0.0</param>
+      <param name="vel_antiwindup">true</param>
       <state_interface name="position"/>
       <state_interface name="velocity"/>
     </joint>
     <joint name="joint_rb_link">
-      <command_interface name="velocity"/>
+      <command_interface name="velocity_pid"/>
+      <param name="vel_kp">0.05</param>
+      <param name="vel_ki">0.0</param>
+      <param name="vel_kd">0.0</param>
+      <param name="vel_max_integral_error">0.0</param>
+      <param name="vel_min_integral_error">0.0</param>
+      <param name="vel_antiwindup">true</param>
       <state_interface name="position"/>
       <state_interface name="velocity"/>
     </joint>
@@ -463,7 +513,8 @@
 
   <!-- Planar Move 插件 - 直接控制底盘运动 -->
   <gazebo>
-    <plugin name="planar_move" filename="libgazebo_ros_planar_move.so">
+    <!-- 自写力控平面运动插件（gazebo_ros_planar_move 给所有连杆设同一速度，旋转失真） -->
+    <plugin name="planar_move" filename="libscr_planar_move.so">
       <ros>
         <namespace>/</namespace>
         <remapping>cmd_vel:=cmd_vel_direct</remapping>

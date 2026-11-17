@@ -24,8 +24,9 @@ def _yaw(q):
 
 
 class BaseHold:
-    def __init__(self, entity='scr_robot_gazebo', rate_hz=20.0,
-                 k_lin=1.0, k_ang=1.5, max_lin=0.05, max_ang=0.2):
+    # 增益按力控底盘（scr_planar_move，速度环带宽约 20 rad/s）整定：外环位置 P 增益取其 1/4–1/3
+    def __init__(self, entity='scr_robot_gazebo', rate_hz=50.0,
+                 k_lin=5.0, k_ang=6.0, max_lin=0.1, max_ang=0.5):
         sim_time = Parameter('use_sim_time', Parameter.Type.BOOL, True)
         self.node = rclpy.create_node('base_hold', parameter_overrides=[sim_time])
         self.entity = entity
