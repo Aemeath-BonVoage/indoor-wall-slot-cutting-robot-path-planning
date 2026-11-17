@@ -173,6 +173,15 @@ SearchResult OrientedAStar::plan(
   const double tp = p.turn_penalty;
 
   const int width = static_cast<int>(grid.width);
+  auto colCost = [](const std::vector<double> & v, int x) {
+      return (x >= 0 && static_cast<size_t>(x) < v.size()) ? v[x] : 0.0;
+    };
+  // Prefix sums of the step costs: pos_sum[i] = sum of step_cost_pos[c] for c < i.
+  std::vector<double> pos_sum(width + 1, 0.0), neg_sum(width + 1, 0.0);
+  for (int c = 0; c < width; ++c) {
+    pos_sum[c + 1] = pos_sum[c] + colCost(p.step_cost_pos, c);
+    neg_sum[c + 1] = neg_sum[c] + colCost(p.step_cost_neg, c);
+  }
   auto stateOf = [&](int x, int y, int h) {return (y * width + x) * kNumHeadings + h;};
   // Lower bound on the remaining cost.  Every segment after a non-start state
   // begins with a bend, and each still-uncovered axis needs its own segment.
@@ -182,7 +191,10 @@ SearchResult OrientedAStar::plan(
       if ((dx != 0 && !allow[0]) || (dy != 0 && !allow[1])) {return kInf;}
       const int n = (dx != 0) + (dy != 0);
       const int bends = n == 0 ? 0 : (at_start ? n - 1 : n);
-      return weight[0] * std::abs(dx) + weight[1] * std::abs(dy) + tp * bends;
+      // Steps x -> x+1 for c in [x, goal.x - 1], or x -> x-1 for c in [goal.x + 1, x].
+      const double steps = dx > 0 ? pos_sum[goal.x] - pos_sum[x] :
+        (dx < 0 ? neg_sum[x + 1] - neg_sum[goal.x + 1] : 0.0);
+      return weight[0] * std::abs(dx) + weight[1] * std::abs(dy) + tp * bends + steps;
     };
 
   std::priority_queue<QueueEntry, std::vector<QueueEntry>, QueueCompare> open;
@@ -244,6 +256,11 @@ SearchResult OrientedAStar::plan(
         const int ny = y + k * kDy[d];
         if (!traversable(grid, nx, ny, p)) {break;}
         acc += weight[axis];
+        if (axis == 0) {
+          const int from = nx - kDx[d];
+          acc += colCost(d == 0 ? p.step_cost_pos : p.step_cost_neg, from);
+          if (k > 1) {acc += colCost(p.through_cost_x, from);}
+        }
         if (cw > 0.0) {
           const uint8_t c = grid.at(nx, ny);
           if (c != cost::kUnknown) {acc += cw * std::min<int>(c, 252) / 252.0;}
@@ -256,7 +273,7 @@ SearchResult OrientedAStar::plan(
         }
         const int32_t ns = stateOf(nx, ny, d);
         if (closed_stamp_[ns] == stamp_) {continue;}
-        const double ng = g0 + acc;
+        const double ng = g0 + acc + (axis == 0 ? colCost(p.run_cost_x, k) : 0.0);
         if (visit_stamp_[ns] != stamp_ || ng < g_[ns]) {
           const double hn = heuristic(nx, ny, false);
           if (!std::isfinite(hn)) {continue;}

@@ -304,6 +304,7 @@ class Slot:
     cut_path: list = field(default_factory=list)     # 正交折线，切割只沿它进行
     conduit: list = field(default_factory=list)      # 仅供显示：线管在直角槽内按 R 弯过的中心线
     planner: dict = field(default_factory=dict)
+    circuit: str = 'strong'                          # 强电 / 弱电（weak）
 
 
 @dataclass
@@ -316,6 +317,7 @@ class SlotPlan:
     slot_width: float = wr.SLOT_WIDTH / 100.0
     partition: str = ''
     order: str = ''
+    routes: str = 'rule'
     start_u: float = 0.0
     prediction: dict = field(default_factory=dict)
 
@@ -336,43 +338,63 @@ class SlotPlan:
         return sum(polyline_length(p) for p in self.unreachable)
 
 
-def scene_grid_with_band(scene, band):
+def scene_grid_with_band(scene, band, circuit='strong'):
     """在开槽规范栅格上再把机械臂够不到的高度封掉."""
-    g = scene.grid()
+    g = scene.grid(circuit=circuit)
     lo, hi = int(math.ceil(band[0] / RES)), int(math.floor(band[1] / RES))
     g[:max(0, lo), :] = wr.BLOCKED
     g[hi + 1:, :] = wr.BLOCKED
     return g
 
 
+def scene_tasks(scene):
+    return scene.tasks or [(scene.start, scene.goal, scene.start_label, scene.goal_label)]
+
+
+def route_grid(scene, k, others, robot: RobotModel, restrict_to_reach=True):
+    """第 k 条槽的规划栅格：others 中已定的槽（同类间距 wr.SLOT_SPACING，强弱电之间
+    wr.WEAK_CURRENT_SPACING）与其他槽两端的线盒都作为障碍."""
+    circuit = scene.circuit_of(k)
+    extra = [o for s_ in others if s_.cut_path
+             for o in _slot_obstacles(s_, s_.circuit == circuit)]
+    extra += [b for j, boxes in enumerate(scene.task_boxes) if j != k for b in boxes]
+    base = scene.obstacles
+    scene.obstacles = base + extra
+    try:
+        return (scene_grid_with_band(scene, robot.reach_band, circuit) if restrict_to_reach
+                else scene.grid(circuit=circuit))
+    finally:
+        scene.obstacles = base
+
+
+def make_slot(scene, k, res):
+    _, _, sl, gl = scene_tasks(scene)[k]
+    slot = Slot(f'{sl}→{gl}', res['status'], circuit=scene.circuit_of(k),
+                planner=dict(turns=res['turns'], cost=res['cost'],
+                             expansions=res['expansions'], time_ms=res['time_ms']))
+    if res['ok']:
+        slot.corners_m = corners_to_m(res['corners'])
+        slot.cut_path = [tuple(p) for p in slot.corners_m]
+        slot.conduit = conduit_polyline(slot.corners_m, wr.BEND_RADIUS / 100.0)
+    return slot
+
+
 def plan_routes(scene, robot: RobotModel, planner, restrict_to_reach=True):
     """逐条规划槽线；已规划的槽作为后续槽的障碍（同类线管分槽，间距 wr.SLOT_SPACING）."""
-    band = robot.reach_band
-    tasks = scene.tasks or [(scene.start, scene.goal, scene.start_label, scene.goal_label)]
-    base_obstacles = list(scene.obstacles)
     slots = []
-    for k, (start, goal, sl, gl) in enumerate(tasks):
-        scene.obstacles = base_obstacles + [o for s_ in slots for o in _slot_obstacles(s_)]
-        grid = scene_grid_with_band(scene, band) if restrict_to_reach else scene.grid()
-        res = planner.plan(grid, start, goal, **scene.params())
-        slot = Slot(f'{sl}→{gl}', res['status'],
-                    planner=dict(turns=res['turns'], cost=res['cost'],
-                                 expansions=res['expansions'], time_ms=res['time_ms']))
-        if res['ok']:
-            slot.corners_m = corners_to_m(res['corners'])
-            slot.cut_path = [tuple(p) for p in slot.corners_m]
-            slot.conduit = conduit_polyline(slot.corners_m, wr.BEND_RADIUS / 100.0)
-        slots.append(slot)
-    scene.obstacles = base_obstacles
+    for k, (start, goal, _, _) in enumerate(scene_tasks(scene)):
+        grid = route_grid(scene, k, slots, robot, restrict_to_reach)
+        slots.append(make_slot(scene, k, planner.plan(grid, start, goal, **scene.params())))
     return slots
 
 
-def _slot_obstacles(slot):
+def _slot_obstacles(slot, same_circuit=True):
     out = []
     for (u0, v0), (u1, v1) in zip(slot.cut_path[:-1], slot.cut_path[1:]):
         x0, x1 = sorted((round(u0 / RES - 0.5), round(u1 / RES - 0.5)))
         y0, y1 = sorted((round(v0 / RES - 0.5), round(v1 / RES - 0.5)))
-        out.append(wr.Rect(x0, y0, x1 - x0 + 1, y1 - y0 + 1, 'slot', '已规划槽'))
+        out.append(wr.Rect(x0, y0, x1 - x0 + 1, y1 - y0 + 1, 'slot' if same_circuit else 'slot_x',
+                           '已规划槽'))
     return out
 
 
@@ -391,8 +413,32 @@ def count_points(pieces):
     return n
 
 
+# 机械臂横向行程是闭区间：窗口 [a, y) 允许 y 比 a + 窗宽多出这一点，使恰在 a + 窗宽 处的
+# 竖切（候选位置 v + 1e-6）与左侧的槽线归同一站，而不是为它单独多停一站
+REACH_TOL = 2e-6
+
+# 截窗口时折线端部短于此长度的小段是 EPS 偏移留下的数值残片（例如拐点恰在窗口边界上时，
+# 相邻横段在右侧窗口里留下 1e-7 m 的一截），它不需要切，却会让该站多出一组退刀 / 下刀 /
+# 转刀（4 个点，约 8 s）。设为 0 即恢复不剔除残片的旧行为（仅用于对比实验）。
+SLIVER = 1e-6
+
+
+def _trim_slivers(piece):
+    while len(piece) > 2 and math.dist(piece[0], piece[1]) < SLIVER:
+        piece = piece[1:]
+    while len(piece) > 2 and math.dist(piece[-2], piece[-1]) < SLIVER:
+        piece = piece[:-1]
+    return piece
+
+
 def _clip_all(pieces, lo, hi):
-    return [q for piece in pieces for q in clip_polyline(piece, lo - EPS, hi - EPS, axis=0)]
+    out = []
+    for piece in pieces:
+        for q in clip_polyline(piece, lo - EPS, hi - EPS, axis=0):
+            q = _trim_slivers(q) if SLIVER > 0 else q
+            if polyline_length(q) > 1e-6:
+                out.append(q)
+    return out
 
 
 def partition_greedy(pieces, robot: RobotModel):
@@ -401,12 +447,23 @@ def partition_greedy(pieces, robot: RobotModel):
     return cover_stations(intervals, robot.window_width)
 
 
-def partition_dp(pieces, robot: RobotModel, tm: TimeModel, step=0.005):
-    """动态规划划分停靠站窗口，最小化 Σ(每站固定开销 + 点数 × 每点时间).
+def sweep_travel(r_star, l_star, start_u):
+    """站中心最小值不大于 r_star、最大值不小于 l_star 时，从 start_u 出发的最短扫掠距离
+    （见 place_centres）."""
+    if l_star <= r_star:
+        return abs(start_u - min(max(start_u, l_star), r_star))
+    return min(abs(start_u - r_star), abs(start_u - l_star)) + (l_star - r_star)
+
+
+def partition_dp(pieces, robot: RobotModel, tm: TimeModel, step=0.005, start_u=None):
+    """动态规划划分停靠站窗口，最小化 Σ(每站固定开销 + 点数 × 每点时间) + 横移时间.
 
     状态 x = “u < x 的槽线已切完”。下一站从第一个未覆盖点 a 开始，结束于候选位置
     y ∈ (a, a + 窗宽]；该站代价只取决于 [a, y) 内的槽线。候选位置为 step 网格加上所有
-    折线顶点的 u，保证能把窗口边界对齐到拐角。横移距离近似不随划分变化（见报告）。
+    折线顶点的 u，保证能把窗口边界对齐到拐角。
+    给出 start_u 时还计入横移：按 place_centres 摆放站位后，扫掠距离只取决于第一个
+    窗口的左端（恒为 umin）和最后一个窗口的右端 x，所以在终止状态上加 sweep_travel / v
+    即得到时间模型下的精确最优划分。start_u 为 None 时不计横移（旧行为）。
     """
     w = robot.window_width
     verts = sorted({round(p[0], 9) for piece in pieces for p in piece})
@@ -444,13 +501,16 @@ def partition_dp(pieces, robot: RobotModel, tm: TimeModel, step=0.005):
         cost_x = dp[x][0]
         a = first_uncovered(x)
         if a is None:
-            if cost_x < done_cost:
+            if start_u is not None:
+                off = robot.y_range[1] - robot.margin
+                cost_x += sweep_travel(umin + off, x - w + off, start_u) / tm.v_strafe
+            if cost_x < done_cost - 1e-9:
                 done_cost, done_x = cost_x, x
             continue
         for y in cand:
             if y <= a + 1e-12:
                 continue
-            if y > a + w + 1e-9:
+            if y > a + w + REACH_TOL:
                 break
             cut = _clip_all(pieces, a, y)
             if not cut:
@@ -483,6 +543,34 @@ def build_stations(windows, pieces, wall, robot, depth, retract_between_turns=Tr
     return stations
 
 
+def place_centres(stations, start_u, wall, robot, depth, retract_between_turns=True):
+    """在不改变各站切割窗口的前提下移动站位，使一维扫掠的横移距离最短.
+
+    站 i 的切割窗口为 [a_i, y_i)（y_i - a_i ≤ 窗宽 w），机械臂可达 [lo, lo + w)，只要
+    lo ∈ [y_i - w, a_i] 即可，对应站中心 c_i ∈ [l_i, r_i] = [y_i - w + off, a_i + off]。
+    扫掠距离 = min(|s - c_min|, |s - c_max|) + (c_max - c_min)，随 c_min 减小、c_max 增大
+    单调不减，而 c_max ≥ L* = max l_i、c_min ≤ R* = min r_i。取 c_i = clamp(t, l_i, r_i)
+    （t ∈ [R*, L*]）即同时达到 c_min = R*、c_max = L*；若 L* ≤ R*，全部站取同一点
+    clamp(s, L*, R*)。因此结果是给定窗口下的最短横移。
+    """
+    if not stations:
+        return
+    off = robot.y_range[1] - robot.margin
+    w = robot.window_width
+    rng = [(min(st.u_hi - w, st.u_lo) + off, st.u_lo + off) for st in stations]
+    l_star, r_star = max(a for a, _ in rng), min(b for _, b in rng)
+    if l_star <= r_star:
+        t = min(max(start_u, l_star), r_star)
+    else:
+        t = min(max(start_u, r_star), l_star)
+    for st, (lo, hi) in zip(stations, rng):
+        c = min(max(t, lo), hi)
+        if abs(c - st.u_c) > 1e-12:
+            st.u_c = c
+            st.pose = wall.station_pose(c, robot.standoff)
+            station_points(st, wall, robot, depth, retract_between_turns)
+
+
 def order_stations(stations, start_u, method='sweep'):
     """一维上从 start_u 出发访问全部站：先到较近的一端再扫到另一端（旅行距离最短）."""
     stations = sorted(stations, key=lambda s: s.u_c)
@@ -510,20 +598,38 @@ def predict_time(stations, start_u, tm: TimeModel):
 
 def plan_task(scene, wall: WallFrame, robot: RobotModel, planner,
               restrict_to_reach=True, retract_between_turns=True,
-              partition='dp', order='sweep', start_u=None, tm=None):
+              partition='dp', order='sweep', start_u=None, tm=None, routes='rule'):
     """完整离线规划.
 
+    routes:    'rule'（逐条槽按开槽规范代价 J 最优，见 OrientedAStar）/
+               'joint'（槽线与停靠站联合规划，最小化预测执行时间，见 task_plan.py）
     partition: 'dp'（全部槽合并后动态规划）/ 'greedy'（全部槽合并后贪心最少站）/
                'per_slot'（每条槽各自贪心划分，站不共享 —— 基线）
     order:     'sweep'（从 start_u 出发，最近端先、单向扫过）/
                'slot_by_slot'（逐条槽、每条从左到右 —— 基线）
     """
     tm = tm or TimeModel()
-    band = robot.reach_band
+    if routes == 'joint':
+        import task_plan
+        return task_plan.plan_task_joint(scene, wall, robot, planner, tm=tm, start_u=start_u,
+                                         restrict_to_reach=restrict_to_reach,
+                                         retract_between_turns=retract_between_turns,
+                                         partition=partition, order=order)
+    if routes != 'rule':
+        raise ValueError(f'unknown routes {routes!r}')
     slots = plan_routes(scene, robot, planner, restrict_to_reach)
+    return assemble_plan(slots, wall, robot, partition=partition, order=order, start_u=start_u,
+                         tm=tm, retract_between_turns=retract_between_turns)
+
+
+def assemble_plan(slots, wall: WallFrame, robot: RobotModel, partition='dp', order='sweep',
+                  start_u=None, tm=None, retract_between_turns=True):
+    """给定各条槽的折线：停靠站划分 → 访问顺序 → 机械臂点 → 时间预测."""
+    tm = tm or TimeModel()
+    band = robot.reach_band
     ok = [s for s in slots if s.status == 'success']
-    status = 'success' if len(ok) == len(slots) else next(s.status for s in slots
-                                                             if s.status != 'success')
+    status = 'success' if len(ok) == len(slots) else \
+        next(s.status for s in slots if s.status != 'success')
     plan = SlotPlan(status=status, slots=slots, partition=partition, order=order)
     if not ok:
         return plan
@@ -536,14 +642,16 @@ def plan_task(scene, wall: WallFrame, robot: RobotModel, planner,
                                  retract_between_turns) for r in reach]
     else:
         pieces = [q for r in reach for q in r]
-        wins = partition_dp(pieces, robot, tm) if partition == 'dp' else \
-            partition_greedy(pieces, robot)
+        wins = partition_dp(pieces, robot, tm, start_u=plan.start_u) if partition == 'dp' \
+            else partition_greedy(pieces, robot)
         groups = [build_stations(wins, pieces, wall, robot, plan.slot_depth,
                                  retract_between_turns)]
     if order == 'slot_by_slot':
         stations = [st for g in groups for st in sorted(g, key=lambda s: s.u_c)]
     else:
-        stations = order_stations([st for g in groups for st in g], plan.start_u, 'sweep')
+        stations = [st for g in groups for st in g]
+        place_centres(stations, plan.start_u, wall, robot, plan.slot_depth, retract_between_turns)
+        stations = order_stations(stations, plan.start_u, 'sweep')
     for k, st in enumerate(stations):
         st.index = k
     plan.stations = stations
@@ -572,20 +680,29 @@ def _complement(pts, band):
 def scene_from_config(cfg):
     """墙面任务配置（米）→ (WallScene（厘米栅格）, WallFrame).
 
-    cfg 示例见 config/wall_task_room3_south.yaml。
+    cfg 示例见 config/wall_task_room3_south.yaml。每项任务可选 circuit（strong / weak，
+    强弱电槽之间保持 wr.WEAK_CURRENT_SPACING）与 start_box / goal_box（{u, v, w, h}，
+    两端线盒，作为其他槽的障碍）。
     """
     w = cfg['wall']
     frame = WallFrame(tuple(w['left_end']), tuple(w['right_end']), w.get('frame_id', 'map'))
     cm = lambda m: int(round(m * 100))  # noqa: E731
-    obstacles = [wr.Rect(cm(o['u']), cm(o['v']), max(1, cm(o['w'])), max(1, cm(o['h'])),
-                         o['kind'], o.get('label', o['kind']))
-                 for o in cfg.get('obstacles', [])]
+
+    def rect(o, kind=None, label=None):
+        return wr.Rect(cm(o['u']), cm(o['v']), max(1, cm(o['w'])), max(1, cm(o['h'])),
+                       kind or o['kind'], label or o.get('label', o.get('kind', '')))
+
+    obstacles = [rect(o) for o in cfg.get('obstacles', [])]
     tasks = cfg.get('tasks') or [cfg['task']]
     tl = [((cm(t['start'][0]), cm(t['start'][1])), (cm(t['goal'][0]), cm(t['goal'][1])),
            t.get('start_label', '起点'), t.get('goal_label', '终点')) for t in tasks]
     scene = wr.WallScene(cm(frame.length), cm(w['height']), bool(w.get('load_bearing', False)),
                          obstacles, start=tl[0][0], goal=tl[0][1], start_label=tl[0][2],
                          goal_label=tl[0][3], tasks=tl)
+    scene.circuits = [t.get('circuit', 'strong') for t in tasks]
+    if any('start_box' in t or 'goal_box' in t for t in tasks):
+        scene.task_boxes = [tuple(rect(t[k], 'box', t.get(k[:-4] + '_label', ''))
+                                  for k in ('start_box', 'goal_box') if k in t) for t in tasks]
     return scene, frame
 
 
@@ -605,7 +722,8 @@ def plan_to_dict(plan: SlotPlan, wall: WallFrame, robot: RobotModel, duration=2.
                   load_bearing=bool(scene.load_bearing) if scene else None),
         slot_spec=dict(depth=r3(plan.slot_depth), width=r3(plan.slot_width),
                        bend_radius=r3(wr.BEND_RADIUS / 100.0)),
-        slots=[dict(label=s.label, status=s.status, planner=s.planner,
+        routes=plan.routes,
+        slots=[dict(label=s.label, status=s.status, circuit=s.circuit, planner=s.planner,
                     length=r3(polyline_length(s.cut_path)) if s.cut_path else 0.0,
                     cut_path=pl(s.cut_path), conduit_display=pl(s.conduit))
                for s in plan.slots],
@@ -634,12 +752,14 @@ def plan_from_dict(d):
     wall = WallFrame(tuple(d['wall']['left_end']), tuple(d['wall']['right_end']),
                      d.get('frame_id', 'map'))
     plan = SlotPlan(status=d['status'], partition=d.get('partition', ''),
-                    order=d.get('order', ''), start_u=d.get('start_u', 0.0),
+                    order=d.get('order', ''), routes=d.get('routes', 'rule'),
+                    start_u=d.get('start_u', 0.0),
                     prediction=d.get('prediction', {}))
     plan.slot_depth = d['slot_spec']['depth']
     plan.slot_width = d['slot_spec']['width']
     plan.slots = [Slot(s['label'], s['status'], cut_path=[tuple(p) for p in s['cut_path']],
-                       conduit=[tuple(p) for p in s['conduit_display']], planner=s['planner'])
+                       conduit=[tuple(p) for p in s['conduit_display']], planner=s['planner'],
+                       circuit=s.get('circuit', 'strong'))
                   for s in d['slots']]
     plan.unreachable = [[tuple(p) for p in q] for q in d.get('unreachable', [])]
     for s in d['stations']:

@@ -559,3 +559,145 @@ TEST(OrientedAStar, MonotoneInTurnPenalty)
     }
   }
 }
+
+// --- column costs (station-aware task planning) ---------------------------------
+
+namespace
+{
+
+double colAt(const std::vector<double> & v, int x)
+{
+  return (x >= 0 && static_cast<size_t>(x) < v.size()) ? v[x] : 0.0;
+}
+
+/// Stepwise reference with the column costs: step costs on every horizontal
+/// step, through costs when a horizontal step continues straight on, run costs
+/// when a horizontal segment ends (bend or goal).  No bend radius / run limit.
+double dijkstraColumnReference(const GridView & g, Cell s, Cell t, const SearchParams & p)
+{
+  if (s == t) {return 0.0;}
+  const int cap = std::max<int>(1, static_cast<int>(p.run_cost_x.size()) + 1);
+  const int W = g.width, H = g.height;
+  auto id = [&](int x, int y, int h, int run) {
+      return ((static_cast<size_t>(y) * W + x) * 4 + h) * (cap + 1) + run;
+    };
+  std::vector<double> dist(static_cast<size_t>(W) * H * 4 * (cap + 1), kInf);
+  struct QE {double d; int x, y, h, run;};
+  auto cmp = [](const QE & a, const QE & b) {return a.d > b.d;};
+  std::priority_queue<QE, std::vector<QE>, decltype(cmp)> pq(cmp);
+  auto step = [&](int x, int d) {
+      if (d == 0) {return colAt(p.step_cost_pos, x);}
+      if (d == 2) {return colAt(p.step_cost_neg, x);}
+      return 0.0;
+    };
+  auto runEnd = [&](int h, int run) {return h % 2 == 0 ? colAt(p.run_cost_x, run) : 0.0;};
+  auto relax = [&](double d, int x, int y, int h, int run) {
+      run = std::min(run, cap);
+      const size_t k = id(x, y, h, run);
+      if (d < dist[k]) {dist[k] = d; pq.push({d, x, y, h, run});}
+    };
+  const bool allow[2] = {p.allow_x, p.allow_y};
+  for (int d = 0; d < 4; ++d) {
+    const int nx = s.x + kDx[d], ny = s.y + kDy[d];
+    if (!allow[d % 2] || !passable(g, nx, ny, p)) {continue;}
+    relax(stepCost(g, nx, ny, d % 2, p) + step(s.x, d), nx, ny, d, 1);
+  }
+  double best = kInf;
+  while (!pq.empty()) {
+    const QE q = pq.top();
+    pq.pop();
+    if (q.d >= best) {break;}
+    if (q.d > dist[id(q.x, q.y, q.h, q.run)]) {continue;}
+    if (q.x == t.x && q.y == t.y) {best = std::min(best, q.d + runEnd(q.h, q.run));}
+    const int axis = q.h % 2;
+    {
+      const int nx = q.x + kDx[q.h], ny = q.y + kDy[q.h];
+      if (passable(g, nx, ny, p)) {
+        const double thr = axis == 0 ? colAt(p.through_cost_x, q.x) : 0.0;
+        relax(q.d + stepCost(g, nx, ny, axis, p) + step(q.x, q.h) + thr, nx, ny, q.h, q.run + 1);
+      }
+    }
+    for (int d : {(q.h + 1) % 4, (q.h + 3) % 4}) {
+      if (!allow[d % 2]) {continue;}
+      const int nx = q.x + kDx[d], ny = q.y + kDy[d];
+      if (!passable(g, nx, ny, p)) {continue;}
+      relax(
+        q.d + runEnd(q.h, q.run) + p.turn_penalty + stepCost(g, nx, ny, d % 2, p) + step(q.x, d),
+        nx, ny, d, 1);
+    }
+  }
+  return best;
+}
+
+}  // namespace
+
+TEST(OrientedAStar, ColumnCostsMatchStepwiseDijkstra)
+{
+  std::mt19937 rng(3);
+  std::uniform_real_distribution<double> u(0.0, 1.0);
+  OrientedAStar planner;
+  int solved = 0;
+  for (int trial = 0; trial < 300; ++trial) {
+    const unsigned int w = 8 + trial % 17;
+    const unsigned int h = 5 + (trial * 5) % 11;
+    TestGrid grid(w, h);
+    const double density = 0.05 + 0.2 * u(rng);
+    for (auto & c : grid.data) {c = u(rng) < density ? 254 : 0;}
+    std::uniform_int_distribution<int> rx(0, w - 1), ry(0, h - 1);
+    const Cell s{rx(rng), ry(rng)}, t{rx(rng), ry(rng)};
+    grid.set(s.x, s.y, 0);
+    grid.set(t.x, t.y, 0);
+
+    SearchParams p;
+    p.turn_penalty = std::vector<double>{0.0, 1.5, 6.0}[trial % 3];
+    p.weight_x = (trial % 4 == 0) ? 2.0 : 1.0;
+    // Window boundaries every `period` columns, as in the station lattice.
+    const int period = 2 + trial % 5;
+    p.step_cost_pos.assign(w, 0.0);
+    p.step_cost_neg.assign(w, 0.0);
+    p.through_cost_x.assign(w, 0.0);
+    for (unsigned int x = 0; x < w; ++x) {
+      if (x % period == 0) {
+        if (x > 0) {p.step_cost_pos[x - 1] = 3.0 * u(rng);}
+        p.step_cost_neg[x] = 3.0 * u(rng);
+        p.through_cost_x[x] = (trial % 2) ? 4.0 : 0.0;
+      }
+    }
+    if (trial % 3 == 1) {
+      p.run_cost_x.assign(10, 0.0);
+      for (int k = 0; k < 10; ++k) {p.run_cost_x[k] = 2.0 * ((k + period - 1) / period - 1);}
+    }
+    const double ref = dijkstraColumnReference(grid.view(), s, t, p);
+    const auto r = planner.plan(grid.view(), s, t, p);
+    if (std::isinf(ref)) {
+      EXPECT_EQ(r.status, Status::kNoPath) << "trial " << trial;
+      continue;
+    }
+    ++solved;
+    ASSERT_TRUE(r.ok()) << "trial " << trial;
+    EXPECT_NEAR(r.cost, ref, 1e-6) << "trial " << trial;
+  }
+  EXPECT_GT(solved, 150);
+}
+
+TEST(OrientedAStar, ThroughCostMovesBendOntoBoundary)
+{
+  // From (0,0) to (12,6): one bend anywhere along x.  A through cost on
+  // column 4 makes every route that passes column 4 horizontally pay; the
+  // optimum bends exactly there or before.
+  TestGrid grid(13, 7);
+  SearchParams p;
+  p.turn_penalty = 1.0;
+  p.through_cost_x.assign(13, 0.0);
+  p.through_cost_x[4] = 100.0;
+  OrientedAStar planner;
+  const auto r = planner.plan(grid.view(), {0, 0}, {12, 6}, p);
+  ASSERT_TRUE(r.ok());
+  EXPECT_LT(r.cost, 100.0);
+  for (size_t i = 1; i < r.corners.size(); ++i) {
+    const Cell a = r.corners[i - 1], b = r.corners[i];
+    if (a.y == b.y) {
+      EXPECT_FALSE(std::min(a.x, b.x) < 4 && 4 < std::max(a.x, b.x)) << "segment " << i;
+    }
+  }
+}
