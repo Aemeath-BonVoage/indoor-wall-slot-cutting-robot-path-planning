@@ -1,0 +1,2 @@
+condition,pipeline,n,success,collisions,pos_mean_mm,pos_std_mm,pos_max_mm,lateral_mean_mm,lateral_absmax_mm,normal_mean_mm,yaw_abs_mean_deg,min_clearance_mm,after1s_pos_mean_mm,time_mean_s
+occlusion_static,v2,8,0,0,602.0732193772501,130.1783640433883,785.5476092914506,-46.00793058010555,187.99636648152784,586.7420375119657,6.708480538258604,364.6692415315348,601.682756128296,13.1125

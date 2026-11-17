@@ -13,7 +13,14 @@ import sys
 import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-RUNS = ['run_nominal_launch', 'run_camera_yaw']
+RUNS = ['run_nominal_launch', 'run_occlusion_static_v2', 'run_nominal_teach30s', 'run_camera_yaw']
+# 被后续运行取代的行：(运行目录, 条件, 流水线)
+#   occlusion_static / v2：运行中机器重启，只完成 3 次，整组在 run_occlusion_static_v2 重跑；
+#   nominal / v2_taught：所用偏置来自 8 s 示教（偏置本身噪声过大），改用 30 s 示教重跑，
+#   旧结果作为消融单独报告（teach8s_summary）
+SUPERSEDED = {('run_nominal_launch', 'occlusion_static', 'v2'),
+              ('run_nominal_launch', 'nominal', 'v2_taught')}
+AIM_D = 0.70       # 瞄准点：base_link x 轴与墙面的交点（离墙 0.70 m）
 sys.path.insert(0, os.path.join(HERE, '..', '..', '..', 'src', 'scr_arm_controller'))
 
 from scr_arm_controller.alignment_benchmark import COND_ORDER, PIPELINES, plot  # noqa: E402
@@ -27,8 +34,14 @@ def load():
             with open(p) as f:
                 for row in csv.DictReader(f):
                     row['run'] = r
-                    rows.append(row)
+                    if (r, row['condition'], row['pipeline']) not in SUPERSEDED:
+                        rows.append(row)
     return rows
+
+
+def aim_error(r):
+    """瞄准点沿墙误差（mm）：base_link x 轴与墙面交点的沿墙位置 u − d·tan ψ."""
+    return f(r, 'lateral_err_mm') - AIM_D * 1000 * math.tan(math.radians(f(r, 'yaw_err_deg')))
 
 
 def f(r, k):
@@ -49,6 +62,7 @@ def summarize(rows):
         nor = np.array([f(r, 'normal_err_mm') for r in rs])
         yaw = np.array([f(r, 'yaw_err_deg') for r in rs])
         est = np.array([f(r, 'est_lateral_err_mm') for r in rs])
+        aim = np.array([aim_error(r) for r in rs])
         out.append({
             'condition': cond, 'pipeline': pipe, 'n': len(rs),
             'success': sum(r['success'] == 'True' for r in rs),
@@ -56,6 +70,7 @@ def summarize(rows):
             'pos_mean_mm': np.mean(pe), 'pos_std_mm': np.std(pe), 'pos_max_mm': np.max(pe),
             'normal_mean_mm': np.mean(nor), 'lateral_mean_mm': np.mean(lat),
             'lateral_absmax_mm': np.max(np.abs(lat)), 'yaw_abs_mean_deg': np.mean(np.abs(yaw)),
+            'aim_abs_mean_mm': np.mean(np.abs(aim)), 'aim_absmax_mm': np.max(np.abs(aim)),
             'est_lateral_mean_mm': np.nanmean(est) if np.isfinite(est).any() else math.nan,
             'min_clearance_mm': np.min([f(r, 'clearance_mm') for r in rs]),
             'time_mean_s': np.mean([f(r, 'time_s') for r in rs]),
@@ -65,21 +80,24 @@ def summarize(rows):
 
 def markdown(summary):
     names = {'v1': '第一版', 'v2': '本版', 'v2_blob': '本版 + 色块', 'v2_taught': '本版 + 示教零位'}
-    lines = ['| 条件 | 流水线 | 成功 | 位置误差 mean ± std (max) | 法向均值 | 沿墙均值 | 朝向误差绝对值均值 '
-             '| 最小刀尖间隙 | 耗时（仿真） |', '|---|---|---|---|---|---|---|---|---|']
+    lines = ['| 条件 | 流水线 | 成功 | 位置误差 mean ± std (max) | 法向均值 | 沿墙均值 | 朝向绝对值均值 '
+             '| 瞄准点绝对值均值 (max) | 最小刀尖间隙 | 耗时（仿真） |',
+             '|---|---|---|---|---|---|---|---|---|---|']
     for s in summary:
         lines.append(
             f"| {s['condition']} | {names[s['pipeline']]} | {s['success']}/{s['n']} | "
             f"{s['pos_mean_mm']:.2f} ± {s['pos_std_mm']:.2f} ({s['pos_max_mm']:.2f}) mm | "
             f"{s['normal_mean_mm']:+.2f} mm | {s['lateral_mean_mm']:+.2f} mm | "
-            f"{s['yaw_abs_mean_deg']:.2f}° | {s['min_clearance_mm']:.1f} mm | "
+            f"{s['yaw_abs_mean_deg']:.2f}° | "
+            f"{s['aim_abs_mean_mm']:.2f} ({s['aim_absmax_mm']:.2f}) mm | "
+            f"{s['min_clearance_mm']:.1f} mm | "
             f"{s['time_mean_s']:.1f} s |")
     return '\n'.join(lines)
 
 
 def plot_traces(path):
     """本版名义条件与间歇遮挡条件的估计时间历程（沿墙估计、σ_u、标记更新）."""
-    p = os.path.join(HERE, 'run_nominal_launch', 'traces.csv')
+    p = os.path.join(HERE, 'traces.csv')
     if not os.path.exists(p):
         return
     import matplotlib
@@ -131,6 +149,13 @@ def main():
     plot_traces(os.path.join(HERE, 'traces.png'))
     print(markdown(summary))
     print(f'\n{len(rows)} 次试验')
+    # 消融：8 s 示教偏置下的 nominal / v2_taught（被 30 s 示教取代）
+    with open(os.path.join(HERE, 'run_nominal_launch', 'trials.csv')) as fh:
+        old = [r for r in csv.DictReader(fh)
+               if r['condition'] == 'nominal' and r['pipeline'] == 'v2_taught']
+    if old:
+        t8 = summarize(old)
+        print('\n8 s 示教消融：\n' + markdown(t8))
 
 
 if __name__ == '__main__':

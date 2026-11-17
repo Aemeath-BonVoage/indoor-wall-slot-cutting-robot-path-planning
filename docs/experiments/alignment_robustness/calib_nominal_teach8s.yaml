@@ -1,0 +1,10 @@
+# 精对位零位标定（teach_alignment_offset 生成，2026-11-17）
+# 参考位姿：离墙 0.700 m、正对定位标记；81 个估计样本（8 s，静止）
+# 偏置 = 估计均值 − 真值；样本标准差：法向 0.247 mm、沿墙 0.097 mm、朝向 0.0084°
+# 参考位姿真值误差（传送后静置）：法向 -0.385 mm、沿墙 +0.693 mm、朝向 -0.0778°
+navigation_cutting_task:
+  ros__parameters:
+    alignment:
+      offset_normal: 0.000048
+      offset_lateral: -0.000540
+      offset_yaw_deg: -0.04744
