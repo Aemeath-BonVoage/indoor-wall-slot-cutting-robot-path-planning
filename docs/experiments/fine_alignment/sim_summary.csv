@@ -1,0 +1,4 @@
+case,n,pos_mean_mm,pos_std_mm,pos_p95_mm,pos_max_mm,lat_abs_mean_mm,norm_abs_mean_mm,yaw_abs_mean_deg,time_mean_s
+v1,200,3.408,0.743,4.671,5.451,0.97,3.212,0.085,5.935
+v2,200,0.803,0.263,1.266,1.527,0.386,0.654,0.027,6.849
+v2_occlusion,200,0.823,0.274,1.265,1.682,0.398,0.67,0.029,6.842

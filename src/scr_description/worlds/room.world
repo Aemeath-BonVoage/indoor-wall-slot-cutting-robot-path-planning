@@ -9,6 +9,13 @@
       </ros>
       <update_rate>20.0</update_rate>
     </plugin>
+
+    <!-- /gazebo/set_light_properties 等服务：对位鲁棒性实验中改变光照 -->
+    <plugin name="gazebo_ros_properties" filename="libgazebo_ros_properties.so">
+      <ros>
+        <namespace>/gazebo</namespace>
+      </ros>
+    </plugin>
     
     <!-- 光照 -->
     <include>
@@ -382,6 +389,30 @@
         </visual>
       </link>
     </model>
+
+    <!-- 墙前工作灯（默认关闭：漫反射为 0，不改变名义场景）。对位鲁棒性实验通过
+         /gazebo/set_light_properties 打开，模拟强光照射墙面 -->
+    <light type="point" name="work_light">
+      <pose>8.42 -3.45 1.25 0 0 0</pose>
+      <diffuse>0 0 0 1</diffuse>
+      <specular>0 0 0 1</specular>
+      <attenuation>
+        <range>4</range>
+        <constant>0.5</constant>
+        <linear>0.1</linear>
+        <quadratic>0.5</quadratic>
+      </attenuation>
+      <cast_shadows>false</cast_shadows>
+    </light>
+
+    <!-- AprilTag 定位标记（tag36h11，ID 0，黑框边长 0.10 m）：与色块标记同一沿墙位置 x = 8.42，
+         中心离地 0.70 m（色块正上方）；模型原点在板背面，贴墙面 y = −3.925。
+         模型由 scripts/generate_apriltag_model.py 生成 -->
+    <include>
+      <uri>model://scr_apriltag_tag36h11_0</uri>
+      <name>wall_apriltag</name>
+      <pose>8.42 -3.925 0.70 1.5708 0 3.14159</pose>
+    </include>
 
   </world>
 </sdf>

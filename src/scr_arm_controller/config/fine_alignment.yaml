@@ -1,0 +1,35 @@
+# 精对位参数（navigation_cutting_task / alignment_benchmark 的节点参数）
+#   ros2 run scr_arm_controller navigation_cutting_task task.yaml \
+#       --ros-args --params-file <本文件或 teach_alignment_offset 的输出>
+# 设计与控制律分析见 docs/experiments/fine_alignment/README.md
+navigation_cutting_task:
+  ros__parameters:
+    alignment:
+      detector: apriltag          # apriltag | blob（第一版色块检测器，基线）
+      tag_family: tag36h11
+      tag_id: 0
+      tag_size: 0.10              # 黑框边长（米）
+      # 零位标定偏置（参考位姿处“估计值 − 真值”，测量模型内扣除）；由
+      # teach_alignment_offset 示教得到，默认 0
+      offset_normal: 0.0          # 米
+      offset_lateral: 0.0         # 米，面向墙面向右为正
+      offset_yaw_deg: 0.0         # 度，逆时针为正
+      # 收敛判据：误差在容差内、底盘静止（< 3 mm/s、< 0.3°/s）、σ < 2 mm，连续 settle_cycles 周期
+      tolerance_normal: 0.002
+      tolerance_lateral: 0.002
+      tolerance_yaw_deg: 0.3
+      settle_cycles: 10
+      # 控制律（平方根整形饱和比例律，见 docking_control.py）
+      control_rate: 20.0          # Hz
+      k_lin: 2.0                  # 1/s
+      k_ang: 2.0                  # 1/s
+      decel_lin: 0.15             # m/s²
+      decel_ang: 0.5              # rad/s²
+      max_lin: 0.15               # m/s
+      max_ang: 0.3                # rad/s
+      timeout: 50.0               # s（仿真时间）
+      lost_timeout: 10.0          # s，标记持续丢失则判定失败
+      sigma_hold: 0.01            # m，σ_u 超过该值时停车等待标记
+      # 多站执行：true = 以 EKF 估计的标记位置为墙面坐标原点（停车残差计入）；
+      # false = 以精对位停车位姿为原点（第一版语义）
+      fold_residual: true
