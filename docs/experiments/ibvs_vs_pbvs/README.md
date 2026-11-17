@@ -205,7 +205,7 @@ IBVS 的弱可观方向随方块变大而改善（50 个起点；混合与 PBVS 
 
 ## 6. 建议：是否接入主任务、怎么接
 
-**不接入纯 IBVS。** 建议按以下优先级：
+**不接入纯 IBVS。** 后续改进按以下优先级：
 
 1. **推荐：给 PBVS 加示教零偏（改动最小，收益最明确）。**
    - `WallMarkerServo` 增加 `offsets = (yaw, normal, lateral)`，在 `measure()` 里从原始误差中减去（滤波之前）；`navigation_cutting_task` 的 YAML 增加对应参数，默认 0。

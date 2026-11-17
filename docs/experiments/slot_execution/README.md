@@ -140,7 +140,7 @@
 | 横移 + 到位平均耗时 | 4.8–5.0 s | 4.5–4.9 s |
 | 每站耗时 RMSE（时间模型拟合） | 0.55 s | 0.10 s |
 
-**仿真配置变化**（提交 a43d3dd）：
+**仿真配置变化**（仿真配置 v1 → v2，提交 a43d3dd）：
 
 - 机械臂关节从 gazebo_ros2_control 的 position 接口（每周期直接设关节位置）改为 `position_pid` 力控；轮子改 `velocity_pid`；
 - 底盘从 `gazebo_ros_planar_move`（给所有连杆设同一速度）换成力控插件 `scr_planar_move`（速度 P 环，只对底盘施加力 / 力矩）；

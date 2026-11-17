@@ -44,7 +44,7 @@ xwd -silent -id 0x1400106 | convert xwd:- rviz.png
 | 刀尖轨迹（`/scr_viz/tool_tip` 手动发点） | ✅ 按离墙距离着色（离墙 12.5 cm → 青；进入墙面 → 红）；`clear_trace` 发 DELETEALL |
 | 规划 / 任务文件改动后自动重载 | ✅ 按修改时间检测 |
 | 墙面实体 SDF | ✅ 6 个实体 + 相机 SDF 均通过 `gz sdf -k`；位姿单元测试（背面贴墙、朝向） |
-| `/gazebo/link_states` 推算刀尖、`--spawn` 运行时生成、演示相机出图 | ⏳ 未在 Gazebo 中跑：可用内存不足 |
+| `/gazebo/link_states` 推算刀尖、`--spawn` 运行时生成、演示相机出图 | ⏳ 未在 Gazebo 中验证 |
 | 单元测试 | ✅ `colcon test --packages-select scr_viz`：53 项（flake8 / pep257 在内），0 失败 |
 
 ## 演示视频的录制流程（待 Gazebo 空闲时执行）
