@@ -1,0 +1,27 @@
+# 演示用墙面任务：在 scr_planner/config/wall_task_room3_south.yaml 的基础上
+# 加了一个开关和一个配电箱（都在机械臂可达高度带之上，不改变规划结果），
+# 让 Gazebo 里的墙面更像真实房间。规划器只读 wall / obstacles / tasks / options。
+#
+# 墙面坐标：u 沿墙水平向右（面对墙面时），v 离地高度，单位米；obstacles 的 u, v 为左下角。
+wall:
+  frame_id: map
+  left_end: [9.925, -3.925]
+  right_end: [5.075, -3.925]
+  height: 2.0
+  load_bearing: false
+
+obstacles:
+  - {kind: box, u: 1.480, v: 0.575, w: 0.05, h: 0.05, label: 黄色定位标记}
+  - {kind: box, u: 0.457, v: 1.257, w: 0.086, h: 0.086, label: 灯开关}
+  - {kind: box, u: 3.400, v: 1.400, w: 0.30, h: 0.40, label: 配电箱}
+
+tasks:
+  - {start: [1.20, 0.34], start_label: 已有插座A, goal: [2.30, 0.34], goal_label: 新插座A}
+  - {start: [2.45, 0.72], start_label: 已有插座B, goal: [1.75, 0.72], goal_label: 书桌插座B}
+
+options:
+  restrict_to_reach: true
+  retract_between_turns: true
+  duration: 2.0
+  partition: dp
+  order: sweep
