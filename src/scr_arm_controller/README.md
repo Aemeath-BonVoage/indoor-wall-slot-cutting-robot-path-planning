@@ -1,6 +1,6 @@
 # scr_arm_controller
 
-机械臂运动学与控制、墙面精对位（相机 + 激光视觉伺服）、底盘定点保持，以及项目的任务总流程 `navigation_cutting_task`（单站任务和多站开槽共用的执行路径）。
+机械臂运动学与控制、墙面精对位（AprilTag + 激光 EKF + 饱和控制律）、底盘定点保持，以及项目的任务总流程 `navigation_cutting_task`（单站任务和多站开槽共用的执行路径）。
 
 ## 模块
 
@@ -8,7 +8,12 @@
 |---|---|---|
 | `cartesian_cutting.py` | `CartesianCuttingController`：闭式正 / 逆运动学、可达性检查、笛卡尔 / 关节空间运动 | 是 |
 | `navigation_cutting_task.py` | 任务总流程：导航 → 精对位 → 扫描 → 定点保持下切割；读取多站开槽规划文件逐站执行；激光防碰撞守护；空切 | 是 |
-| `visual_servo.py` | 纯算法：HSV 定位标记检测、激光墙面拟合（总体最小二乘 + 离群点剔除）、像素反投影、射线与墙面求交、PBVS 误差与全向底盘速度指令 | 否 |
+| `fiducial.py` | 纯算法：AprilTag（tag36h11）检测，边缘直线求交的亚像素角点，IPPE PnP 求标记中心与协方差 | 否 |
+| `wall_ekf.py` | 纯算法：墙面相对状态 (d, u, ψ) 的 EKF，里程计增量预测，激光与标记更新，χ² 门限 | 否 |
+| `wall_estimator_ros.py` | EKF 的 ROS 封装：按时间戳经里程计历史补偿测量延迟，标记丢失时外推 | 是 |
+| `docking_control.py` | 纯算法：平方根整形饱和比例律、速度 / 加速度限幅、收敛判据（误差 + 静止 + 估计不确定度） | 否 |
+| `teach_alignment_offset.py` | 示教零位标定：在真值参考位姿处求估计器的静态偏置，输出 ROS 参数文件 | 是 |
+| `visual_servo.py` | 纯算法（第一版精对位，保留为基线）：HSV 定位标记检测、激光墙面拟合（总体最小二乘 + 离群点剔除）、像素反投影、射线与墙面求交、PBVS 误差与全向底盘速度指令 | 否 |
 | `visual_servo_ros.py` | `WallMarkerServo`：订阅激光、图像、相机内参，查询 TF，输出滤波后的墙面与标记测量；包含主点修正 | 是 |
 | `base_hold.py` | `BaseHold`：独立节点与线程，50 Hz 里程计 P 控制保持底盘位姿，并用真值记录保持期间的最大漂移 | 是 |
 | `ibvs.py` | IBVS 与 2.5D 混合视觉伺服（交互矩阵、`IbvsController`、`HybridController`），用于方法对比 | 否 |
@@ -27,6 +32,19 @@
 | `joint4` | −90° ~ 90° | 刀片方向 |
 
 所有关节为 0 时末端位于 (x0, y0, z0) = (0.537, 0.000, 0.507) m（`base_link` 坐标）。笛卡尔工作空间（TF 实测）：X 0.517–0.582 m，Y −0.060–0.080 m，Z 0.157–0.707 m。伸缩轴完全缩回（`joint3 = +0.02`）时刀尖离底盘中心 0.676 m，完全伸出时 0.741 m。
+
+## 精对位
+
+对位模式由任务 YAML 的 `precise_positioning.mode` 选择：`visual`（第二版，默认）、`visual_v1`（第一版色块 + PBVS，作对比基线）、`odom`（里程计 + 已知标记坐标）。第二版参数在 [`config/fine_alignment.yaml`](config/fine_alignment.yaml)（节点参数 `alignment.*`）：检测器 `apriltag | blob`、标记尺寸与 ID、收敛容差、控制增益与限幅、示教零位偏置。
+
+```bash
+# 示教零位（需先启动仿真，不需要 Nav2）；输出的参数文件在执行任务时加载
+ros2 run scr_arm_controller teach_alignment_offset --out fine_alignment_taught.yaml --seconds 30
+ros2 run scr_arm_controller navigation_cutting_task task_at_target.yaml \
+    --ros-args --params-file fine_alignment_taught.yaml
+```
+
+设计、控制律稳定性分析与实验见 [精对位报告](../../docs/experiments/fine_alignment/README.md) 与 [对位鲁棒性对比](../../docs/experiments/alignment_robustness/README.md)。
 
 ## 接口
 

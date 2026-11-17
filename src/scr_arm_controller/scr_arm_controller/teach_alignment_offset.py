@@ -7,7 +7,7 @@
 偏置 = 估计均值 − 真值（WallEKF 状态 (d, u, ψ) 的约定）。之后估计器在测量模型内部扣除该偏置，
 相机外参误差、标记安装误差、激光测距偏差等静态误差在参考位姿处被一并消除。
 
-  ros2 run scr_arm_controller teach_alignment_offset --out fine_alignment_taught.yaml [--seconds 8]
+  ros2 run scr_arm_controller teach_alignment_offset --out taught.yaml [--seconds 30]
 
 输出为 ROS 参数文件，执行任务或基准测试时用 --ros-args --params-file 加载，
 或用 alignment_benchmark --calib 指定。需先启动仿真（不需要 Nav2）。

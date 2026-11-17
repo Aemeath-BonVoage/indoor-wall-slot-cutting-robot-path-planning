@@ -243,7 +243,7 @@ ros2 run scr_arm_controller navigation_cutting_task task_at_target.yaml   # 终�
 流程：
 
 1. **导航**：Nav2 把底盘送到任务文件中的 `navigation` 位姿（墙前约 1.9 m）。仿真刚启动时 Nav2 可能拒绝第一个目标，程序会每 3 s 重试，最多 10 次。
-2. **精对位**：机械臂先移到观测位姿（滑台降 0.15 m，避免机械臂遮挡相机），伸缩轴完全缩回；然后用相机 + 激光 PBVS 闭环驱动全向底盘，停在墙面定位标记正前方 `distance_from_marker` 处。激光拟合墙面得到朝向与距离，相机检测定位标记，射线与墙面求交得到标记的三维位置。
+2. **精对位**：机械臂先移到观测位姿（滑台降 0.15 m，避免机械臂遮挡相机），伸缩轴完全缩回；然后驱动全向底盘停在墙面定位标记正前方 `distance_from_marker` 处：相机检测 AprilTag 定位标记、激光拟合墙面，二者经 EKF 融合为墙面相对位姿估计，饱和控制律闭环，满足收敛判据（误差在容差内、底盘静止、估计不确定度足够小）后转入定点保持。参数见 `config/fine_alignment.yaml`，设计见 [精对位报告](experiments/fine_alignment/README.md)。
 3. **扫描**：在当前位姿检测定位标记（5 帧平均）；未检测到时，机械臂末端在 Z = 0.30–0.70 m（`base_link` 坐标）内以 5 cm 步长逐级检测。完成后回到缩回位姿。
 4. **切割**：按 `points` 逐点执行。从对位结束到切割完成，底盘处于定点保持状态。
 
@@ -261,7 +261,7 @@ navigation:              # Nav2 目标（map 坐标）
 
 precise_positioning:
   enabled: true
-  mode: visual                # visual = 相机 + 激光 PBVS；odom = 里程计 + 已知标记坐标（对照基线）
+  mode: visual                # visual = AprilTag + 激光 EKF；visual_v1 = 第一版色块 PBVS；odom = 里程计 + 已知标记坐标
   distance_from_marker: 0.70  # 对位后底盘中心离墙距离（米）
   position_tolerance: 0.01    # 收敛容差（米）
   angle_tolerance_deg: 1.0    # 收敛容差（度）
@@ -405,9 +405,11 @@ colcon test --packages-select scr_planner     # 只测单个包
 
 | 实验 | 是否需要 Gazebo | 报告 |
 |---|---|---|
-| 对位鲁棒性（视觉伺服 vs 里程计） | 是 | [alignment_robustness](experiments/alignment_robustness/README.md) |
+| 对位鲁棒性（第一版 vs 第二版精对位） | 是 | [alignment_robustness](experiments/alignment_robustness/README.md) |
 | 开槽规划算法与施工规范 | 否 | [cpp_planner](experiments/cpp_planner/README.md) |
 | 多站执行与停靠站顺序优化 | 是（离线对比部分否） | [slot_execution](experiments/slot_execution/README.md) |
+| 任务级联合规划（槽线 + 停靠站） | 否 | [task_planning](experiments/task_planning/README.md) |
+| 精对位设计与控制分析 | 离线部分否 | [fine_alignment](experiments/fine_alignment/README.md) |
 | PBVS / IBVS / 2.5D 混合伺服对比 | 否 | [ibvs_vs_pbvs](experiments/ibvs_vs_pbvs/README.md) |
 | 可视化与演示 | 部分 | [demo](experiments/demo/README.md) |
 
@@ -506,4 +508,4 @@ export LIBGL_ALWAYS_SOFTWARE=1
 | 可切高度 | 离地约 0.27–0.80 m |
 | 刀尖前伸 | 伸缩轴完全缩回时离底盘中心 0.676 m，完全伸出时 0.741 m |
 | 传感器 | 2D 激光雷达、前视 RGB 相机（安装在升降滑台上） |
-| 定位标记 | 5 cm 黄色方形色块，`room.world` 中贴于 room3 南墙，中心 (8.42, −3.9245) m |
+| 定位标记 | AprilTag tag36h11 ID 0（黑框 0.10 m，中心离地 0.70 m）；第一版使用的 5 cm 黄色色块（中心离地 0.60 m）保留作对比。均位于 room3 南墙 x = 8.42 m |

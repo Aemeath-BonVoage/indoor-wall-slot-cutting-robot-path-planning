@@ -1,6 +1,6 @@
 # scr_planner
 
-墙面开槽（暗敷电线管）路径规划：C++ 方向感知、按整段直线搜索的增强 A\*，施工规范作为硬约束；以及多条槽的停靠站划分、访问顺序优化和多站执行的实验记录。底盘导航不使用本规划器，由 Nav2 完成。
+墙面开槽（暗敷电线管）路径规划：C++ 方向感知、按整段直线搜索的增强 A\*，施工规范作为硬约束；以及多条槽的停靠站划分、访问顺序优化、槽线与停靠站的任务级联合规划，和多站执行的实验记录。底盘导航不使用本规划器，由 Nav2 完成。
 
 ## 功能
 
@@ -11,6 +11,8 @@
 - **接口**：C 接口 `include/scr_planner/c_api.h`，Python ctypes 封装 `python/scr_planner_py.py`。
 - **`python/wall_rules.py`**：开槽规范常量（逐条标注来源：国标 / 参照 / 行业 / 假设）、规则 → 栅格与搜索参数、独立的合规检查、随机墙面场景生成。
 - **`python/slot_plan.py`**：开槽任务规划。槽线限制在机械臂可切高度带内；按机械臂每站 12 cm 的可切宽度划分停靠站（每条槽单独贪心 / 合并贪心 / 合并动态规划）；访问顺序（逐条槽 / 一维最优扫掠）；每站的机械臂切割点（每刀只动一个轴，刀片 0° / 90°）；标定后的时间模型。
+- **`python/task_plan.py`**：任务级联合规划。在分段 A\* 中加入按停靠站窗口划分的列代价，使拐点落在窗口边界上，搜索多个窗口偏移并保留规范代价最优的路线作候选，以预测执行时间为目标选择；多条槽互相阻挡时尝试其他规划顺序；时间下界证书；Lee 迷宫布线基线与独立的规范检查。
+- **`python/wall_gen.py`**：随机住宅墙面生成器（承重 / 非承重、门窗、梁柱、常见点位高度、强弱电间距、1–4 条槽），由整数种子完全确定。
 
 ## 搜索参数（`SearchParams`，Python 关键字参数同名）
 
@@ -31,7 +33,8 @@
 ```bash
 # 离线规划（不需要 ROS）：槽线、停靠站（按执行顺序）、每站机械臂点、预测时间
 python3 src/scr_planner/scripts/plan_wall_slots.py src/scr_planner/config/wall_task_room3_south.yaml /tmp/plan.yaml \
-    [--partition=dp|greedy|per_slot] [--order=sweep|slot_by_slot]
+    [--routes=rule|joint] [--partition=dp|greedy|per_slot] [--order=sweep|slot_by_slot]
+# --routes=joint：槽线与停靠站联合规划（每面墙规划耗时中位约 0.4 s，最长约 5.5 s），输出格式不变
 
 # 执行（scr_arm_controller 的任务总流程，只读规划文件）；--dry-run-gap 为空切
 ros2 run scr_arm_controller navigation_cutting_task /tmp/plan.yaml --dry-run-gap=0.01
@@ -47,7 +50,7 @@ ros2 run scr_planner wall_slot_planner_node.py --ros-args \
 
 墙面任务文件的格式见 `config/wall_task_room3_south.yaml` 和 [使用指南](../../docs/USER_GUIDE.md#7-多站开槽离线规划--逐站执行)。线盒高度须在机械臂可切范围内（离地约 0.27–0.80 m）。
 
-其他脚本：`wall_benchmark.py`（规划器与施工规范的随机墙面对比）、`station_order_benchmark.py`（停靠站划分与顺序的离线对比）、`calibrate_time_model.py`（由执行记录标定时间模型）、`plot_execution.py` / `plot_station_order.py`（作图）。
+其他脚本：`wall_benchmark.py`（规划器与施工规范的随机墙面对比）、`station_order_benchmark.py`（停靠站划分与顺序的离线对比）、`calibrate_time_model.py`（由执行记录标定时间模型）、`task_planning_benchmark.py` / `task_planning_report.py`（联合规划的批量基准与统计，见 [报告](../../docs/experiments/task_planning/README.md)）、`plot_execution.py` / `plot_station_order.py`（作图）。
 
 ## 测试
 

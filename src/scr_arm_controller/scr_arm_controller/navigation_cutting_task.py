@@ -180,7 +180,7 @@ class NavigationCuttingTask(Node):
         self.distance_from_marker = 0.6
         self.position_tolerance = 0.01             # 1 cm
         self.angle_tolerance = math.radians(1.0)   # 1°
-        # 对位模式：'visual' = 相机+激光 PBVS；'odom' = 里程计 + 已知方块坐标（基线）
+        # 对位模式：'visual' = AprilTag + 激光 EKF；'visual_v1' = 第一版色块 PBVS；'odom' = 里程计 + 已知标记坐标
         self.positioning_mode = 'visual'
         self.observe_joint1 = -0.15                # 视觉伺服时的滑台高度（避开机械臂自遮挡）
         self.odom_bias = (0.0, 0.0, 0.0)           # 实验用：注入里程计漂移 (dx, dy, dyaw)

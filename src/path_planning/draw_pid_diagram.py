@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 """生成PID闭环控制系统框图"""
 
+import os
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import matplotlib
@@ -134,7 +135,7 @@ ax.annotate('', xy=(8.5, 5.75), xytext=(9.0, 5.75),
                             linestyle='dashed'))
 
 plt.tight_layout()
-save_path = r'D:\毕设\colcon_ws\colcon_ws\src\path_planning\pid_control_diagram.png'
+save_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'pid_control_diagram.png')
 fig.savefig(save_path, dpi=200, bbox_inches='tight', facecolor='white')
 print(f'已保存: {save_path}')
 plt.close()

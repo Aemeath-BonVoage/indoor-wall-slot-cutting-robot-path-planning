@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""墙面开槽规划基准：第一版规划器 Python 增强 A* vs C++ 方向感知 A*（无规范 / 有规范）.
+"""墙面开槽规划基准：第一版 Python 增强 A* vs C++ 方向感知 A*（无规范 / 有规范）.
 
 随机生成 N 面墙（非承重 / 承重），每面墙一项开槽任务，三种方法：
 
@@ -215,7 +215,7 @@ def plot(scenes, paths, rows, summary, out):
                   extent=(0, sc.width, 0, sc.height))
         for o in sc.obstacles:
             ax.add_patch(Rectangle((o.x, o.y), o.w, o.h, color=colors['kind'][o.kind], alpha=0.9))
-        for m, col, ls, lw, lab in (('py_enhanced', '#E67E22', '-', 2.4, '第一版规划器 Python'),
+        for m, col, ls, lw, lab in (('py_enhanced', '#E67E22', '-', 2.4, '第一版规划器 (Python)'),
                                     ('cpp_rules', '#1F4E9C', '-', 1.8, 'C++ + 开槽规范')):
             cells = paths[i].get(m) or []
             r = by.get((i, m))
@@ -260,7 +260,7 @@ def plot(scenes, paths, rows, summary, out):
         ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.12), fontsize=8, frameon=False)
 
     ax = axes[-1]
-    labels = {'py_enhanced': '第一版规划器 Python', 'cpp_plain': 'C++ 只避障', 'cpp_rules': 'C++ + 规范'}
+    labels = {'py_enhanced': '第一版规划器 (Python)', 'cpp_plain': 'C++ 只避障', 'cpp_rules': 'C++ + 规范'}
     x = np.arange(2)
     for k, m in enumerate(METHODS):
         vals = []

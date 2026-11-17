@@ -44,9 +44,14 @@ ros2 run scr_description test_mecanum.py                          # 依次测试
 ros2 run scr_description arm_demo.py                              # 机械臂关节轨迹演示
 ```
 
-`gazebo.launch.py` 的参数：`world`、`gui`（默认 `true`）、`rtf`（默认 `1.0`）。
+`gazebo.launch.py` 的参数：`world`、`gui`（默认 `true`）、`rtf`（默认 `1.0`）、`camera_yaw_error_deg`（默认 `0`，在相机关节上加入已知的安装偏角，用于验证示教零位标定；TF 不变）。
 
-`worlds/room.world` 是多房间室内场景，room3 南墙（内表面 y = −3.925 m）上贴有 5 cm 黄色定位标记，中心 (8.42, −3.9245) m。
+`worlds/room.world` 是多房间室内场景。room3 南墙（内表面 y = −3.925 m）上有两个定位标记，沿墙位置相同（x = 8.42 m）：
+
+- **AprilTag 标记**（tag36h11，ID 0，黑框边长 0.10 m，中心离地 0.70 m），模型 `models/scr_apriltag_tag36h11_0`，由 `scripts/generate_apriltag_model.py` 生成；
+- **黄色色块标记**（5 cm，中心离地 0.60 m），第一版精对位使用，保留作对比。
+
+墙前有一盏默认关闭的点光源 `work_light`，对位鲁棒性实验通过 `/gazebo/set_light_properties` 打开它模拟强光 / 冷光照射。
 
 ## 测试
 

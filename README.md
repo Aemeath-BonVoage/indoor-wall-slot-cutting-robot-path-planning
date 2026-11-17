@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/Aemeath-BonVoage/indoor-wall-slot-cutting-robot-path-planning/actions/workflows/ci.yml/badge.svg)](https://github.com/Aemeath-BonVoage/indoor-wall-slot-cutting-robot-path-planning/actions/workflows/ci.yml)
 
-**室内墙面开槽机器人（SCR, Slot Cutting Robot）的 ROS 2 仿真系统**：麦克纳姆轮全向底盘 + 直角坐标式 4 自由度机械臂，覆盖 SLAM 建图、Nav2 导航、相机 + 激光视觉伺服精对位、满足施工规范的开槽路径规划，以及带定点保持的多站切割执行。
+**室内墙面开槽机器人（SCR, Slot Cutting Robot）的 ROS 2 仿真系统**：麦克纳姆轮全向底盘 + 直角坐标式 4 自由度机械臂，覆盖 SLAM 建图、Nav2 导航、AprilTag + 激光 EKF 精对位、满足施工规范的开槽规划与任务级停靠站优化，以及带定点保持的多站切割执行。
 
 <!-- 多站开槽演示 GIF 录制后放在此处 -->
 
@@ -23,10 +23,11 @@
 
 | 方向 | 结果 | 报告 |
 |---|---|---|
-| 精对位 | 相机 + 激光 PBVS 对位误差 2.0 ± 0.6 mm（n = 8）；里程计漂移 10 cm 时仍为 1.9 mm，里程计基线为 84 mm；防碰撞守护开启的 64 次试验零碰墙 | [对位鲁棒性](docs/experiments/alignment_robustness/README.md) |
+| 精对位 | AprilTag + 激光 EKF + 饱和控制律：对位误差 4.2 → 0.53 ± 0.21 mm（n = 8，配对）；冷光、间歇遮挡、里程计漂移下保持 0.5–0.8 mm；示教零位把 1° 相机安装误差的影响从约 10 mm 降到 1.0 mm；给出李雅普诺夫与离散采样稳定性分析 | [设计与分析](docs/experiments/fine_alignment/README.md)、[对比实验](docs/experiments/alignment_robustness/README.md) |
 | 开槽规划 | C++ 方向感知增强 A\* 把施工规范作为硬约束并保持最优；140 面随机墙上 0 条违规路线，第一版规划器在 106 面上违规 | [规划与规范](docs/experiments/cpp_planner/README.md) |
-| 多站执行 | 两条槽 11 个停靠站全部完成，刀尖轨迹误差最大 1.3 mm，切割期间底盘漂移 ≤ 0.32 mm | [多站执行](docs/experiments/slot_execution/README.md) |
-| 停靠站优化 | 动态规划划分 + 最优扫掠顺序，Gazebo 中总耗时 283 s → 250 s（−11.8 %），100 面随机墙平均节省 12.5 % | [多站执行](docs/experiments/slot_execution/README.md) |
+| 多站执行 | 两条槽 11 个停靠站全部完成；精对位升级并以标记估计位置为墙面原点后，每次运行的常值横向偏差 +0.65–1.26 → −0.18–+0.24 mm，刀尖轨迹误差最大 0.9 mm，总耗时 250 → 233 s | [多站执行](docs/experiments/slot_execution/README.md) |
+| 停靠站优化 | 动态规划划分 + 最优扫掠顺序，Gazebo 中总耗时 283 s → 250 s（−11.8 %） | [多站执行](docs/experiments/slot_execution/README.md) |
+| 任务级联合规划 | 槽线走向与停靠站联合优化：400 面随机住宅墙上从不比分步方法慢，非承重墙再省 3.5 %（95 % CI [3.1, 4.0] %，Wilcoxon p < 1e-10），下界证书证明 92 % 的墙已达最优 | [联合规划](docs/experiments/task_planning/README.md) |
 | 仿真保真度 | 定位并修复底盘旋转失真的两层根因，转速比 18–37 % → 0.99–1.01 | [项目演进](docs/EVOLUTION.md#4-仿真保真度底盘漂移与旋转失真) |
 | 方法对比 | 约 1.25 万次离线试验：纯 IBVS 在本构型下偏航几乎不可观（雅可比条件数 314），保留 PBVS | [视觉伺服对比](docs/experiments/ibvs_vs_pbvs/README.md) |
 
@@ -34,14 +35,14 @@
 
 ```mermaid
 flowchart TB
-    task["墙面任务 YAML"] --> planner["plan_wall_slots<br/>C++ 增强 A* + 停靠站优化<br/>(scr_planner)"]
+    task["墙面任务 YAML"] --> planner["plan_wall_slots<br/>C++ 增强 A* + 槽线 / 停靠站联合规划<br/>(scr_planner)"]
     planner --> plan["规划结果 YAML<br/>槽线 / 停靠站 / 机械臂点"]
     plan --> exec
     plan --> viz["plan_viz (scr_viz)<br/>RViz 开槽场景与刀尖轨迹"]
 
     subgraph exec["navigation_cutting_task (scr_arm_controller)"]
         direction LR
-        nav["导航到墙前"] --> servo["精对位<br/>相机 + 激光 PBVS"]
+        nav["导航到墙前"] --> servo["精对位<br/>AprilTag + 激光 EKF"]
         servo --> station["逐站：横移 → 定点保持<br/>→ 残差补偿 → 切割"]
     end
 
@@ -65,7 +66,7 @@ flowchart TB
 
 实线为指令与数据流，虚线为传感器反馈。
 
-单站任务和多站开槽共用同一条执行路径：Nav2 把底盘送到墙前，相机 + 激光视觉伺服把底盘对位到定位标记正前方（此时的位姿作为墙面坐标原点），然后逐站横移、定点保持、按传感器测得的残余误差修正机械臂点并切割。Gazebo 的墙是刚体，仿真中采用空切：刀尖停在墙前固定间隙处，只验证轨迹。
+单站任务和多站开槽共用同一条执行路径：Nav2 把底盘送到墙前，AprilTag 与激光墙面拟合经 EKF 融合，饱和控制律把底盘对位到定位标记正前方（EKF 估计的标记位置作为墙面坐标原点），然后逐站横移、定点保持、按传感器测得的残余误差修正机械臂点并切割。Gazebo 的墙是刚体，仿真中采用空切：刀尖停在墙前固定间隙处，只验证轨迹。
 
 | 包 | 内容 |
 |---|---|
@@ -143,12 +144,14 @@ colcon test && colcon test-result --verbose
 - [使用指南](docs/USER_GUIDE.md)：安装、启动、建图、导航、任务执行、可视化、故障排查
 - [路线图](docs/ROADMAP.md)：进行中与计划中的工作
 - 实验报告：
-  - [对位鲁棒性：视觉伺服 vs 里程计](docs/experiments/alignment_robustness/README.md)
+  - [精对位设计与控制分析：AprilTag + 激光 EKF](docs/experiments/fine_alignment/README.md)
+  - [对位鲁棒性对比](docs/experiments/alignment_robustness/README.md)
   - [墙面开槽规划：C++ 增强 A\* 与施工规范](docs/experiments/cpp_planner/README.md)
   - [多站执行与停靠站顺序优化](docs/experiments/slot_execution/README.md)
+  - [任务级联合规划：槽线走向 + 停靠站](docs/experiments/task_planning/README.md)
   - [视觉伺服方法对比：PBVS / IBVS / 2.5D 混合](docs/experiments/ibvs_vs_pbvs/README.md)
   - [可视化与演示](docs/experiments/demo/README.md)
 
 ## 关于
 
-本项目起源于本科毕业设计《面向室内墙体线槽开槽任务的机器人自主路径规划设计》，在此基础上持续迭代：补充真值评估与可复现实验，引入视觉伺服精对位，修正仿真保真度问题，并把开槽规划扩展为满足施工规范、可在多个停靠站上执行的完整流程。
+本项目起源于本科毕业设计《面向室内墙体线槽开槽任务的机器人自主路径规划设计》，在此基础上持续迭代：补充真值评估与可复现实验，引入视觉伺服与状态估计的精对位，修正仿真保真度问题，并把开槽规划扩展为满足施工规范、在多个停靠站上联合优化并执行的完整流程。
