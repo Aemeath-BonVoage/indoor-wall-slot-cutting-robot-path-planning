@@ -33,6 +33,7 @@ setup(
             'marker_scanner = scr_arm_controller.marker_scanner:main',
             'trajectory_visualizer = scr_arm_controller.trajectory_visualizer:main',
             'alignment_benchmark = scr_arm_controller.alignment_benchmark:main',
+            'teach_alignment_offset = scr_arm_controller.teach_alignment_offset:main',
             'test_marker_visualization = scr_arm_controller.test_marker_visualization:main',
         ],
     },

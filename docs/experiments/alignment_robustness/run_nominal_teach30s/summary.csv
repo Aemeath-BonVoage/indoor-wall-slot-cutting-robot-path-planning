@@ -1,0 +1,2 @@
+condition,pipeline,n,success,collisions,pos_mean_mm,pos_std_mm,pos_max_mm,lateral_mean_mm,lateral_absmax_mm,normal_mean_mm,yaw_abs_mean_deg,min_clearance_mm,after1s_pos_mean_mm,time_mean_s
+nominal,v2_taught,8,8,0,0.5119055468505559,0.20045193856675286,0.7538963038916069,0.28967698442006196,0.6718128523033329,-0.298953866868068,0.04424683226551499,23.159735634661004,0.6070000882783981,9.575

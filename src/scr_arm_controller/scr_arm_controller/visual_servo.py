@@ -77,7 +77,27 @@ def fit_wall(ranges, angle_min, angle_increment, half_fov=math.radians(35.0),
         'normal': (float(n[0]), float(n[1])),
         'inliers': int(mask.sum()),
         'rms': rms,
+        'cov': line_fit_covariance(p, n, rms),
     }
+
+
+def line_fit_covariance(p, n, rms):
+    """
+    直线拟合参数 (distance, 法向角) 的协方差（一阶近似，点误差独立同分布）.
+
+    以法向角 φ 和沿直线的坐标 s = t·p 表示：var(φ) = σ²/Σ(s−s̄)²；原点到直线的距离
+    d = n(φ)·c（c 为点集质心），∂d/∂φ = t·c = s̄，故 var(d) = σ²/N + s̄²·var(φ)，
+    cov(d, φ) = s̄·var(φ)。σ 取拟合残差 rms（N − 2 自由度修正）。
+    """
+    N = len(p)
+    t = np.array([-n[1], n[0]])
+    s = p @ t
+    sbar = float(s.mean())
+    S = float(((s - sbar) ** 2).sum())
+    var = rms ** 2 * N / max(N - 2, 1)
+    var_phi = var / max(S, 1e-9)
+    return np.array([[var / N + sbar ** 2 * var_phi, sbar * var_phi],
+                     [sbar * var_phi, var_phi]])
 
 
 def pixel_to_ray(u, v, fx, fy, cx, cy):

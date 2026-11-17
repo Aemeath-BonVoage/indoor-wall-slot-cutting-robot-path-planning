@@ -20,9 +20,9 @@
 - **规划**：`scr_planner/scripts/plan_wall_slots.py`，命令行工具，不需要 ROS。也可以用 `wall_slot_planner_node.py`，它额外在 `/wall_slot_plan/markers` 上发布 RViz 显示。
 - **执行（唯一主路径）**：`ros2 run scr_arm_controller navigation_cutting_task <plan.yaml> --dry-run-gap=0.01`。主任务识别到规划文件（含 `wall` / `stations`）就走多站流程 `NavigationCuttingTask.run_slot_plan`；给它单站任务文件（如 `task_at_target.yaml`）则仍走原来的单站流程。多站流程全部复用主任务已有的模块：
   1. **Nav2** 导航到定位标记正前方 1.2 m；
-  2. **视觉伺服对位**（相机 + 激光 PBVS）到标记前 0.70 m，此时的里程计位姿就是墙面坐标的参考原点；
+  2. **精对位**（AprilTag + 激光 EKF，见 [`fine_alignment`](../fine_alignment/README.md)）到标记前 0.70 m；墙面坐标原点取 EKF 估计的标记位置（第一版取对位停车时的里程计位姿，见“精对位改进后的复测”）；
   3. 逐站：
-     - **到站**：沿墙横移（横向用里程计，离墙距离与朝向用激光拟合墙面，经激光**防碰撞守护**限速）；站间距离超过 `--max-strafe`（默认 1.5 m）时，先缩回机械臂、退到离墙 1.2 m 用 **Nav2** 过去，再横移 / 接近到站；
+     - **到站**：沿墙横移（墙面相对状态 EKF：沿墙位置由里程计外推，离墙距离与朝向由激光更新；经激光**防碰撞守护**限速）；站间距离超过 `--max-strafe`（默认 1.5 m）时，先缩回机械臂、退到离墙 1.2 m 用 **Nav2** 过去，再横移 / 接近到站；
      - **定点保持**：`base_hold.py`（力控底盘整定的 P 5 / 6、50 Hz）；
      - **残差补偿**：用传感器测出横向 / 离墙 / 朝向残余误差，修正本站的机械臂点（刀尖离底盘中心约 0.69 m，0.5° 朝向误差就会让刀尖横移约 6 mm）；
      - **切割**：逐点执行；`--dry-run-gap` 为空切。
@@ -163,7 +163,7 @@
    | 基线 2 | 1.9 / −3.1 mm | +2.29 mm | −1.6 mm |
    | 每站 Nav2 | 1.3 / −2.2 mm | +1.46 mm | −1.4 mm |
 
-   两者相差 ≤ 0.4 mm。对位在传感器误差进入 1 cm 容差（死区 5 mm）后就停下，加上相机横向感知误差，参考原点会有 0.3–1.9 mm 的偏差；之后所有站都继承它。
+   两者相差 ≤ 0.4 mm。对位在传感器误差进入 1 cm 容差（死区 5 mm）后就停下，加上相机横向感知误差，参考原点会有 0.3–1.9 mm 的偏差；之后所有站都继承它。精对位改进后的复测见下文“精对位改进后的复测”。
 
 ### 逐站 Nav2 导航（远站路径）
 
@@ -207,6 +207,33 @@
 
 原始数据：[`station_order_results.csv`](station_order_results.csv)、[`station_order_summary.csv`](station_order_summary.csv)。
 
+## 精对位改进后的复测
+
+上文的多站结果（`runs/dp`、`runs/dp_repeat` 等）使用第一版精对位（色块 + PBVS，墙面坐标原点 = 对位停车时的里程计位姿），每次运行带 0.65–2.3 mm 的常值横向偏差。精对位换成 AprilTag + 激光 EKF + 饱和控制律（[设计](../fine_alignment/README.md)、[对比实验](../alignment_robustness/README.md)）后，用**同一份规划文件**（`runs/dp/slot_plan.yaml`，优化方案 11 站）、同一执行路径和记录器复测。变化有三处，本实验没有全部拆开：
+
+1. 起点对位更准（名义条件下 0.5 mm 对 4 mm 量级）；
+2. **墙面坐标原点改为 EKF 估计的标记位置**：停车时的沿墙残差保留在估计状态中，各站目标直接取规划的 u（相对标记），而不是以停车位姿为原点（`alignment.fold_residual`，默认开）；
+3. 站间横移改用同一个 EKF（里程计预测 + 激光更新，站间不用标记）与平方根整形控制律，到站残差与机械臂点补偿也改用 EKF 估计。
+
+第 2 项单独做了消融：`fold_residual:=false` 恢复“以停车位姿为原点”，其余与新版相同。
+
+| 运行 | 精对位 | 原点 | 起点停车残差（估计） | **到站横向误差 均值 ± 站间标准差** | 到站朝向 平均 / 最大 | 刀尖轨迹误差（平均 / 95 分位 / 最大） | 覆盖率 | 各站耗时之和 |
+|---|---|---|---|---|---|---|---|---|
+| `dp`（第一版，存档） | 第一版 | 停车位姿 | — | +1.26 ± 0.38 mm | 0.29° / 0.57° | 0.33 / 0.98 / 1.29 mm | 99.3 % | 249.8 s |
+| `dp_repeat`（第一版，存档） | 第一版 | 停车位姿 | — | +0.65 ± 0.41 mm | 0.36° / 0.51° | 0.24 / 0.37 / 1.18 mm | 98.2 % | 249.9 s |
+| `fine_align_dp` | 新版 | **标记** | +0.19 mm | **+0.24 ± 0.12 mm** | 0.06° / 0.11° | 0.20 / 0.22 / 0.93 mm | 99.6 % | 233.5 s |
+| `fine_align_dp_repeat` | 新版 | **标记** | +0.46 mm | **−0.18 ± 0.18 mm** | 0.06° / 0.13° | 0.24 / 0.53 / 0.77 mm | 99.8 % | 233.2 s |
+| `fine_align_dp_nofold`（消融） | 新版 | 停车位姿 | +0.50 mm | +0.86 ± 0.18 mm | 0.05° / 0.08° | 0.35 / 1.11 / 1.28 mm | 96.9 % | 233.7 s |
+
+（每次 11 / 11 站完成，0 个点被关节限位钳制；仿真配置 v2，Nav2 流程 `rtf` 1；数据在 `runs/fine_align_*`。）
+
+结论：
+
+1. **每次运行的常值横向偏差基本消失**：两次复测的均值为 +0.24 / −0.18 mm，第一版为 +1.26 / +0.65 mm（此前另外三次为 +1.17 / +2.29 / +1.46 mm）。消融中关掉原点修正后偏差回到 +0.86 mm，与该次停车残差 +0.50 mm 同号、同量级，说明偏差来源确实是“以停车位姿为原点”，原点修正去掉了它。样本只有 2 + 1 次运行，偏差剩余的 ±0.2 mm 量级与站间标准差相当，未做显著性检验。
+2. **站间重复性也提高**：站间标准差 0.12–0.18 mm（第一版 0.38–0.41 mm），到站朝向误差 0.06°（第一版 0.29–0.36°）。这一项来自站间横移改用 EKF + 新控制律（第一版用激光朝向的指数平滑，单帧抖动约 ±1°），与原点修正无关。
+3. **横移更快**：每站“横移 + 到位”平均 2.8 s（第一版 4.5 s），各站耗时之和 233 s，比第一版少 6.5 %。时间模型（`slot_plan.TimeModel`，t_settle 4.40 s、v 0.0945 m/s）是用第一版执行路径标定的，现在偏保守，需要重新标定。
+4. 刀尖轨迹误差的 95 分位从 0.37–0.98 mm 降到 0.22–0.53 mm，最大值从 1.2–1.3 mm 降到 0.8–0.9 mm。
+
 ## 单条槽的执行精度（补偿方法的验证，旧仿真）
 
 在单条槽示例上，切割方式与补偿方法逐步改进的结果（旧仿真上测得，未重测）：
@@ -237,7 +264,7 @@
 ## 局限
 
 - **真机上的切削反力不在本项目范围内**：空切不受切削反力；上真机时，刀具反力对底盘的影响需要另行评估，但本项目的定点保持与残差补偿机制可以直接沿用。
-- **参考偏差没有消除**：每次运行到站横向误差有 0.65–2.3 mm 的常值偏差，等于起点视觉对位停下时的沿墙残余误差。可选的改进：对位结束时用相机测得的残余横向误差修正参考原点，或收紧对位收敛判据（`docs/ROADMAP.md` 已有此项）。
+- **参考偏差**：第一版精对位下每次运行到站横向误差有 0.65–2.3 mm 的常值偏差，等于起点对位停下时的沿墙残余误差；精对位改进并以估计的标记位置为原点后降到 ±0.2 mm 量级（见“精对位改进后的复测”，2 + 1 次运行）。
 - **时间模型来自仿真**：54 个停靠站、两种方案；示例任务的预测是样本内检验。真机上需要重新标定。DP 不考虑横移距离，所以在完整模型下只是近似最优。
 - **离线对比有选择偏差**：100 面墙是从 175 面中选出的。其余 75 面至少有一条槽在可切高度内找不到合规路线（在 0.53 m 高的带内，“横槽 ≤ 50 cm”和“两弯间 ≥ 24 cm”很难同时满足），被跳过。所以非承重多槽墙在样本中偏少（49 面，承重墙 51 面）。
 - **多条槽按任务顺序依次规划**：先规划的槽占用了位置，后面的槽可能因此无解。没有做联合规划，也没有调整规划顺序。
@@ -260,6 +287,8 @@ ros2 run scr_arm_controller navigation_cutting_task /tmp/plan_dp.yaml --dry-run-
 #   或带真值记录的实验记录器（同一执行路径 + 评估输出）：
 ros2 run scr_planner execute_slot_plan.py /tmp/plan_dp.yaml /tmp/run_dp --dry-run-gap=0.01
 #   每站都走 Nav2 的对照：再加 --max-strafe=0.1
+#   精对位改进后的复测（runs/fine_align_*）；原点消融再加 --ros-args -p alignment.fold_residual:=false
+ros2 run scr_planner execute_slot_plan.py docs/experiments/slot_execution/runs/dp/slot_plan.yaml /tmp/run_fine_align --dry-run-gap=0.01
 
 # 3. 标定时间模型、离线对比、作图
 python3 src/scr_planner/scripts/calibrate_time_model.py /tmp/run_naive /tmp/run_dp
@@ -270,4 +299,4 @@ python3 src/scr_planner/scripts/plot_station_order.py /tmp/run_naive /tmp/run_dp
     docs/experiments/slot_execution/station_order_results.csv docs/experiments/slot_execution/station_order.png
 ```
 
-数据目录：`runs/dp`、`runs/dp_repeat`、`runs/per_slot`、`runs/per_slot_repeat`、`runs/dp_nav2_each_station` 为本次力控仿真数据；`runs/oldsim_*` 为旧仿真（main 12a14f6）数据，`runs/v1_*` 为更早（合并 12a14f6 之前）的数据。
+数据目录：`runs/fine_align_dp`、`runs/fine_align_dp_repeat`、`runs/fine_align_dp_nofold` 为精对位改进后的复测（未保存约 0.7 MB 的 `tool_trace.csv`，与其他运行一致）；`runs/dp`、`runs/dp_repeat`、`runs/per_slot`、`runs/per_slot_repeat`、`runs/dp_nav2_each_station` 为第一版精对位下的力控仿真数据；`runs/oldsim_*` 为旧仿真（main 12a14f6）数据，`runs/v1_*` 为更早（合并 12a14f6 之前）的数据。

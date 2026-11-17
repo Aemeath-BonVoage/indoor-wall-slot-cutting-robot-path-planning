@@ -2,10 +2,43 @@ import launch
 import launch_ros
 from ament_index_python.packages import get_package_share_directory, get_package_prefix
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.actions import TimerAction, ExecuteProcess, DeclareLaunchArgument
+from launch.actions import TimerAction, ExecuteProcess, DeclareLaunchArgument, OpaqueFunction
 from launch.conditions import IfCondition
 from launch.substitutions import LaunchConfiguration, PythonExpression
+import math
 import os
+import re
+import tempfile
+
+
+def inject_camera_yaw_error(urdf, yaw_deg):
+    """
+    在 Gazebo 相机上叠加绕竖直轴的安装偏角（实验用，模拟相机外参误差）.
+
+    改的是生成到 Gazebo 的描述中 camera_joint 的 origin；robot_state_publisher 仍用名义
+    URDF，发布的 TF 不变，即软件“不知道”这个误差——与真机上外参标定不准的情形相同。
+    不能用传感器的 <pose>：URDF → SDF 合并固定关节（camera_link 并入 link1）时，
+    传感器位姿被关节偏移整体覆盖，<pose> 中的旋转会丢失（实测相机朝向不变）。
+    """
+    pat = (r'(<joint name="camera_joint" type="fixed">\s*<parent link="link1"/>\s*'
+           r'<child link="camera_link"/>\s*<origin xyz="[^"]*" rpy=")0 0 0(")')
+    out, n = re.subn(pat, r'\g<1>0 0 ' + f'{math.radians(yaw_deg):.8f}' + r'\g<2>', urdf)
+    if n != 1:
+        raise RuntimeError('URDF 中找不到 camera_joint，无法注入相机安装偏角')
+    return out
+
+
+def spawn_robot(context, entity, robot_description):
+    """生成机器人：camera_yaw_error_deg 非 0 时用注入了相机偏角的描述生成（TF 不变）."""
+    yaw = float(context.perform_substitution(LaunchConfiguration('camera_yaw_error_deg')))
+    args = ['-topic', '/robot_description', '-entity', entity]
+    if yaw != 0.0:
+        f = tempfile.NamedTemporaryFile('w', suffix='.urdf', prefix='scr_robot_', delete=False)
+        f.write(inject_camera_yaw_error(robot_description, yaw))
+        f.close()
+        args = ['-file', f.name, '-entity', entity]
+    return [launch_ros.actions.Node(package='gazebo_ros', executable='spawn_entity.py',
+                                    arguments=args)]
 
 
 def generate_launch_description():
@@ -93,16 +126,22 @@ def generate_launch_description():
         condition=IfCondition(LaunchConfiguration('gui'))
     )
 
+    # 相机安装偏角（度，绕竖直轴）：0 = 名义安装（默认）；用于验证零位标定
+    declare_camera_yaw = DeclareLaunchArgument(
+        'camera_yaw_error_deg',
+        default_value='0.0',
+        description='Camera mount yaw error injected into the Gazebo sensor only (deg)'
+    )
+
     # Spawn robot
-    spawn_entity_node = launch_ros.actions.Node(
-        package='gazebo_ros',
-        executable='spawn_entity.py',
-        arguments=['-topic', '/robot_description',
-                   '-entity', robot_name_in_model])
+    spawn_entity_node = OpaqueFunction(
+        function=spawn_robot, args=[robot_name_in_model, robot_description])
 
     # Set GAZEBO_MODEL_PATH
     package_name = 'scr_description'
     pkg_share = os.pathsep + os.path.join(get_package_prefix(package_name), 'share')
+    # 本包的 Gazebo 模型（AprilTag 定位标记，model://scr_apriltag_*）
+    pkg_share += os.pathsep + os.path.join(urdf_tutorial_path, 'models')
     if 'GAZEBO_MODEL_PATH' in os.environ:
         os.environ['GAZEBO_MODEL_PATH'] += pkg_share
     else:
@@ -152,6 +191,7 @@ def generate_launch_description():
         declare_world,
         declare_gui,
         declare_rtf,
+        declare_camera_yaw,
         unthrottle,
         robot_state_publisher_node,
         gzserver,

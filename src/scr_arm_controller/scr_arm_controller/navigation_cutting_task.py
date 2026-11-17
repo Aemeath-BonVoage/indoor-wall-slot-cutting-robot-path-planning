@@ -3,14 +3,21 @@
 导航+切割任务总控程序（项目唯一的执行主路径）.
 
 两种任务文件：
-1. 单站任务（task_at_target.yaml 格式）：导航到目标点 → 视觉对位到黄色方块正前方
+1. 单站任务（task_at_target.yaml 格式）：导航到目标点 → 精对位到定位标记正前方
    → 扫描 → 定点保持下切割。
 2. 离线开槽规划（scr_planner/scripts/plan_wall_slots.py 的输出，含 wall / stations）：
-   导航到标记前 → 视觉对位（确定墙面坐标原点）→ 逐站：横移（远站先用 Nav2）到站
+   导航到标记前 → 精对位（确定墙面坐标原点）→ 逐站：横移（远站先用 Nav2）到站
    → 定点保持 → 测残差并补偿机械臂点 → 切割 → 下一站。执行中不重新规划。
+
+精对位（positioning_mode）：
+  'visual'     AprilTag + 激光墙面 → EKF（里程计预测）→ 平方根整形饱和控制律 → 收敛判据
+               （默认；检测器可用参数 alignment.detector 换成色块）
+  'visual_v1'  第一版：色块 + 激光 → 指数平滑 → 比例 + 最小速度 + 死区（对比基线）
+  'odom'       里程计 + 已知标记坐标（对比基线）
 
   ros2 run scr_arm_controller navigation_cutting_task <task.yaml | plan.yaml>
       [--dry-run-gap=0.01] [--no-compensation] [--max-strafe=1.5]
+      [--ros-args --params-file <fine_alignment.yaml>]
 """
 
 import sys
@@ -31,8 +38,37 @@ from gazebo_msgs.msg import ModelStates
 from scr_arm_controller.cartesian_cutting import CartesianCuttingController
 from scr_arm_controller.trajectory_visualizer import TrajectoryVisualizer
 from scr_arm_controller.base_hold import BaseHold
+from scr_arm_controller.docking_control import ConvergenceMonitor, WallAlignController
 from scr_arm_controller.visual_servo import pbvs_command
 from scr_arm_controller.visual_servo_ros import WallMarkerServo
+from scr_arm_controller.wall_estimator_ros import WallStateEstimator
+
+# 精对位参数（ROS 参数，可用 --params-file 覆盖；默认值见 config/fine_alignment.yaml）
+ALIGNMENT_PARAMS = {
+    'detector': 'apriltag',            # 'apriltag' | 'blob'
+    'tag_family': 'tag36h11',
+    'tag_id': 0,
+    'tag_size': 0.10,                  # 黑框边长（米）
+    # 零位标定偏置：在标定位姿（真值已知）处“传感器指示值 − 真值”，测量模型内扣除
+    'offset_normal': 0.0,              # 米，离墙距离
+    'offset_lateral': 0.0,             # 米，沿墙（面向墙面向右为正）
+    'offset_yaw_deg': 0.0,             # 度，逆时针为正
+    'tolerance_normal': 0.002,         # 收敛容差（米）
+    'tolerance_lateral': 0.002,
+    'tolerance_yaw_deg': 0.3,
+    'settle_cycles': 10,               # 连续满足判据的周期数
+    'control_rate': 20.0,              # Hz
+    'k_lin': 2.0,                      # 1/s，线性区增益
+    'k_ang': 2.0,
+    'decel_lin': 0.15,                 # m/s²，制动曲线减速度
+    'decel_ang': 0.5,                  # rad/s²
+    'max_lin': 0.15,                   # m/s
+    'max_ang': 0.3,                    # rad/s
+    'timeout': 50.0,                   # 秒（仿真时间）
+    'lost_timeout': 10.0,              # 标记丢失超过该时间判定失败（秒）
+    'sigma_hold': 0.01,                # σ_u 超过该值（米）时停车等待标记
+    'fold_residual': True,             # 多站：以估计的标记位置（而非停车位姿）为墙面坐标原点
+}
 
 
 # ---------------------------------------------------------------------------
@@ -169,10 +205,31 @@ class NavigationCuttingTask(Node):
         self.cur_station = -1          # 当前停靠站序号（-1 = 不在站上）；供实验记录读取
         self.phase = 'idle'            # idle / move / cut：相邻两点都在切深时为 cut
 
-        # 视觉伺服测量器（激光拟合墙面 + 相机检测方块）
-        self.servo = WallMarkerServo(self)
+        # 精对位：传感器前端（激光拟合墙面 + 相机检测定位标记）与墙面相对状态估计
+        for k, v in ALIGNMENT_PARAMS.items():
+            self.declare_parameter('alignment.' + k, v)
+        self.align_cfg = {k: self.get_parameter('alignment.' + k).value
+                          for k in ALIGNMENT_PARAMS}
+        a = self.align_cfg
+        self.servo = WallMarkerServo(self, detector=a['detector'], tag_family=a['tag_family'],
+                                     tag_id=int(a['tag_id']), tag_size=float(a['tag_size']))
+        self.estimator = WallStateEstimator(self, self.servo)
+        self.apply_alignment_config()
+        self.align_trace = []           # 最近一次对位的逐周期记录（实验用）
+        self.fold_alignment_residual = bool(a['fold_residual'])
+        self.hold_after_align = True    # 精对位 / 横移收敛后立即进入定点保持
+        self.align_gt = None            # 宣布到位时刻的真值位姿（评估用）
 
         self.get_logger().info('导航+切割任务控制器已初始化')
+
+    def apply_alignment_config(self, **overrides):
+        """应用（并可覆盖）精对位参数：检测器、零位标定偏置、容差."""
+        self.align_cfg.update(overrides)
+        a = self.align_cfg
+        self.servo.detector = a['detector']
+        self.servo.detectors = {a['detector']}
+        self.estimator.set_offset(float(a['offset_normal']), float(a['offset_lateral']),
+                                  math.radians(float(a['offset_yaw_deg'])))
 
     def destroy_node(self):
         # 先停掉定点保持的后台线程，避免 rclpy.shutdown() 时进程 abort
@@ -317,7 +374,9 @@ class NavigationCuttingTask(Node):
                                f'yaw={target_yaw:.3f} ({math.degrees(target_yaw):.1f}°)')
 
         if self.positioning_mode == 'visual':
-            # 视觉伺服：控制只用传感器测量；上面的目标位姿仅用于真值评估
+            # 控制只用传感器测量；上面的目标位姿仅用于真值评估
+            return self.precise_positioning_fused(target_x, target_y, target_yaw)
+        if self.positioning_mode == 'visual_v1':
             return self.precise_positioning_visual(target_x, target_y, target_yaw)
 
         self.get_logger().info('对位模式: odom（里程计 + 已知方块坐标，基线）')
@@ -466,8 +525,122 @@ class NavigationCuttingTask(Node):
         self.arm_controller.move_to_joints([joint1, 0.0, self.approach_joint3, 0.0], duration=2.0)
         self.sleep_sim(0.5)
 
+    def make_align_controller(self, dt, max_lin=None):
+        a = self.align_cfg
+        return WallAlignController(
+            k_lin=a['k_lin'], k_ang=a['k_ang'], a_lin=a['decel_lin'], a_ang=a['decel_ang'],
+            v_max=a['max_lin'] if max_lin is None else max_lin, w_max=a['max_ang'], dt=dt)
+
+    def run_wall_servo(self, target, monitor, max_lin=None, timeout=None, log_every=40,
+                       require_tag=True):
+        """
+        墙面相对状态闭环：估计 → 控制律 → 防碰撞守护 → 收敛判据，直到收敛 / 超时 / 丢失.
+
+        target = (d*, u*, ψ*)。require_tag：开始运动前必须先由标记确定沿墙位置
+        （精对位）；False 时沿墙位置来自之前的估计（多站执行的站间移动）。
+        返回 (是否收敛, 最后一次估计)。
+        """
+        a = self.align_cfg
+        period = 1.0 / float(a['control_rate'])
+        timeout = float(a['timeout']) if timeout is None else timeout
+        est, log = self.estimator, self.get_logger()
+        self.base_hold.release()         # 本闭环自己发速度指令，先解除可能仍在运行的定点保持
+        self.align_gt = None
+        ctrl = self.make_align_controller(period, max_lin)
+        ctrl.reset()
+        monitor.reset()
+        t0 = self.get_clock().now().nanoseconds * 1e-9
+        X, it, holding, t_prev = None, 0, False, None
+        while rclpy.ok():
+            now = self.get_clock().now().nanoseconds * 1e-9
+            # 加速度限幅按实际周期计（仿真加速时 Python 计算耗时按仿真时间放大，周期会变长）
+            if t_prev is not None:
+                ctrl.dt = min(max(now - t_prev, 0.5 * period), 4 * period)
+            t_prev = now
+            if now - t0 > timeout:
+                log.error(f'对位超时（{timeout:.0f} s）')
+                break
+            X, info = est.step()
+            cmd = Twist()
+            sig = est.ekf.sigma()
+            ready = X is not None and (est.u_known or not require_tag)
+            last_tag = est.last_tag_time if est.last_tag_time is not None else t0
+            if require_tag and now - last_tag > float(a['lost_timeout']):
+                log.error(f'定位标记丢失超过 {a["lost_timeout"]:.0f} s：{info.get("tag")}')
+                break
+            if require_tag and ready and sig[1] > float(a['sigma_hold']):
+                ready = False
+                if not holding:
+                    log.warn(f'沿墙位置不确定度 σ_u = {sig[1] * 1000:.1f} mm，停车等待定位标记')
+            holding = not ready
+            if ready:
+                errs = ctrl.errors(X, target)
+                if monitor.update(errs, est.velocity(), sig):
+                    # 到位后立即转入定点保持：仿真中轮子摩擦为 0，零速度指令下底盘仍会缓慢
+                    # 滑移（实测约 0.6 mm/s、0.08°/s），真机上由电机抱死 / 定点保持承担
+                    self.align_gt = self.get_ground_truth_position()
+                    if self.hold_after_align:
+                        self.base_hold.enabled = True
+                        self.base_hold.hold()
+                    else:
+                        self.stop_robot()
+                    log.info(f'墙面闭环收敛：误差 法向 {errs[0] * 1000:+.2f} mm、沿墙 '
+                             f'{errs[1] * 1000:+.2f} mm、朝向 {math.degrees(errs[2]):+.3f}°，'
+                             f'σ = ({sig[0] * 1000:.2f} mm, {sig[1] * 1000:.2f} mm, '
+                             f'{math.degrees(sig[2]):.3f}°)，用时 {now - t0:.1f} s')
+                    return True, X
+                cmd.linear.x, cmd.linear.y, cmd.angular.z = ctrl.command(X, target)
+                cmd = self.apply_wall_guard(cmd)
+                ctrl.prev[:] = (cmd.linear.x, cmd.linear.y, cmd.angular.z)
+            else:
+                ctrl.reset()
+                monitor.reset()
+            self.cmd_vel_pub.publish(cmd)
+            self.align_trace.append((
+                now - t0, *(X if X is not None else (math.nan,) * 3), *sig,
+                cmd.linear.x, cmd.linear.y, cmd.angular.z, info.get('tag') == 'ok',
+                info.get('wall') == 'ok'))
+            if it % log_every == 0 and X is not None:
+                log.info(f'[{now - t0:5.1f}s] d={X[0]:.4f} m u={X[1] * 1000:+7.1f} mm '
+                         f'ψ={math.degrees(X[2]):+6.2f}° σ_u={sig[1] * 1000:.2f} mm '
+                         f'标记: {info.get("tag")}  墙面: {info.get("wall")}')
+            it += 1
+            self.sleep_sim(period)
+        self.stop_robot()
+        return False, X
+
+    def precise_positioning_fused(self, target_x, target_y, target_yaw):
+        """
+        精对位：AprilTag + 激光墙面 → EKF → 平方根整形饱和控制律 → 收敛判据.
+
+        不使用里程计的绝对位姿与已知标记坐标：里程计只提供短时增量（预测与延迟补偿）。
+        """
+        a = self.align_cfg
+        D = self.distance_from_marker
+        self.get_logger().info(
+            f'对位模式: visual（{a["detector"]} + 激光墙面 → EKF），目标离墙 {D:.3f} m，'
+            f'容差 法向 {a["tolerance_normal"] * 1000:.1f} mm / 沿墙 '
+            f'{a["tolerance_lateral"] * 1000:.1f} mm / 朝向 {a["tolerance_yaw_deg"]:.2f}°，'
+            f'零位偏置 ({a["offset_normal"] * 1000:+.2f} mm, {a["offset_lateral"] * 1000:+.2f} mm,'
+            f' {a["offset_yaw_deg"]:+.3f}°)')
+        self.move_arm_for_approach(joint1=self.observe_joint1)
+        self.servo.detector = a['detector']
+        self.servo.detectors = {a['detector']}
+        self.estimator.reset()
+        self.estimator.use_tag = True
+        self.align_trace = []
+        monitor = ConvergenceMonitor(
+            tol_d=a['tolerance_normal'], tol_u=a['tolerance_lateral'],
+            tol_psi=math.radians(a['tolerance_yaw_deg']), n_required=int(a['settle_cycles']))
+        ok, X = self.run_wall_servo((D, 0.0, 0.0), monitor)
+        st = self.estimator.ekf.stats
+        self.get_logger().info(f'测量更新：墙面 接受 {st["wall"][0]} / 拒收 {st["wall"][1]}，'
+                               f'标记 接受 {st["tag"][0]} / 拒收 {st["tag"][1]}')
+        self.report_ground_truth_error(target_x, target_y, target_yaw)
+        return ok
+
     def precise_positioning_visual(self, target_x, target_y, target_yaw):
-        """相机 + 激光融合 PBVS 对位（不使用里程计与已知方块坐标）."""
+        """第一版：色块 + 激光 PBVS（指数平滑，比例 + 最小速度 + 死区），保留作对比基线."""
         D = self.distance_from_marker
         pos_tol, ang_tol = self.position_tolerance, self.angle_tolerance
         control_period = 0.1
@@ -481,7 +654,9 @@ class NavigationCuttingTask(Node):
         # 观测位姿：相机与机械臂同在升降滑台上，机械臂会遮挡画面中下部；
         # 降低滑台使相机略低于方块，方块成像在画面上部，避开自遮挡区域
         self.move_arm_for_approach(joint1=self.observe_joint1)
+        self.servo.detectors = {'blob'}
         self.servo.reset_filter()
+        self.align_gt = None
 
         converged, lost, required = 0, 0, 5
         m = None
@@ -505,6 +680,7 @@ class NavigationCuttingTask(Node):
             if pos_err < pos_tol and abs(e['yaw']) < ang_tol:
                 converged += 1
                 if converged >= required:
+                    self.align_gt = self.get_ground_truth_position()   # 评估用
                     self.stop_robot()
                     self.get_logger().info('✅ 视觉伺服对位完成！')
                     self.get_logger().info(
@@ -583,6 +759,8 @@ class NavigationCuttingTask(Node):
         self.get_logger().info('\n' + '='*60)
         self.get_logger().info('步骤2.5: 扫描寻找黄色方块')
         self.get_logger().info('='*60)
+
+        self.servo.detectors.add('blob')     # 扫描沿用色块射线与墙面求交（第一版测量）
 
         def try_measure():
             pts = []
@@ -872,7 +1050,7 @@ class NavigationCuttingTask(Node):
             self.get_logger().error('任务失败：切割阶段失败')
             return False
 
-        # 生成切割轨迹可视化（基于检测到的方块位置）
+        # 生成切割轨迹可视化（基于定位标记位置）
         self.get_logger().info('\n生成切割轨迹可视化...')
         self._visualize_cutting_result()
 
@@ -925,71 +1103,36 @@ class NavigationCuttingTask(Node):
         """仿真时间（秒）：取自定点保持的后台节点（机械臂动作时主节点不处理回调，时钟会停）."""
         return self.base_hold.node.get_clock().now().nanoseconds * 1e-9
 
-    def strafe_to(self, du_target, ref, max_iter=600, alpha=0.3):
+    def strafe_to(self, du_target):
         """
-        横移到相对参考位姿 du_target（沿墙向右为正，米）处，保持离墙 distance_from_marker.
+        横移到沿墙 u = du_target（相对定位标记，面向墙面向右为正，米）处，离墙 distance_from_marker.
 
-        横向用里程计（短距离内几乎无漂移、无噪声）；离墙距离与朝向用激光拟合墙面，
-        单帧拟合 rms 约 9 mm、朝向抖动约 ±1°，故做指数平滑（alpha）。剩余朝向误差由
-        到站后的机械臂点补偿消除。也用于从 Nav2 的离墙位姿（nav_standoff）接近墙面。
+        与精对位共用墙面相对状态估计（EKF）与控制律：沿墙位置由里程计增量外推（站间默认
+        不用标记更新，见 run_slot_plan），离墙距离与朝向由激光更新。也用于从 Nav2 的离墙位姿
+        （nav_standoff）接近墙面。剩余误差由到站后的机械臂点补偿消除。
         """
         tol_lat, tol_norm, tol_yaw = self.strafe_tol
-        D = self.distance_from_marker
-        right = np.array([math.sin(ref['yaw']), -math.cos(ref['yaw'])])   # 面墙时的右方
-        ok, filt = 0, None
-        for _ in range(max_iter):
-            pose = self.get_robot_position()
-            wall, _ = self.servo.wall_in_base()
-            if pose is None or wall is None:
-                self.cmd_vel_pub.publish(Twist())
-                self.sleep_sim(0.1)
-                continue
-            raw = np.array([wall['distance'] - D, wall['yaw_error']])
-            filt = raw if filt is None else (1 - alpha) * filt + alpha * raw
-            du = float((np.array([pose['x'], pose['y']]) - ref['p']) @ right)
-            n = np.array(wall['normal'])
-            err = {'normal': float(filt[0]), 'lateral': -(du_target - du),
-                   'yaw': float(filt[1]), 'n': n, 't': np.array([-n[1], n[0]])}
-            if abs(err['lateral']) < tol_lat and abs(err['normal']) < tol_norm and \
-                    abs(err['yaw']) < tol_yaw:
-                ok += 1
-                if ok >= 5:
-                    self.stop_robot()
-                    return True
-            else:
-                ok = 0
-            vx, vy, wz = pbvs_command(err, max_lin=0.1, pos_deadband=tol_lat * 0.5,
-                                      ang_deadband=tol_yaw * 0.5)
-            cmd = Twist()
-            cmd.linear.x, cmd.linear.y, cmd.angular.z = vx, vy, wz
-            self.cmd_vel_pub.publish(self.apply_wall_guard(cmd))
-            self.sleep_sim(0.1)
-        self.stop_robot()
-        return False
+        monitor = ConvergenceMonitor(tol_d=tol_norm, tol_u=tol_lat, tol_psi=tol_yaw,
+                                     v_eps=0.005, w_eps=math.radians(0.5),
+                                     sigma_max=(None, None, None), n_required=5)
+        ok, _ = self.run_wall_servo((self.distance_from_marker, du_target, 0.0), monitor,
+                                    max_lin=0.1, timeout=60.0, require_tag=False)
+        return ok
 
-    def measure_residual(self, du_target, ref, n=10):
+    def measure_residual(self, du_target, n=10):
         """
-        到站后的残余误差（只用机器人自身传感器）→ (e_l, e_n, psi).
+        到站后的残余误差（只用机器人自身传感器，EKF 估计）→ (e_l, e_n, psi).
 
-        e_l：横向（里程计，米，沿墙向右为正）；e_n：离墙（激光拟合墙面，米，>0 表示
-        离墙偏远）；psi：朝向（rad，逆时针为正）。
+        e_l：沿墙（米，向右为正）；e_n：离墙（米，>0 表示离墙偏远）；psi：朝向（rad，逆时针为正）。
+        底盘处于定点保持中，继续做 n 个周期的预测 + 激光更新后读取估计。
         """
-        right = np.array([math.sin(ref['yaw']), -math.cos(ref['yaw'])])
-        ls, ns, ys = [], [], []
-        for _ in range(n * 3):
-            pose = self.get_robot_position()
-            wall, _ = self.servo.wall_in_base()
-            if pose is not None and wall is not None:
-                ls.append(float((np.array([pose['x'], pose['y']]) - ref['p']) @ right)
-                          - du_target)
-                ns.append(wall['distance'] - self.distance_from_marker)
-                ys.append(-wall['yaw_error'])   # yaw_error > 0 需逆时针转 → 机器人偏顺时针
-                if len(ls) >= n:
-                    break
+        X = None
+        for _ in range(n):
+            X, _ = self.estimator.step()
             self.sleep_sim(0.1)
-        if not ls:
+        if X is None:
             return 0.0, 0.0, 0.0
-        return float(np.mean(ls)), float(np.mean(ns)), float(np.mean(ys))
+        return (float(X[1] - du_target), float(X[0] - self.distance_from_marker), float(X[2]))
 
     def run_points(self, points, is_cut, duration):
         """逐点执行机械臂点，并标注阶段（self.phase）：相邻两点都在切深时为 'cut'."""
@@ -1031,10 +1174,25 @@ class NavigationCuttingTask(Node):
             return False, []
         self.sleep_sim(2.0)
         if not self.precise_positioning_to_marker():
-            log.error('任务失败：视觉对位失败')
+            log.error('任务失败：精对位失败')
             return False, []
-        pose = self.get_robot_position()
-        ref = {'p': np.array([pose['x'], pose['y']]), 'yaw': pose['yaw']}
+        # 墙面坐标原点：精对位结束时 EKF 的沿墙估计 u 已相对定位标记，停车时的残差
+        # （u ≠ 0）保留在状态中，后续各站以“标记位置”而不是“停车位姿”为原点。
+        # 第一版语义（以停车位姿为原点）：fold_alignment_residual = False 或非 visual 模式。
+        est = self.estimator
+        if not est.ekf.initialized:
+            est.reset()
+            for _ in range(20):
+                if est.step()[0] is not None:
+                    break
+                self.sleep_sim(0.1)
+        u_res = float(est.ekf.x[1]) if est.ekf.initialized else 0.0
+        if self.positioning_mode != 'visual' or not self.fold_alignment_residual:
+            est.rebase_u(0.0)
+            log.info(f'墙面坐标原点 = 停车位姿（精对位残差 {u_res * 1000:+.2f} mm 未计入）')
+        else:
+            log.info(f'墙面坐标原点 = 定位标记（停车位姿沿墙残差 {u_res * 1000:+.2f} mm 已计入）')
+        est.use_tag = False
         limits = self.arm_controller.cartesian_limits
 
         # 3. 逐站：到站 → 定点保持 → 测残差、补偿 → 切割
@@ -1052,14 +1210,14 @@ class NavigationCuttingTask(Node):
                         *plan_wall_pose(plan, st['u_c'], self.nav_standoff)):
                     log.error(f'S{st["index"]}: Nav2 导航失败，停止')
                     break
-            ok_move = self.strafe_to(du, ref)
+            ok_move = self.strafe_to(du)
             self.base_hold.enabled = self.hold_base
             self.base_hold.hold()
             t_move = self.sim_now() - t0
             self.cur_station = st['index']
             extra = self.on_station_arrived(st) or {}
             pts, is_cut = station_arm_points(st, plan, dry_run_gap)
-            e_l, e_n, psi = self.measure_residual(du, ref)
+            e_l, e_n, psi = self.measure_residual(du)
             clamped = 0
             if self.compensate:
                 pts, clamped = compensate_points(pts, is_cut, e_l, e_n, psi, r['tool_offset'],
@@ -1079,7 +1237,8 @@ class NavigationCuttingTask(Node):
                        station_s=t_end - t0, move_s=t_move, cut_s=t_end - t1,
                        sensed_lateral_mm=e_l * 1000, sensed_standoff_mm=e_n * 1000,
                        sensed_yaw_deg=math.degrees(psi), clamped=clamped,
-                       cut_cm=st['cut_length'] * 100, moved=int(ok_move), cut_ok=int(ok_cut))
+                       cut_cm=st['cut_length'] * 100, moved=int(ok_move), cut_ok=int(ok_cut),
+                       origin_residual_mm=u_res * 1000)
             if drift is not None:
                 row.update(hold_drift_mm=drift[0] * 1000, hold_drift_deg=drift[1])
             row.update(extra)

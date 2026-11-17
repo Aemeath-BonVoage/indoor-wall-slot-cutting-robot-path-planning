@@ -22,7 +22,7 @@ install(TARGETS scr_planar_move LIBRARY DESTINATION lib)
 
 # Install directories
 install(
-  DIRECTORY urdf meshes launch rviz config worlds
+  DIRECTORY urdf meshes launch rviz config worlds models
   DESTINATION share/${PROJECT_NAME}
 )
 
