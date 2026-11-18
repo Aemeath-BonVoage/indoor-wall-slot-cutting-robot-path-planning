@@ -30,6 +30,7 @@ setup(
             'cartesian_cutting = scr_arm_controller.cartesian_cutting:main',
             'custom_cutting = scr_arm_controller.custom_cutting:main',
             'navigation_cutting_task = scr_arm_controller.navigation_cutting_task:main',
+            'task_skill_server = scr_arm_controller.skill_server:main',
             'marker_scanner = scr_arm_controller.marker_scanner:main',
             'trajectory_visualizer = scr_arm_controller.trajectory_visualizer:main',
             'alignment_benchmark = scr_arm_controller.alignment_benchmark:main',

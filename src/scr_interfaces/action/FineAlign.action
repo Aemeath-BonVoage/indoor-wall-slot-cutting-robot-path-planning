@@ -1,0 +1,18 @@
+# 精对位：把底盘闭环到定位标记正前方 standoff 处，并确定墙面坐标原点
+float64 standoff             # 目标离墙距离（米）
+string mode                  # visual | visual_v1 | odom；空串 = 节点参数默认值
+float64 settle_time          # 开始前等待底盘静止的时间（秒）
+---
+bool success
+string message
+float64 normal_error         # 宣布到位时的传感器估计误差（米 / 米 / 弧度）
+float64 lateral_error
+float64 yaw_error
+float64 origin_residual      # 墙面原点：停车位姿相对标记的沿墙残差（米）
+float64 duration             # 仿真秒
+---
+float64 normal_error
+float64 lateral_error
+float64 yaw_error
+float64 sigma_lateral
+string tag_state

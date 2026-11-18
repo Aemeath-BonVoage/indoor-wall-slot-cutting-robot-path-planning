@@ -1,8 +1,8 @@
-# 精对位参数（navigation_cutting_task / alignment_benchmark 的节点参数）
-#   ros2 run scr_arm_controller navigation_cutting_task task.yaml \
-#       --ros-args --params-file <本文件或 teach_alignment_offset 的输出>
+# 精对位参数（技能服务器 task_skills 与 alignment_benchmark 等实验脚本的节点参数）
+#   ros2 launch scr_bringup sim_nav.launch.py alignment_params:=<本文件或 teach_alignment_offset 的输出>
+#   ros2 run scr_arm_controller alignment_benchmark --ros-args --params-file <同上>
 # 设计与控制律分析见 docs/experiments/fine_alignment/README.md
-navigation_cutting_task:
+/**:
   ros__parameters:
     alignment:
       detector: apriltag          # apriltag | blob（第一版色块检测器，基线）

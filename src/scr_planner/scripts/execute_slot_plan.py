@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""多站开槽执行的 Gazebo 实验记录器（评估用；执行本身走主任务）.
+"""多站开槽执行的 Gazebo 实验记录器（评估用；执行本身走行为树任务层）.
 
-执行主路径是 scr_arm_controller.navigation_cutting_task（NavigationCuttingTask.run_slot_plan）：
-它直接读取 plan_wall_slots.py 的规划文件，Nav2 → 视觉对位 → 逐站横移 / 定点保持 /
-残差补偿 / 切割。本脚本在其上只加 Gazebo 真值记录（刀尖轨迹、每站到位误差、底盘漂移），
-并把结果与规划槽线比较，写出 stations.csv / tool_trace.csv / summary.yaml。
+执行由行为树执行器完成（scr_task/task_executor 的 /execute_slot_plan action，Nav2 →
+精对位 → 逐站横移 / 定点保持 / 残差补偿 / 切割）。本脚本作为该 action 的客户端发送规划
+文件，同时只做 Gazebo 真值记录：刀尖轨迹、每站到位误差、底盘漂移；阶段与停靠站序号取自
+技能服务器的 /task_skills/status。结果与规划槽线比较，写出 stations.csv / tool_trace.csv /
+summary.yaml（字段与早期版本相同，另增 recoveries）。
 
   ros2 run scr_planner execute_slot_plan.py <plan.yaml> [结果目录] [--dry-run-gap=0.01]
-                                           [--no-compensation] [--max-strafe=1.5]
+                                           [--no-compensation] [--max-strafe=1.5] [--bt=<xml>]
 
-不需要真值评估时直接用主任务：
+不需要真值评估时直接用任务入口：
   ros2 run scr_arm_controller navigation_cutting_task <plan.yaml> --dry-run-gap=0.01
 
 --dry-run-gap：空切（本项目仿真中的标准用法，只验证切割轨迹，不真正开槽）。切深处的点改为
@@ -28,9 +29,11 @@ import numpy as np
 import rclpy
 import rclpy.parameter
 import yaml
+from action_msgs.msg import GoalStatus
 from gazebo_msgs.msg import LinkStates
-from rclpy.executors import SingleThreadedExecutor
-from rclpy.qos import DurabilityPolicy, QoSProfile
+from rclpy.action import ActionClient
+from rclpy.executors import MultiThreadedExecutor
+from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
 from visualization_msgs.msg import MarkerArray
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'python'))
@@ -42,47 +45,99 @@ except ImportError:
 
 import slot_plan as sp  # noqa: E402
 import wall_rules as wr  # noqa: E402
-from scr_arm_controller.navigation_cutting_task import NavigationCuttingTask  # noqa: E402
+from scr_interfaces.action import ExecuteSlotPlan  # noqa: E402
+from scr_interfaces.msg import TaskStatus  # noqa: E402
 from slot_ros import build_markers  # noqa: E402
 
 TOOL_LINK = 'scr_robot_gazebo::link4'
 BASE_LINK = 'scr_robot_gazebo::base_link'
+RECORD_FIELDS = ('station', 'u_c', 'points', 'move_dist_m', 'nav_leg', 'station_s', 'move_s',
+                 'cut_s', 'sensed_lateral_mm', 'sensed_standoff_mm', 'sensed_yaw_deg', 'clamped',
+                 'cut_cm', 'moved', 'cut_ok', 'origin_residual_mm', 'recoveries')
 
 
-class SlotExecutor(NavigationCuttingTask):
-    """主任务 + Gazebo 真值记录（刀尖轨迹、每站到位误差），只用于评估，不参与控制."""
+def _yaw(q):
+    return math.atan2(2 * (q.w * q.z + q.x * q.y), 1 - 2 * (q.y * q.y + q.z * q.z))
 
-    def __init__(self, wall):
-        super().__init__()
+
+class SlotRecorder:
+    """行为树执行的 action 客户端 + Gazebo 真值记录（只用于评估，不参与控制）."""
+
+    def __init__(self, wall, plan_dict):
+        self.node = rclpy.create_node(
+            'slot_plan_recorder',
+            parameter_overrides=[rclpy.parameter.Parameter('use_sim_time', value=True)])
         self.wall = wall            # slot_plan.WallFrame
+        self.plan_dict = plan_dict
         self.robot = sp.RobotModel()
         self.trace = []             # (t, station, u, v, depth, arm_x, phase, base_u, base_d)
+        self.truth = {}             # station → 到站真值误差
+        self.station, self.phase = -1, 'idle'
+        self._base = None
+        self._t_goal = None
+        self._lock = threading.Lock()
         qos = QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL)
-        self.marker_pub = self.create_publisher(MarkerArray, '/wall_slot_plan/markers', qos)
-        # 真值记录放在独立节点 + 后台线程：机械臂运动时 cartesian_cutting 会阻塞在自己的
-        # 节点上，主节点的回调此时得不到处理
-        self.tracer = rclpy.create_node(
-            'slot_tool_tracer',
-            parameter_overrides=[rclpy.parameter.Parameter('use_sim_time', value=True)])
-        self.tracer.create_subscription(LinkStates, '/gazebo/link_states', self._links_cb, 50)
-        self._tracer_exec = SingleThreadedExecutor()
-        self._tracer_exec.add_node(self.tracer)
-        self._tracer_thread = threading.Thread(target=self._tracer_exec.spin, daemon=True)
-        self._tracer_thread.start()
+        self.marker_pub = self.node.create_publisher(
+            MarkerArray, '/wall_slot_plan/markers', qos)
+        self.node.create_subscription(LinkStates, '/gazebo/link_states', self._links_cb, 50)
+        status_qos = QoSProfile(depth=50, reliability=ReliabilityPolicy.RELIABLE,
+                                durability=DurabilityPolicy.TRANSIENT_LOCAL)
+        self.node.create_subscription(TaskStatus, '/task_skills/status', self._status_cb,
+                                      status_qos)
+        self.client = ActionClient(self.node, ExecuteSlotPlan, '/execute_slot_plan')
+        self.executor = MultiThreadedExecutor(num_threads=2)
+        self.executor.add_node(self.node)
+        self._thread = threading.Thread(target=self.executor.spin, daemon=True)
+        self._thread.start()
 
-    def shutdown_tracer(self):
+    def now(self):
+        return self.node.get_clock().now().nanoseconds * 1e-9
+
+    def shutdown(self):
         """先停后台执行器并等线程退出，再销毁节点（否则退出时 C++ 层会 abort）."""
-        self._tracer_exec.shutdown()
-        self._tracer_thread.join(timeout=2.0)
-        self.tracer.destroy_node()
+        self.executor.shutdown()
+        self._thread.join(timeout=2.0)
+        self.node.destroy_node()
+
+    # ---------- 回调 ----------
+    def _status_cb(self, msg):
+        t = msg.stamp.sec + msg.stamp.nanosec * 1e-9
+        if self._t_goal is None or t < self._t_goal:
+            return              # 本次目标之前的状态（TRANSIENT_LOCAL 历史）
+        with self._lock:
+            self.station, self.phase = msg.station, msg.phase
+        if msg.phase == 'arrived' and msg.station >= 0:
+            # 到站并进入定点保持 0.3 s 后取真值（与早期版本的采样时刻相同）
+            st = msg.station
+            timer = []
+
+            def sample():
+                timer[0].cancel()
+                self._sample_station(st)
+            timer.append(self.node.create_timer(0.3, sample))
+
+    def _sample_station(self, index):
+        if self._base is None:
+            return
+        x, y, yaw = self._base
+        st = next(s for s in self.plan_dict['stations'] if s['index'] == index)
+        rel = np.array([x, y]) - self.wall.p0
+        u, d = float(rel @ self.wall.t), float(rel @ self.wall.n)
+        yaw_t = st['pose']['yaw']
+        dyaw = math.atan2(math.sin(yaw - yaw_t), math.cos(yaw - yaw_t))
+        err = dict(lateral_mm=(u - st['u_c']) * 1000,
+                   standoff_mm=(d - self.robot.standoff) * 1000, yaw_deg=math.degrees(dyaw))
+        self.truth[index] = err
+        self.node.get_logger().info(
+            f'S{index} 到站真值误差: ' + ', '.join(f'{k}={v:.2f}' for k, v in err.items()))
 
     def _links_cb(self, msg):
         if TOOL_LINK not in msg.name or BASE_LINK not in msg.name:
             return
         b = msg.pose[msg.name.index(BASE_LINK)]
         p = msg.pose[msg.name.index(TOOL_LINK)].position
-        q = b.orientation
-        yaw = math.atan2(2 * (q.w * q.z + q.x * q.y), 1 - 2 * (q.y * q.y + q.z * q.z))
+        yaw = _yaw(b.orientation)
+        self._base = (b.position.x, b.position.y, yaw)
         heading = np.array([math.cos(yaw), math.sin(yaw)])
         # 机械臂伸出量（base_link x），用来区分“切割 / 抵墙”与“退刀”阶段
         arm_x = float((np.array([p.x, p.y]) - np.array([b.position.x, b.position.y])) @ heading)
@@ -92,27 +147,45 @@ class SlotExecutor(NavigationCuttingTask):
         u = float(rel @ self.wall.t)
         depth = float(-(rel @ self.wall.n))      # >0：刀尖进入墙面（刚体墙上应约为 0）
         relb = np.array([b.position.x, b.position.y]) - self.wall.p0
-        self.trace.append((msg_time(self.tracer), self.cur_station, u, float(p.z), depth, arm_x,
-                           self.phase, float(relb @ self.wall.t), float(relb @ self.wall.n)))
+        with self._lock:
+            station, phase = self.station, self.phase
+        self.trace.append((self.now(), station, u, float(p.z), depth, arm_x, phase,
+                           float(relb @ self.wall.t), float(relb @ self.wall.n)))
 
-    def on_station_arrived(self, st):
-        """到站真值误差：横向 / 离墙 / 朝向（相对规划停靠位姿）."""
-        self.sleep_sim(0.3)
-        gt = self.get_ground_truth_position()
-        if gt is None:
-            return {}
-        rel = np.array([gt['x'], gt['y']]) - self.wall.p0
-        u, d = float(rel @ self.wall.t), float(rel @ self.wall.n)
-        yaw_t = st['pose']['yaw']
-        dyaw = math.atan2(math.sin(gt['yaw'] - yaw_t), math.cos(gt['yaw'] - yaw_t))
-        err = dict(lateral_mm=(u - st['u_c']) * 1000,
-                   standoff_mm=(d - self.robot.standoff) * 1000, yaw_deg=math.degrees(dyaw))
-        self.get_logger().info('到站真值误差: ' + ', '.join(f'{k}={v:.2f}' for k, v in err.items()))
-        return err
+    # ---------- 执行 ----------
+    def execute(self, goal):
+        """发送规划目标并等待结果；返回 (成功, 结果消息)."""
+        log = self.node.get_logger()
+        while not self.client.wait_for_server(timeout_sec=10.0):
+            log.info('等待行为树执行器 /execute_slot_plan ...')
+        last = [None]
+
+        def on_feedback(msg):
+            fb = msg.feedback
+            key = (fb.station, fb.phase)
+            if key != last[0]:
+                last[0] = key
+                log.info(f'S{fb.station}/{fb.station_count} {fb.phase}'
+                         + (f'（已恢复 {fb.recoveries} 次）' if fb.recoveries else ''))
+
+        self._t_goal = self.now()
+        handle = _wait(self.client.send_goal_async(goal, feedback_callback=on_feedback))
+        if handle is None or not handle.accepted:
+            log.error('目标被拒绝')
+            return False, None
+        res = _wait(handle.get_result_async())
+        if res is None:
+            return False, None
+        return res.status == GoalStatus.STATUS_SUCCEEDED and res.result.success, res.result
 
 
-def msg_time(node):
-    return node.get_clock().now().nanoseconds * 1e-9
+def _wait(future, timeout=None):
+    t0 = time.time()
+    while rclpy.ok() and not future.done():
+        if timeout is not None and time.time() - t0 > timeout:
+            return None
+        time.sleep(0.05)
+    return future.result() if future.done() else None
 
 
 def cutting_samples(trace, robot=None, depth=None):
@@ -152,15 +225,23 @@ def _dist_poly(p, pts):
     return best
 
 
+def record_to_row(r):
+    row = {k: getattr(r, k) for k in RECORD_FIELDS}
+    for k in ('nav_leg', 'moved', 'cut_ok'):
+        row[k] = int(row[k])
+    return row
+
+
 def main():
     if len(sys.argv) < 2:
         print(__doc__)
         sys.exit(1)
-    args = [a for a in sys.argv[1:] if not a.startswith('--')]
+    argv = rclpy.utilities.remove_ros_args(sys.argv)
+    args = [a for a in argv[1:] if not a.startswith('--')]
     flags = dict((a[2:].partition('=')[0], a[2:].partition('=')[2] or True)
-                 for a in sys.argv[1:] if a.startswith('--'))
+                 for a in argv[1:] if a.startswith('--'))
     dry_gap = float(flags['dry-run-gap']) if 'dry-run-gap' in flags else None
-    plan_path = args[0]
+    plan_path = os.path.abspath(args[0])
     out_dir = args[1] if len(args) > 1 else os.getcwd()
     os.makedirs(out_dir, exist_ok=True)
     # 只读离线规划结果，执行中不重新规划
@@ -177,22 +258,32 @@ def main():
         yaml.safe_dump(plan_dict, f, allow_unicode=True, sort_keys=False)
 
     rclpy.init()
-    ex = SlotExecutor(wall)
-    ex.compensate = 'no-compensation' not in flags
-    if 'max-strafe' in flags:
-        ex.max_strafe = float(flags['max-strafe'])
-    ex.marker_pub.publish(build_markers(plan, scene, wall, robot, ex.get_clock().now().to_msg()))
-    log = ex.get_logger()
+    ex = SlotRecorder(wall, plan_dict)
+    log = ex.node.get_logger()
+    while ex.now() <= 0.0:          # 等仿真时钟
+        time.sleep(0.1)
+    ex.marker_pub.publish(build_markers(plan, scene, wall, robot, ex.node.get_clock().now()
+                                        .to_msg()))
+    goal = ExecuteSlotPlan.Goal()
+    goal.plan_file = plan_path
+    goal.dry_run = dry_gap is not None
+    goal.dry_run_gap = dry_gap or 0.0
+    goal.compensate = 'no-compensation' not in flags
+    goal.max_strafe = float(flags.get('max-strafe', 0.0))
+    goal.behavior_tree = flags['bt'] if isinstance(flags.get('bt'), str) else ''
     t_start = time.time()
-    sim_start = ex.sim_now()
-    ok, rows = ex.run_slot_plan(plan_dict, dry_gap)       # 主任务的多站执行路径
-    sim_total = ex.sim_now() - sim_start
+    sim_start = ex.now()
+    ok, result = ex.execute(goal)
+    sim_total = ex.now() - sim_start
+    time.sleep(0.5)                  # 最后一站的真值采样
+    rows = [record_to_row(r) for r in result.stations] if result is not None else []
     if not rows:
-        log.error('没有执行任何停靠站')
+        log.error('没有执行任何停靠站' + (f'：{result.error}' if result is not None else ''))
         shutdown(ex)
         sys.exit(3)
-    # 每站底盘漂移（真值，切割期间相对到站时刻的最大位移）
     for r in rows:
+        r.update(ex.truth.get(r['station'], {}))
+        # 每站底盘漂移（真值，到站之后相对到站时刻的最大位移）
         bs = [(t[7], t[8]) for t in ex.trace if t[1] == r['station']]
         r['base_drift_mm'] = (max(math.hypot(a - bs[0][0], d - bs[0][1]) for a, d in bs)
                               * 1000) if bs else float('nan')
@@ -201,10 +292,12 @@ def main():
     summary.update(plan_partition=plan.partition, plan_order=plan.order,
                    predicted_t_total=plan.prediction.get('t_total'),
                    stations_total_s=float(sum(r['station_s'] for r in rows)),
-                   dry_run_gap=dry_gap, compensation=ex.compensate,
+                   dry_run_gap=dry_gap, compensation=goal.compensate,
                    stations=len(plan.stations), stations_done=len(rows), all_ok=ok,
                    sim_time_s=sim_total, wall_time_s=time.time() - t_start,
-                   slot_length_m=plan.length)
+                   slot_length_m=plan.length, executor='behavior_tree',
+                   recoveries=int(sum(r['recoveries'] for r in rows)),
+                   error=(result.error if result is not None else 'no result') or None)
     for k in ('lateral_mm', 'standoff_mm', 'yaw_deg', 'base_drift_mm', 'sensed_yaw_deg',
               'move_s'):
         vals = [abs(r[k]) for r in rows if k in r]
@@ -212,8 +305,11 @@ def main():
             summary[f'station_{k}_mean_abs'] = float(np.mean(vals))
             summary[f'station_{k}_max_abs'] = float(np.max(vals))
     summary['stations_converged'] = int(sum(r['moved'] for r in rows))
+    fields = list(rows[0].keys())
+    for r in rows:
+        fields += [k for k in r if k not in fields]
     with open(os.path.join(out_dir, 'stations.csv'), 'w', newline='') as f:
-        w = csv.DictWriter(f, fieldnames=list(rows[0].keys()))
+        w = csv.DictWriter(f, fieldnames=fields)
         w.writeheader()
         w.writerows(rows)
     with open(os.path.join(out_dir, 'tool_trace.csv'), 'w', newline='') as f:
@@ -225,7 +321,8 @@ def main():
                             int(v) if isinstance(v, (np.integer, np.bool_)) else v)
                         for k, v in summary.items()}, f, allow_unicode=True, sort_keys=False)
     executed = [(r[2], r[3]) for r in cutting_samples(ex.trace)]
-    ex.marker_pub.publish(build_markers(plan, scene, wall, robot, ex.get_clock().now().to_msg(),
+    ex.marker_pub.publish(build_markers(plan, scene, wall, robot,
+                                        ex.node.get_clock().now().to_msg(),
                                         executed=executed[::5]))
     log.info('\n' + '\n'.join(f'  {k}: {v}' for k, v in summary.items()))
     shutdown(ex)
@@ -233,11 +330,8 @@ def main():
 
 
 def shutdown(ex):
-    """按顺序停掉后台线程并销毁全部节点（否则退出时 C++ 层会 abort）."""
-    ex.shutdown_tracer()
-    ex.trajectory_visualizer.destroy_node()
-    ex.arm_controller.destroy_node()
-    ex.destroy_node()
+    """按顺序停掉后台线程并销毁节点（否则退出时 C++ 层会 abort）."""
+    ex.shutdown()
     if rclpy.ok():
         rclpy.shutdown()
 

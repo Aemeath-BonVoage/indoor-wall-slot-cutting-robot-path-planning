@@ -39,6 +39,7 @@ class BaseHold:
         self._max_drift = 0.0           # 米
         self._max_yaw = 0.0             # 弧度
         self._lock = threading.Lock()
+        self.generation = 0             # 每次 hold() 加 1：调用方只释放自己开始的那次保持
 
         self.node.create_subscription(Odometry, '/odom', self._on_odom, 20)
         self.node.create_subscription(ModelStates, '/gazebo/model_states', self._on_gt, 10)
@@ -88,8 +89,21 @@ class BaseHold:
         with self._lock:
             self._target = self._odom
             self._gt_ref = self._gt
+            self.generation += 1
             self._max_drift = 0.0
             self._max_yaw = 0.0
+
+    @property
+    def active(self):
+        return self._target is not None
+
+    def error(self):
+        """当前里程计位姿相对保持目标的 (位置误差 米, 朝向误差 弧度)；未保持时为 None."""
+        target, odom = self._target, self._odom
+        if target is None or odom is None:
+            return None
+        dyaw = math.atan2(math.sin(odom[2] - target[2]), math.cos(odom[2] - target[2]))
+        return math.hypot(odom[0] - target[0], odom[1] - target[1]), dyaw
 
     def release(self):
         """停止保持，返回保持期间的真值最大漂移 (米, 度)；无真值时为 None."""

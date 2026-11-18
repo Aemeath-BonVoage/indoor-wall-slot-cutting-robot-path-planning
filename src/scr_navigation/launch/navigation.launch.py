@@ -66,8 +66,16 @@ def generate_launch_description():
         launch_arguments={
             'use_sim_time': use_sim_time,
             'map': map_file,
-            'params_file': params_file
+            'params_file': params_file,
+            'use_composition': LaunchConfiguration('use_composition'),
         }.items()
+    )
+
+    # False：每个 Nav2 服务器单独一个进程（便于分别统计 CPU 占用）
+    declare_use_composition = DeclareLaunchArgument(
+        'use_composition',
+        default_value='True',
+        description='Run Nav2 servers in one component container'
     )
 
     declare_rviz = DeclareLaunchArgument(
@@ -115,6 +123,7 @@ def generate_launch_description():
         declare_initial_pose_y,
         declare_initial_pose_yaw,
         declare_rviz,
+        declare_use_composition,
         nav2_bringup,
         rviz_node,
         delayed_initial_pose

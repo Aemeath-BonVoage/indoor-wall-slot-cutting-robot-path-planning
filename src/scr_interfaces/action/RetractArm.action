@@ -1,0 +1,5 @@
+# 机械臂缩回到接近位姿（伸缩轴缩回，滑台到 lift 高度）
+float64 lift
+---
+bool success
+---

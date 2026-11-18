@@ -1,0 +1,45 @@
+<!--
+  单站任务：导航到目标区域 → 精对位到定位标记正前方 → 定点保持下扫描与切割。
+  精对位失败时缩回机械臂、重新导航并再对位一次；扫描失败不影响切割（与原流程相同）。
+-->
+<root main_tree_to_execute="CuttingTask">
+  <BehaviorTree ID="CuttingTask">
+    <Sequence name="ExecuteCuttingTask">
+      <LoadCuttingTask task_file="{task_file}" nav_goal="{nav_goal}" align="{align}"
+                       standoff="{standoff}" mode="{mode}" scan="{scan}" points="{points}"
+                       point_duration="{point_duration}" return_home="{return_home}"
+                       wall_gap="{wall_gap}"/>
+      <RetryUntilSuccessful num_attempts="2">
+        <NavigateToPose name="NavigateToTarget" goal="{nav_goal}"/>
+      </RetryUntilSuccessful>
+      <IfThenElse>
+        <CheckFlag name="AlignEnabled" value="{align}"/>
+        <Fallback name="AlignWithRecovery">
+          <FineAlign standoff="{standoff}" mode="{mode}" settle_time="2.0"/>
+          <Sequence name="ReapproachAndAlign">
+            <CountRecovery station_count="{station_recoveries}" total_count="{recoveries}"/>
+            <RetractArm lift="0.0"/>
+            <NavigateToPose name="ReapproachTarget" goal="{nav_goal}"/>
+            <FineAlign standoff="{standoff}" mode="{mode}" settle_time="2.0"/>
+          </Sequence>
+        </Fallback>
+        <AlwaysSuccess/>
+      </IfThenElse>
+      <Parallel success_threshold="1" failure_threshold="1">
+        <HoldBase/>
+        <Sequence name="ScanAndCut">
+          <IfThenElse>
+            <CheckFlag name="ScanEnabled" value="{scan}"/>
+            <ForceSuccess>
+              <ScanMarker samples="5"/>
+            </ForceSuccess>
+            <AlwaysSuccess/>
+          </IfThenElse>
+          <CutStation station="-1" points="{points}" point_duration="{point_duration}"
+                      compensate="false" lateral_offset="0.0" standoff="{standoff}"
+                      tool_offset="0.1594" wall_gap="{wall_gap}" return_home="{return_home}"/>
+        </Sequence>
+      </Parallel>
+    </Sequence>
+  </BehaviorTree>
+</root>

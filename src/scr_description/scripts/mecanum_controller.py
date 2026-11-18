@@ -5,6 +5,7 @@
 """
 
 import rclpy
+from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
 from geometry_msgs.msg import Twist
 from std_msgs.msg import Float64MultiArray
@@ -99,7 +100,8 @@ def main(args=None):
     
     try:
         rclpy.spin(controller)
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, ExternalShutdownException):
+        # launch 结束时以 SIGINT 停止本节点，属正常退出
         pass
     finally:
         controller.destroy_node()

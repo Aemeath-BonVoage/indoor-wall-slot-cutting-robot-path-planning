@@ -22,14 +22,14 @@ from gazebo_msgs.srv import SetEntityState
 
 from scr_arm_controller.alignment_benchmark import (DISTANCE, TAG_X, WALL_Y, teleport,
                                                     wall_state_true)
-from scr_arm_controller.navigation_cutting_task import NavigationCuttingTask
+from scr_arm_controller.task_skills import CuttingSkills as NavigationCuttingTask
 
 TEMPLATE = """# 精对位零位标定（teach_alignment_offset 生成，{date}）
 # 参考位姿：离墙 {D:.3f} m、正对定位标记；{n} 个估计样本（{seconds:.0f} s，静止）
 # 偏置 = 估计均值 − 真值；样本标准差：法向 {sd:.3f} mm、沿墙 {su:.3f} mm、朝向 {spsi:.4f}°
 # 偏置的标准误（批均值法）：法向 {ed:.3f} mm、沿墙 {eu:.3f} mm、朝向 {epsi:.4f}°
 # 参考位姿真值误差（传送后静置）：法向 {gd:+.3f} mm、沿墙 {gu:+.3f} mm、朝向 {gpsi:+.4f}°
-navigation_cutting_task:
+/**:
   ros__parameters:
     alignment:
       offset_normal: {c_d:.6f}

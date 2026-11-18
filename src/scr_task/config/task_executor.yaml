@@ -1,0 +1,14 @@
+# 行为树任务执行器参数（scr_task/task_executor）
+task_executor:
+  ros__parameters:
+    use_sim_time: true
+    bt_loop_duration: 10            # ms，行为树 tick 周期
+    default_server_timeout: 2000    # ms，等待技能服务器接受目标 / 响应取消
+    wait_for_service_timeout: 5000  # ms，建树时等待 action 服务器
+    plugin_lib_names:
+      - nav2_navigate_to_pose_action_bt_node
+      - scr_task_bt_nodes
+    # 定位标记（墙面坐标原点）在 map 中的位置（scr_description/worlds/room.world）
+    marker_x: 8.42
+    marker_y: -3.9245
+    nav_standoff: 1.2               # Nav2 目标离墙距离（米），留出代价地图膨胀余量
