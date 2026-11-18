@@ -76,10 +76,26 @@ ros2 launch scr_description gazebo.launch.py gui:=false base_control:=plugin   #
 ros2 launch scr_description gazebo.launch.py gui:=false plant:=wheels          # 轮子驱动底盘（实验）
 ```
 
-`worlds/room.world` 是多房间室内场景。room3 南墙（内表面 y = −3.925 m）上有两个定位标记，沿墙位置相同（x = 8.42 m）：
+`worlds/room.world` 是多房间室内场景。room3 南墙（内表面 y = −3.925 m）上有以下定位标记：
 
-- **AprilTag 标记**（tag36h11，ID 0，黑框边长 0.10 m，中心离地 0.70 m），模型 `models/scr_apriltag_tag36h11_0`，由 `scripts/generate_apriltag_model.py` 生成；
-- **黄色色块标记**（5 cm，中心离地 0.60 m），第一版精对位使用，保留作对比。
+- **AprilTag 参考标记**（tag36h11，ID 0，黑框边长 0.10 m，中心离地 0.70 m，x = 8.42 m），精对位的目标与墙面坐标原点；
+- **沿墙的其他 AprilTag**（ID 1–5，同一规格与高度），沿墙间距 0.3 m，供多标记地图使用。面向墙面向右（−x 方向）为墙面坐标 `u` 的正方向：
+
+  | ID | 5 | 0 | 1 | 2 | 3 | 4 |
+  |---|---|---|---|---|---|---|
+  | x（m） | 8.72 | 8.42 | 8.12 | 7.82 | 7.52 | 7.22 |
+  | u（m） | −0.3 | 0 | 0.3 | 0.6 | 0.9 | 1.2 |
+
+  哪些标记参与定位由 `scr_arm_controller` 的标记地图决定（默认 ID 0、2、4，[`config/tag_map.yaml`](../scr_arm_controller/config/tag_map.yaml)），地图之外的 ID 被忽略；
+- **黄色色块标记**（5 cm，中心离地 0.60 m，x = 8.42 m），第一版精对位使用，保留作对比。
+
+标记模型 `models/scr_apriltag_tag36h11_<id>` 由 `scripts/generate_apriltag_model.py` 生成（不随包安装，在源码目录中运行）：
+
+```bash
+python3 src/scr_description/scripts/generate_apriltag_model.py --id 6 [--size 0.10] [--family tag36h11]
+```
+
+输出 `model.config`、`model.sdf`、Ogre 材质脚本与贴图（默认写到本包的 `models/`）。在世界文件中按 ID 0 的姿态（`roll = π/2`、`yaw = π`，背面贴墙）摆放，再把它的 `u` 写进标记地图。
 
 墙前有一盏默认关闭的点光源 `work_light`，对位鲁棒性实验通过 `/gazebo/set_light_properties` 打开它模拟强光 / 冷光照射。
 

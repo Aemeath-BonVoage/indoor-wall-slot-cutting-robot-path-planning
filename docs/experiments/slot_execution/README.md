@@ -322,9 +322,15 @@ python3 src/scr_planner/scripts/plan_wall_slots.py src/scr_planner/config/wall_t
 
 # 2. Gazebo 中逐站执行（只读规划文件）。带 Nav2 的流程用 rtf=1。
 #    执行由行为树任务层完成（sim_nav.launch.py 默认启动）；本报告的数据在早期配置下取得：
-#    底盘力控插件、/odom 为真值、NavFn + DWB
+#    底盘力控插件、/odom 为真值、NavFn + DWB，单个定位标记、站间只用里程计
+#    （当前默认的标记地图与横移比例估计需关闭）
+sed -e 's/tag_map: tag_map.yaml/tag_map: ""/' -e 's/estimate_scale: true/estimate_scale: false/' \
+    -e 's/strafe_tag_updates: true/strafe_tag_updates: false/' \
+    $(ros2 pkg prefix scr_arm_controller)/share/scr_arm_controller/config/fine_alignment.yaml \
+    > /tmp/fine_alignment_single_tag.yaml
 ros2 launch scr_bringup sim_nav.launch.py gui:=false rviz:=false base_control:=plugin \
-    params_file:=$(ros2 pkg prefix scr_navigation)/share/scr_navigation/config/nav2_params_dwb.yaml
+    params_file:=$(ros2 pkg prefix scr_navigation)/share/scr_navigation/config/nav2_params_dwb.yaml \
+    alignment_params:=/tmp/fine_alignment_single_tag.yaml
 #   任务客户端（发给行为树执行器 /execute_slot_plan）：
 ros2 run scr_arm_controller navigation_cutting_task /tmp/plan_dp.yaml --dry-run-gap=0.01
 #   或带真值记录的实验记录器（同一 action 的客户端 + 评估输出）：
@@ -335,8 +341,7 @@ ros2 run scr_planner execute_slot_plan.py /tmp/plan_dp.yaml /tmp/run_dp --dry-ru
 #   精对位改进后的复测（runs/fine_align_*）：
 ros2 run scr_planner execute_slot_plan.py docs/experiments/slot_execution/runs/dp/slot_plan.yaml /tmp/run_fine_align --dry-run-gap=0.01
 #   原点消融（runs/fine_align_dp_nofold）：精对位参数属于技能服务器，在启动时传入
-sed 's/fold_residual: true/fold_residual: false/' \
-    $(ros2 pkg prefix scr_arm_controller)/share/scr_arm_controller/config/fine_alignment.yaml > /tmp/fine_alignment_nofold.yaml
+sed 's/fold_residual: true/fold_residual: false/' /tmp/fine_alignment_single_tag.yaml > /tmp/fine_alignment_nofold.yaml
 ros2 launch scr_bringup sim_nav.launch.py gui:=false rviz:=false base_control:=plugin \
     params_file:=$(ros2 pkg prefix scr_navigation)/share/scr_navigation/config/nav2_params_dwb.yaml \
     alignment_params:=/tmp/fine_alignment_nofold.yaml

@@ -41,9 +41,10 @@ python3 src/scr_planner/scripts/plan_wall_slots.py src/scr_planner/config/wall_t
 # 执行（行为树执行器 /execute_slot_plan，需先 ros2 launch scr_bringup sim_nav.launch.py）；--dry-run-gap 为空切
 ros2 run scr_arm_controller navigation_cutting_task /tmp/plan.yaml --dry-run-gap=0.01
 
-# 实验记录器：同一 action 的客户端 + Gazebo 真值评估，输出 stations.csv / tool_trace.csv / summary.yaml
+# 实验记录器：同一 action 的客户端 + Gazebo 真值评估，输出 stations.csv / tool_trace.csv / ekf_trace.csv / summary.yaml
 ros2 run scr_planner execute_slot_plan.py /tmp/plan.yaml /tmp/run --dry-run-gap=0.01 \
-    [--no-compensation] [--max-strafe=1.5] [--bt=<tree.xml>]
+    [--no-compensation] [--max-strafe=1.5] [--bt=<tree.xml>] [--realign-distance=0.3] \
+    [--marker-x=8.42 --marker-y=-3.9245]
 
 # ROS 节点：规划并在 /wall_slot_plan/markers 发布 RViz 显示
 ros2 run scr_planner wall_slot_planner_node.py --ros-args \
@@ -53,7 +54,7 @@ ros2 run scr_planner wall_slot_planner_node.py --ros-args \
 
 墙面任务文件的格式见 `config/wall_task_room3_south.yaml` 和 [使用指南](../../docs/USER_GUIDE.md#7-多站开槽离线规划--逐站执行)。线盒高度须在机械臂可切范围内（离地约 0.27–0.80 m）。
 
-`execute_slot_plan.py` 不含执行逻辑：执行由 `scr_task` 的行为树完成，记录器发送规划文件，订阅 Gazebo 真值与技能服务器的阶段话题 `/task_skills/status`，把刀尖轨迹、到站误差、底盘漂移与规划槽线比较。`summary.yaml` 与 `stations.csv` 的字段与早期版本相同，另增每站恢复次数 `recoveries`。
+`execute_slot_plan.py` 不含执行逻辑：执行由 `scr_task` 的行为树完成，记录器发送规划文件，订阅 Gazebo 真值、技能服务器的阶段话题 `/task_skills/status` 与墙面状态估计 `/task_skills/wall_estimate`，把刀尖轨迹、到站误差、底盘漂移与规划槽线比较。`summary.yaml` 与 `stations.csv` 的字段与早期版本相同，另增每站恢复次数 `recoveries`、是否按行程重新对位 `realigned`、到站时的无标记行程 `since_fix_m`、本站接受过更新的标记 `tags_used` / `tag_updates`，以及 `summary.yaml` 中的 `realignments`、`final_lateral_scale`、`final_sigma_scale`。`ekf_trace.csv` 逐周期记录估计（`d, u, ψ`、σ、横移比例、画面中的标记）与同一时刻的真值（以参考标记为原点，参考标记的 map 坐标由 `--marker-x/--marker-y` 给出）。`--realign-distance=<m>` 填写目标的按行程重新对位阈值（不给出时用执行器参数，负值关闭）。
 
 ## 时间模型
 
@@ -76,7 +77,7 @@ python3 src/scr_planner/scripts/calibrate_time_model.py <run_dir> [<run_dir> ...
 - `--compare`：在同一批数据上评估已有预设的每站 RMSE、平均偏差与各站耗时之和的误差；
 - `--loo`：逐次运行留一交叉验证。
 
-两个预设的数据都来自早期配置（`/odom` 为真值）。执行路径或仿真配置改变后应用新的执行记录重新标定。标定过程与比较见 [技术报告](../../docs/report/README.md#64-执行时间模型的标定) 6.4 节。
+两个预设的数据都来自早期配置（`/odom` 为真值）。执行路径或仿真配置改变后应用新的执行记录重新标定；当前默认的精对位参数在横移前回到观测位姿，每站约多 2 s，两个预设都尚未包含这一项。标定过程与比较见 [技术报告](../../docs/report/README.md#64-执行时间模型的标定) 6.4 节。
 
 其他脚本：`wall_benchmark.py`（规划器与施工规范的随机墙面对比）、`station_order_benchmark.py`（停靠站划分与顺序的离线对比）、`task_planning_benchmark.py` / `task_planning_report.py`（联合规划的批量基准与统计，见 [报告](../../docs/experiments/task_planning/README.md)）、`plot_execution.py` / `plot_station_order.py`（作图）。
 

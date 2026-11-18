@@ -151,7 +151,9 @@ ros2 launch scr_bringup sim_nav.launch.py plant:=wheels         # 轮子驱动�
 ros2 launch scr_bringup sim_nav.launch.py base_control:=plugin  # 早期配置：/odom 为真值，用于复现早期结果
 ```
 
-本仓库中早于系统层现代化的实验数据（精对位、多站执行、时间模型标定）都在早期配置下取得（仿真配置 v2，`/odom` 为真值，NavFn + DWB）。复现这些数据时使用 `base_control:=plugin`，需要时再加 `params_file:=` 指向 `nav2_params_dwb.yaml`。在默认配置（真实里程计）下，多站执行的沿墙误差随离定位标记的距离增长到约 25 mm，见 [7.3](#73-执行)。
+本仓库中早于系统层现代化的实验数据（精对位、多站执行、时间模型标定）都在早期配置下取得（仿真配置 v2，`/odom` 为真值，NavFn + DWB）。复现这些数据时使用 `base_control:=plugin`，需要时再加 `params_file:=` 指向 `nav2_params_dwb.yaml`；多站执行的数据还需要早期的站间语义（单标记、站间只用里程计），见 [6.4](#64-定位标记地图与横移比例估计) 末尾。
+
+编码器的横移打滑（3 %）使里程计横移距离偏大。默认的精对位参数用墙上的多标记地图和 EKF 中在线估计的横移比例补偿这一项，11 站开槽的最大沿墙误差为 1.5 mm（只用一个标记、站间只靠里程计时为 24.7 mm），见 [6.4](#64-定位标记地图与横移比例估计)。
 
 ---
 
@@ -352,10 +354,67 @@ ros2 run scr_arm_controller navigation_cutting_task task_at_target.yaml
 | `alignment.detector` | `apriltag` | `apriltag` 或 `blob`（第一版色块检测器，基线） |
 | `alignment.tolerance_normal / _lateral / _yaw_deg` | 2 mm / 2 mm / 0.3° | 收敛容差 |
 | `alignment.offset_normal / _lateral / _yaw_deg` | 0 | 示教零位偏置 |
+| `alignment.tag_family / tag_id / tag_size` | `tag36h11` / 0 / 0.10 m | 只有一个标记时（`tag_map` 为空串）使用；设置了标记地图时以地图中的 `family`、`size`、`reference_id` 为准 |
 | `alignment.fold_residual` | `true` | 多站执行以 EKF 估计的标记位置为墙面原点；`false` 为第一版语义（以停车位姿为原点），用于消融 |
-| `alignment.strafe_tag_updates` | `false` | 站间横移时若定位标记在视野内，继续用它更新沿墙位置 |
+| `alignment.tag_map` | `tag_map.yaml` | 标记地图文件（[6.4](#64-定位标记地图与横移比例估计)）。相对路径按 `scr_arm_controller` 包的 `config/` 解析，也可用绝对路径或 `~`；空串表示只有 `tag_id` 一个标记 |
+| `alignment.strafe_tag_updates` | `true` | 站间横移与到站残差测量时，画面中的地图标记继续更新沿墙位置；`false` 时站间沿墙位置只由里程计外推 |
+| `alignment.observe_between_stations` | `true` | 横移前机械臂回到观测位姿（滑台 −0.15 m、伸缩轴缩回），使墙上的标记处在画面内；只在 `strafe_tag_updates` 时生效，每站约多 2 s |
+| `alignment.estimate_scale` | `true` | 把里程计横移比例修正 `s`（真实横移 = (1 + s) × 里程计横移）作为 EKF 的第四个状态在线估计 |
+| `alignment.scale_init / scale_sigma` | 0.0 / 0.05 | `s` 的先验均值与标准差；有离线标定值时可填入 `scale_init` |
 
 早期版本中通过 `navigation_cutting_task ... --ros-args --params-file <yaml>` 或 `-p alignment.*:=` 传参；任务改由行为树执行后，这些参数需在启动任务层时传给技能服务器，对客户端设置不再生效。
+
+### 6.4 定位标记地图与横移比例估计
+
+激光只能观测离墙距离与朝向，沿墙位置只有看到定位标记时才可观测；站间横移时，沿墙位置由轮式里程计外推。默认配置用两种办法限制外推误差：
+
+- **标记地图**：墙上布置多个已知位置的 AprilTag，画面中的任一地图内标记都更新沿墙位置。默认地图 [`config/tag_map.yaml`](../src/scr_arm_controller/config/tag_map.yaml) 使用 room3 南墙上的 ID 0、2、4（间距 0.6 m）；
+- **横移比例估计**：在 EKF 中估计里程计横移的比例误差，看不到标记时按修正后的里程计外推。带标记的横移（同一个标记在画面内移动，或在两个已知间距的标记之间移动）提供估计所需的信息；往返同一位置不提供。
+
+地图格式（解析见 [`tag_map.py`](../src/scr_arm_controller/scr_arm_controller/tag_map.py)）：
+
+```yaml
+tag_map:
+  family: tag36h11
+  size: 0.10                 # 黑框边长（米）
+  reference_id: 0            # 墙面坐标原点，精对位以它为目标；其 u 必须为 0
+  sigma_position: 0.002      # 标记相对参考标记的位置误差（米，1σ），计入测量噪声
+  tags:                      # u：相对参考标记的沿墙位置，面向墙面向右为正（米）；v：中心离地高度，只作记录
+    - {id: 0, u: 0.0, v: 0.70}
+    - {id: 2, u: 0.6, v: 0.70}
+    - {id: 4, u: 1.2, v: 0.70, sigma: 0.003}   # 可逐个标记给出 sigma
+```
+
+地图之外的标记 ID 被检测器忽略，因此可以在同一个世界中只换地图来比较不同的布置。`room.world` 中 ID 0 两侧另有 ID 1–5（间距 0.3 m，见 [`scr_description`](../src/scr_description/README.md)）；实验用的其他地图在 [`along_wall_accuracy/maps/`](experiments/along_wall_accuracy/maps/)。
+
+布置标记的依据（[沿墙精度报告](experiments/along_wall_accuracy/README.md)）：
+
+- **间距不超过相机的可见窗口**：离墙 0.70 m、观测位姿下，标记在底盘相对它 −0.39 … +0.44 m 内可用（约 0.83 m 宽）。间距 0.6 m 时每个停靠站都有可见标记；0.3 m 没有可区分的改善；1.2 m 留下 0.37 m 的无标记区，区内误差回到只用里程计时的水平；
+- **记录实际粘贴位置**：地图位置误差几乎一比一进入结果（±3 mm 的记录偏差使最大沿墙误差 2.8 → 5.2 mm），标记贴好后应测量其位置，`sigma_position` 填测量的不确定度；
+- **高度与观测位姿一致**：标记中心离地 0.70 m，配合 `observe_between_stations`。切割位姿下滑台较低，标记会落到画面上沿之外；
+- **比例估计需要带标记的横移**：只有一个标记时，前几站在其视野内的净横移（本例约 0.66 m）把 `s` 估计到 σ ≈ 0.3 %，之后的外推误差按 σ_s × 外推距离增长（每米约 3 mm）。多标记 + 比例估计（默认）不依赖这一条件。
+
+| 配置（11 站，各 2 次运行） | 最大到站沿墙误差 | 总耗时 |
+|---|---|---|
+| 一个标记，站间只用里程计 | 24.7 mm | 272 s |
+| 一个标记，横移时保留标记更新 | 14.4 mm | 297 s |
+| 标记间距 0.6 m | 2.8 mm | 296 s |
+| 一个标记 + 横移比例估计 | 1.3 mm | 294 s |
+| 标记间距 0.6 m + 横移比例估计（默认） | 1.5 mm（平均 0.7 mm） | 295 s |
+
+按行程回到标记重新对位（行为树执行器参数 `realign_distance`，[7.3](#73-执行)）对这种方向固定的比例误差无效（阈值 0.3 m 时 17.5 mm、+48 s），默认关闭。
+
+在世界中加新的标记：用 `src/scr_description/scripts/generate_apriltag_model.py --id <N>` 生成模型（默认输出到 `scr_description/models/`），在世界文件中按 ID 0 的姿态（`roll = π/2`、`yaw = π`）摆放，再把它的 `u` 写进地图。
+
+**早期的站间语义**（单标记、站间只用里程计外推；复现系统层现代化之前的多站数据时使用）：
+
+```bash
+sed -e 's/tag_map: tag_map.yaml/tag_map: ""/' -e 's/estimate_scale: true/estimate_scale: false/' \
+    -e 's/strafe_tag_updates: true/strafe_tag_updates: false/' \
+    $(ros2 pkg prefix scr_arm_controller)/share/scr_arm_controller/config/fine_alignment.yaml \
+    > /tmp/fine_alignment_single_tag.yaml
+ros2 launch scr_bringup sim_nav.launch.py gui:=false alignment_params:=/tmp/fine_alignment_single_tag.yaml
+```
 
 ---
 
@@ -416,7 +475,7 @@ ros2 launch scr_bringup sim_nav.launch.py gui:=false rviz:=false
 ros2 run scr_arm_controller navigation_cutting_task /tmp/plan.yaml --dry-run-gap=0.01
 ```
 
-客户端识别到规划文件（含 `wall` 和 `stations`）就把它发给行为树执行器的 `/execute_slot_plan`。行为树 [`slot_plan.xml`](../src/scr_task/behavior_trees/slot_plan.xml) 的流程：Nav2 到定位标记前 1.2 m → 精对位到 0.70 m（EKF 估计的标记位置作为墙面坐标原点）→ 逐站：沿墙横移到站（站间距离超过 `--max-strafe` 时先缩回机械臂、用 Nav2 过去）→ 定点保持下测量残余误差、补偿机械臂点并切割 → 记录本站 → 全部完成后缩回机械臂。
+客户端识别到规划文件（含 `wall` 和 `stations`）就把它发给行为树执行器的 `/execute_slot_plan`。行为树 [`slot_plan.xml`](../src/scr_task/behavior_trees/slot_plan.xml) 的流程：Nav2 到定位标记前 1.2 m → 精对位到 0.70 m（EKF 估计的标记位置作为墙面坐标原点）→ 逐站：（按行程重新对位开启且到期时，先横移回参考标记前重新精对位）→ 机械臂回到观测位姿，沿墙横移到站（站间距离超过 `--max-strafe` 时先缩回机械臂、用 Nav2 过去）→ 定点保持下测量残余误差、补偿机械臂点并切割 → 记录本站 → 全部完成后缩回机械臂。横移与到站测量中，画面里的地图标记持续更新沿墙位置（[6.4](#64-定位标记地图与横移比例估计)）。
 
 恢复策略：导航失败重试一次；精对位失败时缩回机械臂、回到标记前再对位；到站失败（未收敛且残差超出机械臂补偿范围）时回到标记前重新对位、重新建立墙面原点后再到站；切割失败重试一次。仍失败时任务失败，结果给出失败的停靠站与节点。客户端在结束时打印每站耗时、到站残差与恢复次数。
 
@@ -427,15 +486,39 @@ ros2 run scr_arm_controller navigation_cutting_task /tmp/plan.yaml --dry-run-gap
 | `--no-compensation` | — | 关闭到站后的残差补偿 |
 | `--bt=<tree.xml>` | `slot_plan.xml` | 换用其他行为树 |
 
-需要真值评估时使用实验记录器。它是同一 action 的客户端，另外订阅 Gazebo 真值与技能服务器的阶段话题 `/task_skills/status`，记录刀尖轨迹、到站误差和底盘漂移，选项与上表相同：
+**按行程重新对位**：行为树在每站开始前检查“自上次接受标记更新以来的沿墙里程计行程 + 到下一站的横移”是否超过阈值，超过时先回参考标记前重新精对位（`RealignDue` 条件与 `ScheduledRealign` 子树）。阈值是行为树执行器的参数 `realign_distance`（米，默认 0 = 关闭，[`task_executor.yaml`](../src/scr_task/config/task_executor.yaml)），也可在目标的 `realign_distance` 字段中逐次给出（0 = 用执行器参数，负值 = 本次关闭）。执行器只在配置阶段读取该参数，运行中用 `ros2 param set` 修改不生效；`navigation_cutting_task` 没有对应选项，逐次设置用下面的实验记录器。计划内的重新对位记入 `StationRecord.realigned`，不计入恢复次数。它只消除随行程累积的随机误差，对方向固定的横移比例误差无效（[6.4](#64-定位标记地图与横移比例估计)），默认配置不需要开启。
+
+需要真值评估时使用实验记录器。它是同一 action 的客户端，另外订阅 Gazebo 真值、技能服务器的阶段话题 `/task_skills/status` 与墙面状态估计 `/task_skills/wall_estimate`，记录刀尖轨迹、到站误差、底盘漂移与估计过程。选项与上表相同，另有：
+
+| 选项 | 默认 | 说明 |
+|---|---|---|
+| `--realign-distance=<m>` | 不设（用执行器参数） | 填入目标的 `realign_distance`；负值关闭 |
+| `--marker-x=<m>`、`--marker-y=<m>` | 8.42、−3.9245 | 参考标记的 map 坐标，用于把真值换算到以标记为原点的墙面坐标 |
 
 ```bash
 ros2 run scr_planner execute_slot_plan.py /tmp/plan.yaml /tmp/run --dry-run-gap=0.01
+ros2 run scr_planner execute_slot_plan.py /tmp/plan.yaml /tmp/run_realign --dry-run-gap=0.01 --realign-distance=0.3
 ```
 
-输出 `stations.csv`、`tool_trace.csv`、`summary.yaml`（含每站恢复次数）。示例任务（两条槽、11 站）约 230 s 仿真时间。
+输出：
 
-**精度与里程计**：多站执行时，站间横移的沿墙位置只能由里程计外推（激光只观测离墙距离与朝向）。在早期配置（`base_control:=plugin`，`/odom` 为真值）下，11 站的到站横向误差为 0.2–0.3 mm 量级；在默认配置（编码器误差模型 + EKF）下，沿墙误差随离标记的距离线性增长，最大 24.8 mm，设置 `alignment.strafe_tag_updates: true`（例如 `alignment_params:=docs/experiments/system_modernization/fine_alignment_strafe_tag.yaml`）后最大 14.4 mm。离墙距离与朝向不受影响。详见 [系统层现代化报告](experiments/system_modernization/README.md#45-真实里程计下的精对位与多站执行) 4.5 节。
+- `stations.csv`：逐站耗时、到站真值误差、传感器残差、恢复次数、是否计划内重新对位（`realigned`）、到站时的无标记行程（`since_fix_m`）、本站接受过更新的标记（`tags_used`、`tag_updates`）；
+- `ekf_trace.csv`：每个估计周期的墙面相对状态 `(d, u, ψ)`、σ、横移比例、画面中的标记，以及同一时刻的真值；
+- `tool_trace.csv`（刀尖真值轨迹）与 `summary.yaml`（含重新对位次数、最终的横移比例估计）。
+
+示例任务（两条槽、11 站）在默认配置下约 295 s 仿真时间（横移前回观测位姿每站约 2 s）。
+
+**精度与里程计**：激光只观测离墙距离与朝向，站间的沿墙位置靠标记与里程计。默认配置（编码器误差模型 + EKF，标记间距 0.6 m + 横移比例估计）下 11 站的最大到站沿墙误差为 1.5 mm（平均 0.7 mm），补偿后刀尖沿墙误差最大 1.1 mm，刀尖轨迹误差 95 分位 0.23 mm；只用一个标记、站间只靠里程计外推时，误差随离标记的距离线性增长到 24.7 mm。早期配置（`base_control:=plugin`，`/odom` 为真值）下为 0.2–0.3 mm 量级。详见 [沿墙精度报告](experiments/along_wall_accuracy/README.md)。
+
+**录制数据包**：需要事后作图或回放估计过程时，在任务开始前另开终端录制 rosbag2（录到仓库之外，每次 11 站运行约 150–180 MiB）：
+
+```bash
+ros2 bag record -o ~/scr_bags/run1 --use-sim-time \
+    /odom /wheel/odom /ground_truth/odom /task_skills/wall_estimate /task_skills/status \
+    /task_executor/station_records /cmd_vel /joint_states /imu /scan /tf /tf_static /clock
+```
+
+读取包中的 `scr_interfaces` 消息需要先 `source install/setup.bash`。相机图像约 27 MB/s，一般不录；行为树 action 的反馈属于隐藏话题，逐站结果从 `station_records` 读取。沿墙精度实验的脚本用 `run_experiment.py <配置> --bag <目录>` 录制同样的话题。
 
 ### 7.4 执行时间模型
 
@@ -453,7 +536,7 @@ python3 src/scr_planner/scripts/calibrate_time_model.py /tmp/run_a /tmp/run_b \
     --method=phases --compare=align_v1,align_v2 --loo
 ```
 
-`--method=joint`（默认）对每站总耗时做整体最小二乘；`--method=phases` 按横移、切割与固定开销分阶段估计，对少数站上的偶发停顿不敏感；`--compare` 在同一批数据上评估已有预设；`--loo` 给出逐次运行留一交叉验证的每站 RMSE。两个预设都在早期配置（`/odom` 为真值）下标定，执行路径或仿真配置改变后应重新标定。
+`--method=joint`（默认）对每站总耗时做整体最小二乘；`--method=phases` 按横移、切割与固定开销分阶段估计，对少数站上的偶发停顿不敏感；`--compare` 在同一批数据上评估已有预设；`--loo` 给出逐次运行留一交叉验证的每站 RMSE。两个预设都在早期配置（`/odom` 为真值）下标定，执行路径或仿真配置改变后应重新标定。当前默认的精对位参数在横移前回到观测位姿，每站约多 2 s（沿墙精度实验的 11 站规划中，总耗时由单标记基线的 272 s 变为 295 s），`align_v2` 尚未按此重新标定，会低估默认配置下的执行时间。
 
 ---
 
@@ -517,8 +600,9 @@ colcon test --packages-select scr_planner     # 只测单个包
 | PBVS / IBVS / 2.5D 混合伺服对比 | 否 | [ibvs_vs_pbvs](experiments/ibvs_vs_pbvs/README.md) |
 | 可视化与演示 | 部分 | [demo](experiments/demo/README.md) |
 | 行为树编排、Nav2 MPPI / Smac、定位融合、底盘 ros2_control | 是 | [system_modernization](experiments/system_modernization/README.md) |
+| 多站沿墙精度：标记地图、横移比例估计、按行程重新对位 | 是 | [along_wall_accuracy](experiments/along_wall_accuracy/README.md) |
 
-注意各报告所用的仿真配置：系统层现代化之前的实验（精对位、多站执行、时间模型）在早期配置（`base_control:=plugin`，`/odom` 为真值，NavFn + DWB）下取得，复现时按 [2.4](#24-底盘里程计与定位) 设置启动参数；各报告的“复现”一节给出了对应的命令。
+注意各报告所用的仿真配置：系统层现代化之前的实验（精对位、多站执行、时间模型）在早期配置（`base_control:=plugin`，`/odom` 为真值，NavFn + DWB）下取得，复现时按 [2.4](#24-底盘里程计与定位) 设置启动参数；沿墙精度实验之前的多站数据还要用早期的站间语义（单标记、站间只用里程计，[6.4](#64-定位标记地图与横移比例估计)）。各报告的“复现”一节给出了对应的命令。
 
 第一版规划器（Python 原型）的对比脚本不需要 ROS：
 
@@ -563,6 +647,8 @@ ros2 run rqt_image_view rqt_image_view /front_camera/image_raw
 
 对位需要激光看到墙面、相机看到定位标记（相机水平视场 80°）。导航目标离标记太远或偏角太大时，标记可能不在视野内；此时调整任务文件中的 `navigation` 位姿，使机器人停在标记正前方 1–2 m 处。对位在 50 s 仿真时间内未收敛时如实报告失败。
 
+多站执行中，技能服务器的日志或 `/task_skills/wall_estimate` 的 `tag_ids` 为空、`tag_state` 报告未检测到标记时：确认 `alignment.observe_between_stations` 为 `true`（切割位姿下滑台较低，0.70 m 高的标记落在画面上沿之外），并确认画面中的标记 ID 在标记地图中（地图之外的 ID 被忽略）。
+
 ### 10.5 TF 查询失败
 
 ```bash
@@ -606,11 +692,14 @@ ros2 lifecycle get /bt_navigator                    # 应为 active
 
 ### 10.10 多站执行中沿墙误差逐站增大、触发重新对位
 
-默认配置下站间横移的沿墙位置由轮式里程计外推，编码器的横移打滑使误差随离标记的距离线性增长（[7.3](#73-执行)）。到站残差超出机械臂的补偿范围（横向 20 mm、离墙 10 mm、朝向 1.5°）时，行为树会回到标记前重新对位，任务耗时随之增加。评估执行精度时：
+沿墙误差随离参考标记的距离线性增长，说明看不到标记的那几站在用未修正的里程计外推：编码器的横移打滑约 3 %，只用一个标记、不估计横移比例时最远站约 25 mm（[6.4](#64-定位标记地图与横移比例估计)）。到站残差超出机械臂的补偿范围（横向 20 mm、离墙 10 mm、朝向 1.5°）时，行为树会回到标记前重新对位，任务耗时随之增加。排查：
 
+- 确认用的是默认精对位参数：启动日志中技能服务器应报告加载了标记地图（标记个数与最大间距）；`/task_skills/wall_estimate` 的 `scale_estimated` 为 `true`，`lateral_scale` 在几站之后收敛到约 −3 %（`sigma_scale` 约 0.3 %）；
+- 看 `stations.csv` 的 `tags_used` 与 `since_fix_m`：某些站没有用到标记、无标记行程大，说明这一段没有可见标记，应缩小标记间距（[6.4](#64-定位标记地图与横移比例估计)）；
 - 确认技能服务器的局部闭环用的是 `/wheel/odom`（启动日志中技能服务器的 `odom_topic`）。若用 EKF 的 `/odom`，定点保持会随 EKF 在慢速运动下的偏差一起漂移；
-- 需要排除里程计误差时用 `odom_error:=false` 或早期配置 `base_control:=plugin`；
-- 定位标记在视野内的站可以通过 `alignment.strafe_tag_updates: true` 继续用标记更新沿墙位置（[6.3](#63-精对位参数)）。
+- 需要排除里程计误差时用 `odom_error:=false` 或早期配置 `base_control:=plugin`。
+
+按行程重新对位（`realign_distance`）不能修正这种误差，只增加耗时。
 
 ### 10.11 Nav2 停在生命周期配置阶段
 
@@ -647,6 +736,7 @@ Gazebo 中底盘有一部分转动（零速度指令下约 0.08°/s）只出现�
 | `/execute_cutting_task`、`/execute_slot_plan` | `scr_interfaces/action/ExecuteCuttingTask`、`ExecuteSlotPlan` | 行为树执行器的任务 action |
 | `/task_skills/fine_align` 等 6 个 | `scr_interfaces/action/*` | 技能 action（`fine_align`、`move_to_station`、`cut_station`、`hold_base`、`scan_marker`、`retract_arm`） |
 | `/task_skills/status` | `scr_interfaces/msg/TaskStatus` | 技能服务器的当前阶段与停靠站序号 |
+| `/task_skills/wall_estimate` | `scr_interfaces/msg/WallEstimate` | 技能服务器的墙面相对状态估计（每个估计周期一次）：`(d, u, ψ)`、σ、横移比例、无标记行程、画面中的标记 |
 | `/task_executor/station_records` | `scr_interfaces/msg/StationRecord` | 每站执行记录 |
 | `/gazebo/model_states`、`/gazebo/link_states` | `gazebo_msgs` | 仿真真值，只用于评估 |
 | `/scr_plan_viz/markers`、`/scr_plan_viz/tool_trace` | `visualization_msgs/MarkerArray` | 开槽场景与刀尖轨迹 |
@@ -660,4 +750,4 @@ Gazebo 中底盘有一部分转动（零速度指令下约 0.08°/s）只出现�
 | 可切高度 | 离地约 0.27–0.80 m |
 | 刀尖前伸 | 伸缩轴完全缩回时离底盘中心 0.676 m，完全伸出时 0.741 m |
 | 传感器 | 2D 激光雷达、前视 RGB 相机（安装在升降滑台上） |
-| 定位标记 | AprilTag tag36h11 ID 0（黑框 0.10 m，中心离地 0.70 m）；第一版使用的 5 cm 黄色色块（中心离地 0.60 m）保留作对比。均位于 room3 南墙 x = 8.42 m |
+| 定位标记 | room3 南墙（y = −3.925 m）上的 AprilTag tag36h11 ID 0–5，黑框 0.10 m，中心离地 0.70 m：参考标记 ID 0 在 x = 8.42 m，ID 5、1、2、3、4 在沿墙 u = −0.3、0.3、0.6、0.9、1.2 m（面向墙面向右为正，即 x 减小方向）；默认地图使用 ID 0、2、4。第一版使用的 5 cm 黄色色块（x = 8.42 m，中心离地 0.60 m）保留作对比 |

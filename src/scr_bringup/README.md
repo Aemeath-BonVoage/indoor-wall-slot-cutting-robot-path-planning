@@ -23,6 +23,7 @@ ros2 launch scr_bringup sim_nav.launch.py \
 ```bash
 ros2 run scr_arm_controller navigation_cutting_task task_at_target.yaml
 ros2 run scr_arm_controller navigation_cutting_task <plan.yaml> --dry-run-gap=0.01
+ros2 run scr_planner execute_slot_plan.py <plan.yaml> <结果目录> --dry-run-gap=0.01   # 带真值记录
 ```
 
 ## 参数
@@ -43,7 +44,9 @@ ros2 run scr_arm_controller navigation_cutting_task <plan.yaml> --dry-run-gap=0.
 | `odom_seed` | `1` | 编码器打滑过程的随机种子 |
 | `localization` | `ekf` | `ekf`：`/wheel/odom` + `/imu` 经 `robot_localization` 融合为 `/odom` 与 TF；`wheel`：控制器直接发布 `/odom` 与 TF（只对 `ros2_control` 有效） |
 | `task` | `true` | 是否启动任务层（`scr_task/launch/task.launch.py`） |
-| `alignment_params` | `scr_arm_controller/config/fine_alignment.yaml` | 技能服务器的精对位参数文件（`alignment.*`） |
+| `alignment_params` | `scr_arm_controller/config/fine_alignment.yaml` | 技能服务器的精对位参数文件（`alignment.*`）。默认启用多标记地图（ID 0、2、4，间距 0.6 m）、横移比例在线估计、横移时的标记更新与横移前的观测位姿 |
+
+默认参数下，11 站开槽的最大沿墙误差为 1.5 mm（只用一个标记、站间只靠里程计时 24.7 mm），见 [沿墙精度报告](../../docs/experiments/along_wall_accuracy/README.md)。复现更早的多站数据时需要早期的站间语义（单标记、站间只用里程计），参数文件的生成方法见 [使用指南 6.4](../../docs/USER_GUIDE.md#64-定位标记地图与横移比例估计)。
 
 技能服务器的局部闭环里程计 `odom_topic` 由本 launch 自动设置：`base_control:=ros2_control localization:=ekf` 时为 `/wheel/odom`，其余情况为 `/odom`。
 

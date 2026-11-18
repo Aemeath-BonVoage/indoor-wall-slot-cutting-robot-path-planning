@@ -12,12 +12,13 @@
 | `slot_execution.py` | 纯函数：识别与解析多站开槽规划文件、每站机械臂点、到站残差补偿、残差是否可补偿的判据 | 否 |
 | `navigation_cutting_task.py` | 命令行入口（action 客户端）：单站任务 → `/execute_cutting_task`，规划文件 → `/execute_slot_plan`；打印反馈与每站记录 | 是 |
 | `fiducial.py` | 纯算法：AprilTag（tag36h11）检测，边缘直线求交的亚像素角点，IPPE PnP 求标记中心与协方差 | 否 |
-| `wall_ekf.py` | 纯算法：墙面相对状态 (d, u, ψ) 的 EKF，里程计增量预测，激光与标记更新，χ² 门限 | 否 |
-| `wall_estimator_ros.py` | EKF 的 ROS 封装：按时间戳经里程计历史补偿测量延迟，标记丢失时外推 | 是 |
+| `wall_ekf.py` | 纯算法：墙面相对状态 (d, u, ψ) 的 EKF，里程计增量预测，激光与标记更新（标记地图中的沿墙偏移 `u_i`，位置误差计入测量噪声），χ² 门限；可选第四个状态：里程计横移比例修正 `s`（真实横移 = (1 + s) × 里程计横移），重新对位时保留 | 否 |
+| `tag_map.py` | 纯算法：标记地图 `TagMap`（标记 ID → 沿墙位置 `u` 与位置误差），YAML 读写与校验、子地图、加扰动（实验用）、相对路径解析 | 否 |
+| `wall_estimator_ros.py` | EKF 的 ROS 封装：按时间戳经里程计历史补偿测量延迟（估计横移比例时按修正后的增量），画面中每个地图内标记都参与更新，累计无标记更新的沿墙行程 `odom_since_fix`，每个估计周期发布 `/task_skills/wall_estimate` | 是 |
 | `docking_control.py` | 纯算法：平方根整形饱和比例律、速度 / 加速度限幅、收敛判据（误差 + 静止 + 估计不确定度） | 否 |
 | `teach_alignment_offset.py` | 示教零位标定：在真值参考位姿处求估计器的静态偏置，输出 ROS 参数文件 | 是 |
 | `visual_servo.py` | 纯算法（第一版精对位，保留为基线）：HSV 定位标记检测、激光墙面拟合（总体最小二乘 + 离群点剔除）、像素反投影、射线与墙面求交、PBVS 误差与全向底盘速度指令 | 否 |
-| `visual_servo_ros.py` | `WallMarkerServo`：订阅激光、图像、相机内参，查询 TF，输出滤波后的墙面与标记测量；包含主点修正 | 是 |
+| `visual_servo_ros.py` | `WallMarkerServo`：订阅激光、图像、相机内参，查询 TF，输出滤波后的墙面与标记测量（检测画面中全部地图内 ID）；包含主点修正 | 是 |
 | `base_hold.py` | `BaseHold`：50 Hz 里程计 P 控制保持底盘位姿，并用真值记录保持期间的最大漂移 | 是 |
 | `ibvs.py` | IBVS 与 2.5D 混合视觉伺服（交互矩阵、`IbvsController`、`HybridController`），用于方法对比 | 否 |
 | `alignment_benchmark.py` | 对位鲁棒性实验：随机起点传送、里程计漂移与传感器噪声注入、真值评分（直接调用 `CuttingSkills`，不经过任务层） | 是 |
@@ -30,13 +31,13 @@
 | Action | 类型（`scr_interfaces/action`） | 作用 |
 |---|---|---|
 | `/task_skills/fine_align` | `FineAlign` | 精对位到定位标记正前方 `standoff` 处，确定墙面坐标原点；结果含到位时的估计误差与原点残差 |
-| `/task_skills/move_to_station` | `MoveToStation` | 墙面坐标闭环横移 / 接近到沿墙 `lateral_offset`、离墙 `standoff`；收敛或残差可由机械臂补偿（横向 20 mm、离墙 10 mm、朝向 1.5° 以内）时成功，结束后保持在到站位姿 |
+| `/task_skills/move_to_station` | `MoveToStation` | 墙面坐标闭环横移 / 接近到沿墙 `lateral_offset`、离墙 `standoff`（站间使用标记更新时先把机械臂移到观测位姿）；收敛或残差可由机械臂补偿（横向 20 mm、离墙 10 mm、朝向 1.5° 以内）时成功，结束后保持在到站位姿；结果含到站时的无标记行程 `odom_since_fix` |
 | `/task_skills/cut_station` | `CutStation` | 测到站残差 → 补偿机械臂点 → 逐点执行；`station = -1`（单站任务）时另做可达性检查、前后缩回与空切后移 |
 | `/task_skills/hold_base` | `HoldBase` | 定点保持，直到目标被取消 |
 | `/task_skills/scan_marker` | `ScanMarker` | 相机射线与激光墙面求交检测定位标记，必要时按高度扫描 |
 | `/task_skills/retract_arm` | `RetractArm` | 机械臂缩回到接近位姿 |
 
-六个技能在同一进程中：精对位确定的墙面原点保存在墙面相对 EKF 中，之后的横移沿用同一个估计；横移收敛时开始的定点保持一直持续到切割结束。运动类技能（除 `HoldBase` 外）互斥，同一时刻只接受一个目标。阶段变化发布在 `/task_skills/status`（`TaskStatus`：`align / move / arrived / hold / cut / arm / scan` 与停靠站序号），实验记录器据此标注真值轨迹。
+六个技能在同一进程中：精对位确定的墙面原点保存在墙面相对 EKF 中，之后的横移沿用同一个估计；横移收敛时开始的定点保持一直持续到切割结束。运动类技能（除 `HoldBase` 外）互斥，同一时刻只接受一个目标。阶段变化发布在 `/task_skills/status`（`TaskStatus`：`align / move / arrived / hold / cut / arm / scan` 与停靠站序号），实验记录器据此标注真值轨迹。墙面相对状态估计在每个估计周期发布到 `/task_skills/wall_estimate`（`WallEstimate`：`(d, u, ψ)` 与 σ、横移比例 `lateral_scale` 与 `sigma_scale`、`odom_since_fix`、画面中的地图内标记及其测量位置与是否被接受）。
 
 | 参数 | 默认 | 说明 |
 |---|---|---|
@@ -56,13 +57,35 @@ ros2 launch scr_task task.launch.py alignment_params:=<yaml> odom_topic:=/wheel/
 | 参数 | 默认 | 说明 |
 |---|---|---|
 | `detector` | `apriltag` | `apriltag` 或 `blob`（第一版色块检测器） |
-| `tag_family` / `tag_id` / `tag_size` | `tag36h11` / 0 / 0.10 m | 定位标记 |
+| `tag_family` / `tag_id` / `tag_size` | `tag36h11` / 0 / 0.10 m | 只有一个标记时（`tag_map` 为空串）使用；有地图时以地图的 `family`、`size`、`reference_id` 为准（`reference_id` 与 `tag_id` 不同时日志警告） |
 | `offset_normal` / `offset_lateral` / `offset_yaw_deg` | 0 | 示教零位偏置（测量模型内扣除） |
 | `tolerance_normal` / `tolerance_lateral` / `tolerance_yaw_deg` / `settle_cycles` | 2 mm / 2 mm / 0.3° / 10 | 收敛判据（另要求底盘静止、σ < 2 mm） |
 | `k_lin` / `k_ang`、`decel_*`、`max_*`、`control_rate` | 2 /s、0.15 m/s² / 0.5 rad/s²、0.15 m/s / 0.3 rad/s、20 Hz | 平方根整形饱和律 |
 | `timeout` / `lost_timeout` / `sigma_hold` | 50 s / 10 s / 0.01 m | 超时、标记持续丢失、停车等待阈值 |
 | `fold_residual` | `true` | 多站执行以 EKF 估计的标记位置为墙面原点；`false` 以停车位姿为原点（第一版语义，消融用） |
-| `strafe_tag_updates` | `false` | 站间横移时若标记在视野内，继续用它更新沿墙位置 |
+| `tag_map` | `tag_map.yaml` | 标记地图；相对路径按本包 `config/` 解析，也可用绝对路径或 `~`；空串 = 只有 `tag_id` 一个标记 |
+| `strafe_tag_updates` | `true` | 站间横移与到站残差测量时，画面中的地图标记继续更新沿墙位置；`false` 时站间沿墙位置只由里程计外推 |
+| `observe_between_stations` | `true` | 横移前机械臂回观测位姿（滑台 −0.15 m、伸缩轴缩回，每站约 2 s），使标记处在画面内；只在 `strafe_tag_updates` 时生效 |
+| `estimate_scale` | `true` | 在线估计里程计横移比例修正 `s`（EKF 第四个状态） |
+| `scale_init` / `scale_sigma` | 0.0 / 0.05 | `s` 的先验均值与标准差（可填离线标定值）；`s` 的随机游走 0.002 /√m 在 `WallEKF` 中固定 |
+
+### 标记地图
+
+[`config/tag_map.yaml`](config/tag_map.yaml) 是默认地图（room3 南墙 ID 0、2、4，间距 0.6 m）：
+
+```yaml
+tag_map:
+  family: tag36h11
+  size: 0.10                 # 黑框边长（米）
+  reference_id: 0            # 墙面坐标原点，u 必须为 0；缺省时取最小 ID
+  sigma_position: 0.002      # 相对参考标记的位置误差（米，1σ）；可在单个标记上用 sigma 覆盖
+  tags:
+    - {id: 0, u: 0.0, v: 0.70}   # u：沿墙位置，面向墙面向右为正；v：离地高度，只作记录
+    - {id: 2, u: 0.6, v: 0.70}
+    - {id: 4, u: 1.2, v: 0.70}
+```
+
+参考标记的位置误差恒为 0（它定义原点）；ID 重复、参考标记不在地图中或 `u ≠ 0`、σ 为负时加载报错。标记 `i` 的测量模型为 `R(−ψ)·(d, u − u_i)`，位置误差按 `σ_map²·h_u h_uᵀ` 计入测量噪声，从一个标记过渡到下一个标记时不会因几毫米的不一致被门限拒收。间距的选择与各方案的对比见 [沿墙精度报告](../../docs/experiments/along_wall_accuracy/README.md) 与 [使用指南 6.4](../../docs/USER_GUIDE.md#64-定位标记地图与横移比例估计)：0.6 m 间距 + 横移比例估计时 11 站最大沿墙误差 1.5 mm（单标记、站间只用里程计时 24.7 mm）。
 
 参数属于技能服务器，启动时用 `alignment_params:=` 传入：
 
@@ -86,6 +109,7 @@ ros2 run scr_arm_controller navigation_cutting_task task_at_target.yaml
 | `/cmd_vel` | 发布 | 精对位、横移、定点保持 |
 | `/arm_controller/follow_joint_trajectory` | action 客户端 | 机械臂运动 |
 | `odom_topic`（`/odom` 或 `/wheel/odom`） | 订阅 | 墙面 EKF 预测、横移外推、定点保持 |
+| `/task_skills/wall_estimate` | 发布 | 墙面相对状态估计（`scr_interfaces/msg/WallEstimate`），实验记录器写入 `ekf_trace.csv` |
 | `/scan` | 订阅 | 墙面拟合、防碰撞守护 |
 | `/front_camera/image_raw`、`/front_camera/camera_info` | 订阅 | 定位标记检测 |
 | `/gazebo/model_states` | 订阅 | 真值，只用于评估（日志中的对位真值误差与保持漂移），不参与控制 |
@@ -125,7 +149,7 @@ ros2 run scr_arm_controller custom_cutting wall_cutting.yaml
 ros2 run scr_arm_controller alignment_benchmark --trials 8 --out /tmp/alignment
 ```
 
-相对路径的配置文件先在当前目录查找，再到本包安装目录的 `config/` 中查找。`config/` 中的示例：`task_at_target.yaml`（单站任务）、`fine_alignment.yaml`（精对位参数）、`wall_cutting.yaml`、`horizontal_cutting.yaml`、`retract_rotate_extend.yaml`、`complex_sequence.yaml`、`cutting_task.yaml`。
+相对路径的配置文件先在当前目录查找，再到本包安装目录的 `config/` 中查找。`config/` 中的示例：`task_at_target.yaml`（单站任务）、`fine_alignment.yaml`（精对位参数）、`tag_map.yaml`（标记地图）、`wall_cutting.yaml`、`horizontal_cutting.yaml`、`retract_rotate_extend.yaml`、`complex_sequence.yaml`、`cutting_task.yaml`。
 
 完整说明见 [使用指南](../../docs/USER_GUIDE.md#6-单站任务导航--精对位--扫描--切割)。
 
@@ -137,10 +161,11 @@ colcon test --packages-select scr_arm_controller && colcon test-result --verbose
 ```
 
 - `test/test_visual_servo.py`：标记检测、墙面拟合、射线求交、PBVS 误差，以及闭环运动学收敛；
-- `test/test_fiducial.py`、`test/test_wall_ekf.py`、`test/test_docking_control.py`：AprilTag 检测与位姿、墙面 EKF、饱和控制律与收敛判据；
+- `test/test_fiducial.py`、`test/test_wall_ekf.py`、`test/test_docking_control.py`：AprilTag 检测与位姿、墙面 EKF（含地图标记的测量模型、地图误差下的门限、横移比例状态：视野外的外推修正、往返横移不可观测、重新对位后保留）、饱和控制律与收敛判据；
+- `test/test_tag_map.py`：标记地图的读写、校验、子地图、扰动与路径解析；
 - `test/test_ibvs.py`：用有限差分校验特征雅可比、各深度方式与混合方案的闭环收敛、弱可观方向、合成图像角点检测；
 - flake8、pep257、版权声明检查。
 
 规划文件的解析与补偿公式（`slot_execution.py`）由 `scr_planner` 的 pytest 覆盖；行为树执行器一侧的解析由 `scr_task` 的 `test_task_files` 对照同一份规划文件检查。
 
-相关实验：[对位鲁棒性](../../docs/experiments/alignment_robustness/README.md)、[视觉伺服方法对比](../../docs/experiments/ibvs_vs_pbvs/README.md)、[系统层现代化](../../docs/experiments/system_modernization/README.md)。
+相关实验：[对位鲁棒性](../../docs/experiments/alignment_robustness/README.md)、[视觉伺服方法对比](../../docs/experiments/ibvs_vs_pbvs/README.md)、[系统层现代化](../../docs/experiments/system_modernization/README.md)、[多站沿墙精度](../../docs/experiments/along_wall_accuracy/README.md)。

@@ -123,8 +123,8 @@ def fig_architecture(out):
     box(ax, 0.305, 0.465, 0.335, 0.31, 'task_skill_server（scr_arm_controller）',
         ['FineAlign · MoveToStation · CutStation', 'HoldBase · ScanMarker · RetractArm'],
         title_size=9.2)
-    subs = [('精对位', ['AprilTag + 激光', 'EKF (d, u, ψ)', '饱和控制律', '收敛判据']),
-            ('横移 / 保持', ['同一墙面 EKF', '沿墙位置外推', '定点保持 50 Hz']),
+    subs = [('精对位', ['AprilTag + 激光', 'EKF (d, u, ψ, s)', '饱和控制律', '收敛判据']),
+            ('横移 / 保持', ['同一墙面 EKF', '多标记地图更新', '横移比例修正', '定点保持 50 Hz']),
             ('切割', ['残差补偿', '每刀单轴', '仿真中空切'])]
     for i, (t, ls) in enumerate(subs):
         box(ax, 0.326 + i * 0.107, 0.48, 0.079, 0.148, t, ls, title_size=8.8)
