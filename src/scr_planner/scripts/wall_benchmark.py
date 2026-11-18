@@ -268,8 +268,8 @@ def plot(scenes, paths, rows, summary, out):
     styles = (('py_enhanced', 'baseline', 'First-version planner (Python)'),
               ('cpp_rules', 'proposed', 'C++ planner + slotting rules'))
     import textwrap
-    fig = fs.figure(width='double', height=4.6)
-    gs = fig.add_gridspec(2, max(len(examples), 1), height_ratios=[1.5, 0.8])
+    fig = fs.figure(width='double', height=4.0)
+    gs = fig.add_gridspec(2, max(len(examples), 1), height_ratios=[1.45, 0.8])
     wmax = max(scenes[i].width for i in examples)
     hmax = max(scenes[i].height for i in examples)
     axes = [fig.add_subplot(gs[0, k]) for k in range(len(examples))]
