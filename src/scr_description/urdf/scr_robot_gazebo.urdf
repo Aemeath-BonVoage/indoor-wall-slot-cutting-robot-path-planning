@@ -445,6 +445,7 @@
       <state_interface name="position"/>
       <state_interface name="velocity"/>
     </joint>
+    <!-- BEGIN base_control=plugin -->
     <joint name="joint_lf_link">
       <command_interface name="velocity_pid"/>
       <param name="vel_kp">0.05</param>
@@ -489,6 +490,7 @@
       <state_interface name="position"/>
       <state_interface name="velocity"/>
     </joint>
+    <!-- END base_control=plugin -->
   </ros2_control>
 
   <!-- Gazebo ros2_control 插件 -->
@@ -500,6 +502,7 @@
     </plugin>
   </gazebo>
 
+  <!-- BEGIN base_control=plugin -->
   <!-- Gazebo关节状态发布插件 -->
   <gazebo>
     <plugin name="gazebo_ros_joint_state_publisher" filename="libgazebo_ros_joint_state_publisher.so">
@@ -510,7 +513,9 @@
       <joint_name>joint_rb_link</joint_name>
     </plugin>
   </gazebo>
+  <!-- END base_control=plugin -->
 
+  <!-- BEGIN base_control=plugin -->
   <!-- Planar Move 插件 - 直接控制底盘运动 -->
   <gazebo>
     <!-- 自写力控平面运动插件（gazebo_ros_planar_move 给所有连杆设同一速度，旋转失真） -->
@@ -526,6 +531,71 @@
       <publish_odom_tf>true</publish_odom_tf>
       <odometry_frame>odom</odometry_frame>
       <robot_base_frame>base_link</robot_base_frame>
+    </plugin>
+  </gazebo>
+  <!-- END base_control=plugin -->
+
+  <!-- BEGIN base_control=ros2_control -->
+  <!-- 底盘 ros2_control：仿真硬件接口（scr_base_control/ScrMecanumBaseSystem）+ 麦克纳姆控制器。
+       plant=force：底盘由力 / 力矩驱动（与 scr_planar_move 相同），轮子只作外观；
+       plant=wheels：轮子由关节电机驱动，靠各向异性摩擦（辊子方向）带动底盘。
+       编码器误差模型参数由 gazebo.launch.py 按 odom_error 参数改写。 -->
+  <ros2_control name="MecanumBase" type="system">
+    <hardware>
+      <plugin>scr_base_control/ScrMecanumBaseSystem</plugin>
+      <param name="base_link">base_link</param>
+      <param name="plant">force</param>
+      <param name="wheel_radius">0.05</param>
+      <param name="wheel_separation_x">0.59316</param>
+      <param name="wheel_separation_y">0.4938</param>
+      <param name="wheel_directions">-1,1,-1,1</param>
+      <param name="wheel_max_torque">3.0</param>
+      <param name="wheel_scale_errors">0.004,-0.003,0.005,-0.006</param>
+      <param name="slip_sigma">0.02</param>
+      <param name="slip_tau">0.5</param>
+      <param name="lateral_slip">0.03</param>
+      <param name="yaw_slip">0.02</param>
+      <param name="seed">1</param>
+      <!-- 模拟陀螺（/imu，100 Hz）：角速度取与速度闭环相同的位姿差分角速度，加白噪声与零偏；
+           噪声 / 零偏按启动时标定过零偏的 MEMS 器件取值。不用 Gazebo 的 IMU 传感器：它读连杆
+           角速度，Gazebo 中底盘有一部分转动只出现在位姿里、不出现在连杆速度里 -->
+      <param name="imu_rate">100</param>
+      <param name="gyro_noise">0.001</param>
+      <param name="gyro_bias">0.00005</param>
+    </hardware>
+    <joint name="joint_lf_link">
+      <command_interface name="velocity"/>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+    </joint>
+    <joint name="joint_rf_link">
+      <command_interface name="velocity"/>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+    </joint>
+    <joint name="joint_lb_link">
+      <command_interface name="velocity"/>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+    </joint>
+    <joint name="joint_rb_link">
+      <command_interface name="velocity"/>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+    </joint>
+  </ros2_control>
+  <!-- END base_control=ros2_control -->
+
+  <!-- 真值（评估用，不参与控制）：base_link 在 Gazebo 世界系中的位姿与速度 -->
+  <gazebo>
+    <plugin name="ground_truth" filename="libgazebo_ros_p3d.so">
+      <ros>
+        <remapping>odom:=ground_truth/odom</remapping>
+      </ros>
+      <body_name>base_link</body_name>
+      <frame_name>world</frame_name>
+      <update_rate>50</update_rate>
+      <gaussian_noise>0.0</gaussian_noise>
     </plugin>
   </gazebo>
 

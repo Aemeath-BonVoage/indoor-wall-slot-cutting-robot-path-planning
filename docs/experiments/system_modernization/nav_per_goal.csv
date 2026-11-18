@@ -1,0 +1,7 @@
+goal,nav_navfn_dwb_time_s,nav_navfn_dwb_path_m,nav_navfn_dwb_clearance_m,nav_navfn_dwb_jerk_rms,nav_mppi_smac2d_time_s,nav_mppi_smac2d_path_m,nav_mppi_smac2d_clearance_m,nav_mppi_smac2d_jerk_rms
+G1_big_room_ne,nan,nan,nan,nan,11.033,3.723,0.348,2.995
+G2_wall_target,22.167,6.946,0.333,3.75,18.533,7.329,0.186,3.72
+G3_east_room_n,18.5,5.647,0.009,3.571,19.5,6.076,0.245,2.847
+G4_big_room_sw,35.333,12.296,0.044,3.938,34.2,12.993,0.227,3.666
+G5_south_room,21.067,6.173,0.268,3.095,19.6,6.489,0.232,3.234
+G6_start,20.833,6.252,0.588,3.224,19.1,6.577,0.501,3.137

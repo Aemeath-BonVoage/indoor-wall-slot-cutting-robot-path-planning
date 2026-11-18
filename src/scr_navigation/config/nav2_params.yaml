@@ -1,4 +1,6 @@
-# Nav2 导航参数配置
+# Nav2 导航参数（默认）：Smac 2D 全局规划 + MPPI 局部控制（Omni 运动模型）
+# 对比基线 NavFn + DWB 见 nav2_params_dwb.yaml；两份文件的代价地图、AMCL、速度平滑等完全相同。
+# 选型与对比实验见 docs/experiments/system_modernization/README.md
 amcl:
   ros__parameters:
     use_sim_time: true
@@ -58,7 +60,7 @@ controller_server:
   ros__parameters:
     controller_frequency: 20.0
     min_x_velocity_threshold: 0.001
-    min_y_velocity_threshold: 0.5
+    min_y_velocity_threshold: 0.001   # 全向底盘：横向速度反馈不能被滤掉（早期取 0.5 会把 |vy| < 0.5 m/s 置零）
     min_theta_velocity_threshold: 0.001
     failure_tolerance: 0.3
     progress_checker_plugins: ["progress_checker"]
@@ -78,49 +80,80 @@ controller_server:
       yaw_goal_tolerance: 0.25
 
     FollowPath:
-      plugin: "dwb_core::DWBLocalPlanner"
-      debug_trajectory_details: True
-      # 麦克纳姆轮速度限制 - 支持全向移动
-      min_vel_x: -0.4
-      min_vel_y: -0.4
-      max_vel_x: 0.4
-      max_vel_y: 0.4
-      max_vel_theta: 0.8
-      min_speed_xy: 0.0
-      max_speed_xy: 0.5
-      min_speed_theta: 0.0
-      # 加速度限制
-      acc_lim_x: 2.0
-      acc_lim_y: 2.0
-      acc_lim_theta: 2.5
-      decel_lim_x: -2.0
-      decel_lim_y: -2.0
-      decel_lim_theta: -2.5
-      # 轨迹采样
-      vx_samples: 15
-      vy_samples: 15
-      vtheta_samples: 20
-      sim_time: 2.0
-      linear_granularity: 0.05
-      angular_granularity: 0.025
+      # MPPI：在控制序列上加采样噪声、按代价加权平均（信息论 MPC），全向底盘用 Omni 模型
+      plugin: "nav2_mppi_controller::MPPIController"
+      motion_model: "Omni"
+      time_steps: 40              # 预测步数 × model_dt = 2.0 s 预测时域
+      model_dt: 0.05              # 与 controller_frequency 20 Hz 一致
+      batch_size: 1000            # 采样轨迹数（4 核弱机器上取默认 2000 的一半，CPU 见实验报告）
+      iteration_count: 1
+      vx_std: 0.2
+      vy_std: 0.2
+      wz_std: 0.4
+      vx_max: 0.4                 # 速度上限与 DWB 基线、velocity_smoother 相同
+      vx_min: -0.4
+      vy_max: 0.4
+      wz_max: 0.8
+      temperature: 0.3
+      gamma: 0.015
+      prune_distance: 1.7
       transform_tolerance: 0.2
-      xy_goal_tolerance: 0.2
-      trans_stopped_velocity: 0.2
-      short_circuit_trajectory_evaluation: True
-      stateful: True
-      # 评价函数 - 优先跟随全局路径
-      critics: ["RotateToGoal", "Oscillation", "BaseObstacle", "GoalAlign", "PathAlign", "PathDist", "GoalDist"]
-      BaseObstacle.scale: 0.1        # 避障权重
-      PathAlign.scale: 32.0          # 提高路径对齐权重 - 跟随全局路径方向
-      PathAlign.forward_point_distance: 0.3  # 增加前瞻距离
-      GoalAlign.scale: 10.0          # 降低目标对齐权重
-      GoalAlign.forward_point_distance: 0.1
-      PathDist.scale: 48.0           # 大幅提高路径距离权重 - 紧密跟随全局路径
-      GoalDist.scale: 20.0           # 降低目标距离权重
-      RotateToGoal.scale: 8.0        # 降低旋转权重
-      RotateToGoal.slowing_factor: 5.0
-      RotateToGoal.lookahead_time: -1.0
-      prefer_forward: false
+      reset_period: 1.0
+      visualize: false
+      critics: ["ConstraintCritic", "ObstaclesCritic", "GoalCritic", "GoalAngleCritic",
+                "PathAlignCritic", "PathFollowCritic", "PathAngleCritic", "TwirlingCritic"]
+      ConstraintCritic:
+        enabled: true
+        cost_power: 1
+        cost_weight: 4.0
+      GoalCritic:
+        enabled: true
+        cost_power: 1
+        cost_weight: 5.0
+        threshold_to_consider: 1.4
+      GoalAngleCritic:
+        enabled: true
+        cost_power: 1
+        cost_weight: 3.0
+        threshold_to_consider: 0.5
+      ObstaclesCritic:
+        enabled: true
+        cost_power: 1
+        repulsion_weight: 1.5
+        critical_weight: 20.0
+        consider_footprint: false
+        collision_cost: 10000.0
+        collision_margin_distance: 0.1
+        near_goal_distance: 0.5
+        inflation_radius: 0.7      # 与代价地图膨胀层一致
+        cost_scaling_factor: 3.0
+      PathAlignCritic:
+        enabled: true
+        cost_power: 1
+        cost_weight: 14.0
+        max_path_occupancy_ratio: 0.05
+        trajectory_point_step: 3
+        threshold_to_consider: 0.5
+        offset_from_furthest: 20
+        use_path_orientations: false
+      PathFollowCritic:
+        enabled: true
+        cost_power: 1
+        cost_weight: 5.0
+        offset_from_furthest: 5
+        threshold_to_consider: 1.4
+      PathAngleCritic:
+        enabled: true
+        cost_power: 1
+        cost_weight: 2.0
+        offset_from_furthest: 4
+        threshold_to_consider: 0.5
+        max_angle_to_furthest: 1.0
+        forward_preference: false   # 全向底盘：不要求车头对准路径方向
+      TwirlingCritic:
+        enabled: true               # 全向底盘：抑制行进中不必要的旋转
+        twirling_cost_power: 1
+        twirling_cost_weight: 10.0
 
 local_costmap:
   local_costmap:
@@ -200,10 +233,22 @@ planner_server:
     expected_planner_frequency: 20.0
     planner_plugins: ["GridBased"]
     GridBased:
-      plugin: "nav2_navfn_planner/NavfnPlanner"
+      # Smac 2D：代价感知的 8 邻接 A* + 路径平滑；全向底盘无最小转弯半径，不需要 Hybrid-A*
+      plugin: "nav2_smac_planner/SmacPlanner2D"
       tolerance: 0.5
-      use_astar: false
+      downsample_costmap: false
+      downsampling_factor: 1
       allow_unknown: true
+      max_iterations: 1000000
+      max_on_approach_iterations: 1000
+      max_planning_time: 2.0
+      cost_travel_multiplier: 2.0   # 代价越高越绕行：路径远离障碍
+      use_final_approach_orientation: false
+      smoother:
+        max_iterations: 1000
+        w_smooth: 0.3
+        w_data: 0.2
+        tolerance: 1.0e-10
 
 behavior_server:
   ros__parameters:

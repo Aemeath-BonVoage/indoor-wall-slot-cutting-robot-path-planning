@@ -1,0 +1,30 @@
+[INFO] [1794966599.076622219] [base_characterization]: forward: 指令 (+0.30, +0.00, +0.00) 实际 (+0.286, +0.014, -0.006)
+[INFO] [1794966605.089015895] [base_characterization]: backward: 指令 (-0.30, +0.00, +0.00) 实际 (-0.290, +0.009, +0.008)
+[INFO] [1794966611.107347055] [base_characterization]: left: 指令 (+0.00, +0.30, +0.00) 实际 (+0.009, +0.283, +0.006)
+[INFO] [1794966617.128711427] [base_characterization]: right: 指令 (+0.00, -0.30, +0.00) 实际 (+0.008, -0.287, -0.008)
+[INFO] [1794966623.175074987] [base_characterization]: rotate_ccw: 指令 (+0.00, +0.00, +0.60) 实际 (-0.003, -0.008, +0.598)
+[INFO] [1794966629.201732551] [base_characterization]: rotate_cw: 指令 (+0.00, +0.00, -0.60) 实际 (+0.003, +0.009, -0.595)
+[INFO] [1794966635.222109938] [base_characterization]: diagonal: 指令 (+0.20, +0.20, +0.00) 实际 (+0.183, +0.184, -0.002)
+[INFO] [1794966641.243016636] [base_characterization]: arc: 指令 (+0.25, +0.00, +0.40) 实际 (+0.180, -0.009, +0.306)
+[INFO] [1794966647.282997396] [base_characterization]: strafe_turn: 指令 (+0.00, +0.20, +0.40) 实际 (+0.032, +0.197, +0.392)
+[INFO] [1794966653.296046031] [base_characterization]: slow_strafe: 指令 (+0.00, +0.05, +0.00) 实际 (+0.002, +0.020, +0.000)
+[INFO] [1794966653.334603725] [base_characterization]: 
+label: base_wheels_ekf
+sim_s: 60.00000000000001
+wall_s: 60.237560749053955
+rtf: 0.996056268778153
+gzserver_cpu_pct: 46.432823062874895
+path_m: 9.469457404809576
+turn_rad: 9.97651751262719
+odom_final_pos_err_m: 0.38559299870781266
+odom_max_pos_err_m: 0.6913138481485336
+odom_final_yaw_err_deg: -24.541661416017142
+odom_drift_pct: 4.071965079139259
+wheel_final_pos_err_m: 0.42221670925353894
+wheel_max_pos_err_m: 0.42221670925353894
+wheel_final_yaw_err_deg: 18.63265394467868
+wheel_drift_pct: 4.458721246679808
+ratio_vx_mean: 0.8889688803133962
+ratio_vy_mean: 0.8416975851879208
+ratio_wz_mean: 0.9333482497646739
+

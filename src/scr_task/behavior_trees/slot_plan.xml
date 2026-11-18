@@ -1,0 +1,96 @@
+<!--
+  多站开槽：导航到定位标记前 → 精对位（确定墙面原点）→ 逐站（到站 → 定点保持下切割 → 记录）。
+
+  恢复策略：
+  - 导航到标记：失败重试一次；
+  - 精对位：失败则缩回机械臂、重新导航到标记前、再对位一次；
+  - 到站：横移失败（未收敛且残差超出补偿范围）则回到标记前重新对位、重新建立墙面原点，
+    再到站一次；
+  - 切割：失败重试一次（重新测残差、重新执行本站全部点）。
+  仍失败则整个任务失败，执行器在结果中报告失败的停靠站与节点。
+-->
+<root main_tree_to_execute="SlotPlan">
+  <BehaviorTree ID="SlotPlan">
+    <Sequence name="ExecuteSlotPlan">
+      <LoadSlotPlan plan_file="{plan_file}" dry_run="{dry_run}" dry_run_gap="{dry_run_gap}"
+                    marker_x="{marker_x}" marker_y="{marker_y}" nav_standoff="{nav_standoff}"
+                    plan="{plan}" marker_pose="{marker_pose}" standoff="{standoff}"
+                    marker_u="{marker_u}" tool_offset="{tool_offset}"
+                    station_count="{station_count}"/>
+      <RetryUntilSuccessful num_attempts="2">
+        <NavigateToPose name="NavigateToMarker" goal="{marker_pose}"/>
+      </RetryUntilSuccessful>
+      <SubTree ID="AlignToMarker" __shared_blackboard="true"/>
+      <ForEachStation plan="{plan}" marker_u="{marker_u}" max_strafe="{max_strafe}"
+                      nav_standoff="{nav_standoff}" station="{station}" u_c="{u_c}"
+                      station_u="{station_u}" points="{station_points}"
+                      point_duration="{point_duration}" cut_length="{cut_length}"
+                      move_dist="{move_dist}" nav_leg="{nav_leg}" nav_pose="{station_nav_pose}"
+                      station_start="{station_start}" station_recoveries="{station_recoveries}">
+        <SubTree ID="ExecuteStation" __shared_blackboard="true"/>
+      </ForEachStation>
+      <RetractArm name="RetractAtEnd" lift="0.0"/>
+    </Sequence>
+  </BehaviorTree>
+
+  <!-- 精对位：失败时重新接近标记再对位一次 -->
+  <BehaviorTree ID="AlignToMarker">
+    <Fallback name="AlignWithRecovery">
+      <FineAlign standoff="{standoff}" settle_time="2.0" origin_residual="{origin_residual}"/>
+      <Sequence name="ReapproachAndAlign">
+        <CountRecovery station_count="{station_recoveries}" total_count="{recoveries}"/>
+        <RetractArm lift="0.0"/>
+        <NavigateToPose name="ReapproachMarker" goal="{marker_pose}"/>
+        <FineAlign standoff="{standoff}" settle_time="2.0" origin_residual="{origin_residual}"/>
+      </Sequence>
+    </Fallback>
+  </BehaviorTree>
+
+  <!-- 到站：远站先用 Nav2 退到离墙 nav_standoff 处过去，再按墙面坐标闭环接近 -->
+  <BehaviorTree ID="ReachStation">
+    <Sequence name="ReachStation">
+      <IfThenElse>
+        <CheckFlag name="IsNavLeg" value="{nav_leg}"/>
+        <Sequence name="NavLeg">
+          <RetractArm lift="0.0"/>
+          <NavigateToPose name="NavigateToStation" goal="{station_nav_pose}"/>
+        </Sequence>
+        <AlwaysSuccess/>
+      </IfThenElse>
+      <MoveToStation station="{station}" lateral_offset="{station_u}" standoff="{standoff}"
+                     converged="{converged}" arrived_at="{arrived_at}"/>
+    </Sequence>
+  </BehaviorTree>
+
+  <BehaviorTree ID="ExecuteStation">
+    <Sequence name="Station">
+      <Fallback name="ReachWithRecovery">
+        <SubTree ID="ReachStation" __shared_blackboard="true"/>
+        <Sequence name="RealignAndRetry">
+          <CountRecovery station_count="{station_recoveries}" total_count="{recoveries}"/>
+          <RetractArm lift="0.0"/>
+          <NavigateToPose name="ReturnToMarker" goal="{marker_pose}"/>
+          <SubTree ID="AlignToMarker" __shared_blackboard="true"/>
+          <SubTree ID="ReachStation" __shared_blackboard="true"/>
+        </Sequence>
+      </Fallback>
+      <Parallel success_threshold="1" failure_threshold="1">
+        <HoldBase/>
+        <RetryUntilSuccessful num_attempts="2">
+          <CutStation station="{station}" points="{station_points}"
+                      point_duration="{point_duration}" compensate="{compensate}"
+                      lateral_offset="{station_u}" standoff="{standoff}"
+                      tool_offset="{tool_offset}" wall_gap="0.0" return_home="false"
+                      cut_time="{cut_time}" clamped="{clamped}" sensed_lateral="{sensed_lateral}"
+                      sensed_standoff="{sensed_standoff}" sensed_yaw="{sensed_yaw}"/>
+        </RetryUntilSuccessful>
+      </Parallel>
+      <RecordStation station="{station}" u_c="{u_c}" points="{station_points}"
+                     move_dist="{move_dist}" nav_leg="{nav_leg}" station_start="{station_start}"
+                     arrived_at="{arrived_at}" cut_time="{cut_time}" converged="{converged}"
+                     sensed_lateral="{sensed_lateral}" sensed_standoff="{sensed_standoff}"
+                     sensed_yaw="{sensed_yaw}" clamped="{clamped}" cut_length="{cut_length}"
+                     origin_residual="{origin_residual}" recoveries="{station_recoveries}"/>
+    </Sequence>
+  </BehaviorTree>
+</root>

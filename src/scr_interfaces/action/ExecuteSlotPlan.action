@@ -1,0 +1,18 @@
+# 多站开槽：执行 plan_wall_slots.py 输出的规划文件（行为树执行）
+string plan_file
+bool dry_run                 # 空切
+float64 dry_run_gap          # 空切时刀尖停在墙前的距离（米）
+bool compensate              # 到站残差补偿
+float64 max_strafe           # 站间横移超过该距离时先用 Nav2（米，0 = 默认 1.5）
+string behavior_tree         # 空串 = 默认行为树
+---
+bool success
+string error
+int32 stations_done
+scr_interfaces/StationRecord[] stations
+float64 total_time
+---
+int32 station
+int32 station_count
+string phase
+int32 recoveries

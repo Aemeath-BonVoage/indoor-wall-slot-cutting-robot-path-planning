@@ -33,9 +33,9 @@ def relative_pose(a, b):
 
 
 class WallStateEstimator:
-    """挂在节点上：订阅 /odom 建立位姿历史，step() 时预测并融合新测量."""
+    """挂在节点上：订阅里程计（默认 /odom）建立位姿历史，step() 时预测并融合新测量."""
 
-    def __init__(self, node, servo, history=4.0):
+    def __init__(self, node, servo, history=4.0, odom_topic='/odom'):
         self.node = node
         self.servo = servo
         self.ekf = WallEKF()
@@ -50,7 +50,7 @@ class WallStateEstimator:
         self.last_tag_time = None          # 最近一次接受标记更新的时刻（秒）
         self.tag_reject_streak = 0
         self.reacquire_after = 15          # 连续拒收这么多帧标记后重新初始化 u
-        node.create_subscription(Odometry, '/odom', self._on_odom, 50)
+        node.create_subscription(Odometry, odom_topic, self._on_odom, 50)
 
     # ---------- 里程计历史 ----------
     def _on_odom(self, msg):

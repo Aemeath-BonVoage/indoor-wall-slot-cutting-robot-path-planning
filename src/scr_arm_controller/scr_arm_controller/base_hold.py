@@ -5,7 +5,8 @@
 实测机械臂动作时一站内可漂移约 10 cm。切割 / 扫描期间需要把底盘闭环保持在到位位姿。
 
 机械臂控制器在执行动作时会阻塞主节点的回调，因此本模块使用独立节点和独立线程运行：
-- 以 20 Hz 用里程计做 P 控制，把底盘保持在 hold() 时的位姿；
+- 以 50 Hz 用里程计做 P 控制，把底盘保持在 hold() 时的位姿（局部闭环，用轮式里程计：
+  融合后的 /odom 在 mm/s 级的慢速运动下明显偏小，见 docs/experiments/system_modernization）；
 - 同时订阅 Gazebo 真值（/gazebo/model_states），记录保持期间底盘偏离起点的最大距离与角度。
 """
 import math
@@ -26,7 +27,7 @@ def _yaw(q):
 class BaseHold:
     # 增益按力控底盘（scr_planar_move，速度环带宽约 20 rad/s）整定：外环位置 P 增益取其 1/4–1/3
     def __init__(self, entity='scr_robot_gazebo', rate_hz=50.0,
-                 k_lin=5.0, k_ang=6.0, max_lin=0.1, max_ang=0.5):
+                 k_lin=5.0, k_ang=6.0, max_lin=0.1, max_ang=0.5, odom_topic='/odom'):
         sim_time = Parameter('use_sim_time', Parameter.Type.BOOL, True)
         self.node = rclpy.create_node('base_hold', parameter_overrides=[sim_time])
         self.entity = entity
@@ -39,8 +40,9 @@ class BaseHold:
         self._max_drift = 0.0           # 米
         self._max_yaw = 0.0             # 弧度
         self._lock = threading.Lock()
+        self.generation = 0             # 每次 hold() 加 1：调用方只释放自己开始的那次保持
 
-        self.node.create_subscription(Odometry, '/odom', self._on_odom, 20)
+        self.node.create_subscription(Odometry, odom_topic, self._on_odom, 20)
         self.node.create_subscription(ModelStates, '/gazebo/model_states', self._on_gt, 10)
         self._pub = self.node.create_publisher(Twist, '/cmd_vel', 10)
         self.node.create_timer(1.0 / rate_hz, self._step)
@@ -88,8 +90,21 @@ class BaseHold:
         with self._lock:
             self._target = self._odom
             self._gt_ref = self._gt
+            self.generation += 1
             self._max_drift = 0.0
             self._max_yaw = 0.0
+
+    @property
+    def active(self):
+        return self._target is not None
+
+    def error(self):
+        """当前里程计位姿相对保持目标的 (位置误差 米, 朝向误差 弧度)；未保持时为 None."""
+        target, odom = self._target, self._odom
+        if target is None or odom is None:
+            return None
+        dyaw = math.atan2(math.sin(odom[2] - target[2]), math.cos(odom[2] - target[2]))
+        return math.hypot(odom[0] - target[0], odom[1] - target[1]), dyaw
 
     def release(self):
         """停止保持，返回保持期间的真值最大漂移 (米, 度)；无真值时为 None."""

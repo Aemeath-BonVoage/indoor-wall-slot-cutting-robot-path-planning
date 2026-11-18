@@ -1,0 +1,13 @@
+run,source,distance_m,final_pos_err_m,max_pos_err_m,drift_pct,final_yaw_err_deg,max_abs_yaw_err_deg
+loc_seed1,wheel,129.1,1.834,4.103,1.42,-32.85,38.76
+loc_seed1,odom,129.1,0.186,0.481,0.14,-3.09,7.7
+loc_seed1,map,129.1,0.059,0.251,0.05,-0.16,6.45
+loc_seed2,wheel,129.1,2.057,3.549,1.59,-18.5,25.97
+loc_seed2,odom,129.1,0.339,0.496,0.26,-2.06,7.0
+loc_seed2,map,129.1,0.038,0.229,0.03,-0.21,6.33
+linkvel_loc_seed1,wheel,129.2,1.033,2.071,0.8,-9.93,18.92
+linkvel_loc_seed1,odom,129.2,1.372,2.691,1.06,22.07,26.06
+linkvel_loc_seed1,map,129.2,0.062,0.238,0.05,-0.29,6.92
+linkvel_loc_seed2,wheel,128.2,1.118,1.372,0.87,2.93,8.2
+linkvel_loc_seed2,odom,128.2,0.99,2.09,0.77,18.67,22.79
+linkvel_loc_seed2,map,128.2,0.028,0.298,0.02,0.73,6.81

@@ -1,0 +1,7 @@
+# 定点保持：目标执行期间把底盘闭环在开始时刻的位姿（已在保持中则沿用原目标）；取消即释放
+---
+bool success
+float64 max_drift            # 保持期间里程计位姿偏离目标的最大距离（米）
+---
+float64 position_error
+float64 yaw_error

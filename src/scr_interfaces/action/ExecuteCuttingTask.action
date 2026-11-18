@@ -1,0 +1,10 @@
+# 单站任务：导航 → 精对位 → 扫描 → 定点保持下切割（行为树执行）
+string task_file             # task_at_target.yaml 格式
+string behavior_tree         # 空串 = 默认行为树
+---
+bool success
+string error
+float64 total_time
+---
+string phase
+int32 recoveries

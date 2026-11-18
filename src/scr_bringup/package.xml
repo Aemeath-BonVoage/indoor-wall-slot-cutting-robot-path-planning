@@ -3,7 +3,7 @@
 <package format="3">
   <name>scr_bringup</name>
   <version>0.1.0</version>
-  <description>One-command bringup for the SCR slot-cutting robot (Gazebo + Nav2 + RViz)</description>
+  <description>One-command bringup for the SCR slot-cutting robot (Gazebo + Nav2 + task layer + RViz)</description>
   <maintainer email="Aemeath-BonVoage@users.noreply.github.com">Aemeath-BonVoage</maintainer>
   <license>Apache-2.0</license>
 
@@ -13,6 +13,8 @@
   <exec_depend>launch_ros</exec_depend>
   <exec_depend>scr_description</exec_depend>
   <exec_depend>scr_navigation</exec_depend>
+  <exec_depend>scr_arm_controller</exec_depend>
+  <exec_depend>scr_task</exec_depend>
 
   <export>
     <build_type>ament_cmake</build_type>

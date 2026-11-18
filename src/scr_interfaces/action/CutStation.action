@@ -1,0 +1,22 @@
+# 在当前停靠站执行一组机械臂点（底盘由 HoldBase 或到站时的定点保持维持）
+int32 station
+scr_interfaces/ArmPoint[] points
+float64 point_duration       # 每段运动时间（秒）
+bool compensate              # 先测到站残差，再把机械臂点修正到实际停靠位姿
+float64 lateral_offset       # 补偿参照：本站目标沿墙坐标（米）
+float64 standoff             # 补偿参照：目标离墙距离（米）
+float64 tool_offset          # 刀尖相对 link4 原点的前伸（米）
+float64 wall_gap             # >0：空切，整组点后移使最深处刀尖停在实测墙面前该距离
+bool return_home             # 前后各回到缩回位姿（单站任务）
+---
+bool success
+string message
+int32 clamped
+float64 sensed_lateral       # 补偿所用的残差（米 / 米 / 弧度）
+float64 sensed_standoff
+float64 sensed_yaw
+float64 duration
+---
+int32 point_index
+int32 point_count
+string phase

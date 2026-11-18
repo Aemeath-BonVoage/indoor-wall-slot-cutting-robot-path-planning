@@ -1,0 +1,18 @@
+# 墙面坐标闭环横移 / 接近：到沿墙 lateral_offset、离墙 standoff 处（沿墙位置由里程计外推）
+int32 station                # 停靠站序号（状态标注用）
+float64 lateral_offset       # 相对墙面原点（定位标记），面向墙面向右为正（米）
+float64 standoff             # 离墙距离（米）
+float64 max_speed            # 0 = 默认
+float64 timeout              # 0 = 默认（仿真秒）
+---
+bool success                 # 收敛，或残差在可补偿范围内
+bool converged               # 是否按收敛判据到位
+string message
+float64 lateral_error        # 结束时的估计残差（米 / 米 / 弧度）
+float64 standoff_error
+float64 yaw_error
+float64 duration
+---
+float64 lateral_error
+float64 standoff_error
+float64 yaw_error

@@ -1,0 +1,7 @@
+<library path="scr_base_control">
+  <class name="scr_base_control/MecanumDriveController"
+         type="scr_base_control::MecanumDriveController"
+         base_class_type="controller_interface::ControllerInterface">
+    <description>Mecanum drive controller: cmd_vel to wheel velocities, wheel odometry.</description>
+  </class>
+</library>

@@ -1,0 +1,7 @@
+# 用相机射线与激光墙面求交检测定位标记（必要时按高度扫描）
+int32 samples
+---
+bool success
+geometry_msgs/Point position   # 标记在 base_link 中的位置
+---
+float64 height

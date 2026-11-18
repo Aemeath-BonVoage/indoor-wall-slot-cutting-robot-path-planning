@@ -42,7 +42,7 @@ from gazebo_msgs.srv import (DeleteEntity, GetLightProperties, SetEntityState,
 from rclpy.executors import SingleThreadedExecutor
 from rclpy.parameter import Parameter
 
-from scr_arm_controller.navigation_cutting_task import NavigationCuttingTask
+from scr_arm_controller.task_skills import CuttingSkills as NavigationCuttingTask
 
 PIPELINES = {
     'v1': dict(mode='visual_v1'),
@@ -308,7 +308,8 @@ def plot(summary, path):
 def load_calib(path):
     with open(path, encoding='utf-8') as f:
         y = yaml.safe_load(f)
-    a = y['navigation_cutting_task']['ros__parameters']['alignment']
+    # 新生成的标定文件以 /** 为键（任意节点名），早期文件以 navigation_cutting_task 为键
+    a = (y.get('/**') or y['navigation_cutting_task'])['ros__parameters']['alignment']
     return {k: float(a[k]) for k in ('offset_normal', 'offset_lateral', 'offset_yaw_deg')}
 
 
