@@ -1,0 +1,7 @@
+<library path="scr_base_control_gazebo">
+  <class name="scr_base_control/ScrMecanumBaseSystem"
+         type="scr_base_control::ScrMecanumBaseSystem"
+         base_class_type="gazebo_ros2_control::GazeboSystemInterface">
+    <description>Simulated mecanum base: force-driven body, wheel encoders with an error model.</description>
+  </class>
+</library>

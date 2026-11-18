@@ -1,0 +1,6 @@
+# 与 robot_localization 融合时的底盘控制器参数覆盖（spawner --param-file）：
+# 轮式里程计只发布到 /wheel/odom，odom → base_link 由 EKF 发布
+base_controller:
+  ros__parameters:
+    odom_topic: /wheel/odom
+    enable_odom_tf: false

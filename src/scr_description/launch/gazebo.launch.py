@@ -1,14 +1,35 @@
-import launch
-import launch_ros
-from ament_index_python.packages import get_package_share_directory, get_package_prefix
-from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.actions import TimerAction, ExecuteProcess, DeclareLaunchArgument, OpaqueFunction
-from launch.conditions import IfCondition
-from launch.substitutions import LaunchConfiguration, PythonExpression
+"""Gazebo 仿真：机器人模型、控制器与（可选）底盘定位融合.
+
+底盘的两种实现（base_control）：
+  ros2_control（默认）  仿真硬件接口 scr_base_control/ScrMecanumBaseSystem + 麦克纳姆控制器
+                        base_controller（cmd_vel → 轮速，轮速 → 轮式里程计）。
+                        plant:=force   底盘由力 / 力矩驱动（与 scr_planar_move 相同），编码器
+                                       读数由真实运动加误差模型得到（odom_error 控制误差开关）；
+                        plant:=wheels  轮子电机驱动，底盘只受插件计算的轮–地接触力（辊子轴向
+                                       滑移摩擦），编码器为轮子实际转速。
+  plugin                早期实现：scr_planar_move 力控插件 + mecanum_controller.py，/odom 为
+                        真值位姿（仿真配置 v2，保留用于复现早期结果）。
+
+定位（localization，仅 ros2_control）：
+  ekf（默认）  轮式里程计 /wheel/odom + IMU /imu → robot_localization → /odom 与 TF
+  wheel        控制器直接发布 /odom 与 TF（只用轮式里程计）
+
+真值始终发布在 /ground_truth/odom（gazebo_ros_p3d）与 /gazebo/model_states，只用于评估。
+"""
 import math
 import os
 import re
 import tempfile
+
+import launch
+import launch_ros
+from ament_index_python.packages import get_package_prefix, get_package_share_directory
+from launch.actions import DeclareLaunchArgument, ExecuteProcess, OpaqueFunction, TimerAction
+from launch.conditions import IfCondition
+from launch.substitutions import LaunchConfiguration, PythonExpression
+
+ENTITY = 'scr_robot_gazebo'
+ODOM_ERROR_PARAMS = ('wheel_scale_errors', 'slip_sigma', 'lateral_slip', 'yaw_slip')
 
 
 def inject_camera_yaw_error(urdf, yaw_deg):
@@ -28,176 +49,154 @@ def inject_camera_yaw_error(urdf, yaw_deg):
     return out
 
 
-def spawn_robot(context, entity, robot_description):
-    """生成机器人：camera_yaw_error_deg 非 0 时用注入了相机偏角的描述生成（TF 不变）."""
-    yaw = float(context.perform_substitution(LaunchConfiguration('camera_yaw_error_deg')))
-    args = ['-topic', '/robot_description', '-entity', entity]
+def select_base_control(urdf, mode):
+    """保留 base_control=mode 的块，删除其他实现的块."""
+    def keep(m):
+        return m.group(2) if m.group(1) == mode else ''
+    pat = (r'[ \t]*<!-- BEGIN base_control=(\w+) -->\n(.*?)'
+           r'[ \t]*<!-- END base_control=\1 -->\n?')
+    out = re.sub(pat, keep, urdf, flags=re.S)
+    if 'base_control=' in out:
+        raise RuntimeError('URDF 中的 base_control 标记不成对')
+    return out
+
+
+def set_hw_param(urdf, name, value):
+    out, n = re.subn(rf'(<param name="{name}">)[^<]*(</param>)', rf'\g<1>{value}\g<2>', urdf)
+    if n != 1:
+        raise RuntimeError(f'URDF 中找不到硬件参数 {name}')
+    return out
+
+
+def configure_base(urdf, plant, odom_error, seed):
+    """ros2_control 底盘：被控对象与编码器误差模型（只作用于 force）."""
+    urdf = set_hw_param(urdf, 'plant', plant)
+    urdf = set_hw_param(urdf, 'seed', str(int(seed)))
+    if not odom_error:
+        urdf = set_hw_param(urdf, 'wheel_scale_errors', '0,0,0,0')
+        for k in ODOM_ERROR_PARAMS[1:]:
+            urdf = set_hw_param(urdf, k, '0.0')
+    return urdf
+
+
+def launch_robot(context, robot_description):
+    def arg(name):
+        return context.perform_substitution(LaunchConfiguration(name))
+
+    base = arg('base_control')
+    plant = arg('plant')
+    localization = arg('localization')
+    odom_error = arg('odom_error').lower() in ('1', 'true', 'yes')
+    if base not in ('ros2_control', 'plugin') or plant not in ('force', 'wheels') or \
+            localization not in ('ekf', 'wheel'):
+        raise RuntimeError(f'无效参数 base_control={base} plant={plant} '
+                           f'localization={localization}')
+    urdf = select_base_control(robot_description, base)
+    if base == 'ros2_control':
+        urdf = configure_base(urdf, plant, odom_error, int(arg('odom_seed')))
+    actions = [launch_ros.actions.Node(
+        package='robot_state_publisher', executable='robot_state_publisher',
+        parameters=[{'robot_description': urdf}])]
+
+    # 生成机器人：相机偏角只注入 Gazebo 中的模型（TF 不变）
+    gz_urdf = urdf
+    yaw = float(arg('camera_yaw_error_deg'))
     if yaw != 0.0:
+        gz_urdf = inject_camera_yaw_error(gz_urdf, yaw)
+    if gz_urdf is not urdf:
         f = tempfile.NamedTemporaryFile('w', suffix='.urdf', prefix='scr_robot_', delete=False)
-        f.write(inject_camera_yaw_error(robot_description, yaw))
+        f.write(gz_urdf)
         f.close()
-        args = ['-file', f.name, '-entity', entity]
-    return [launch_ros.actions.Node(package='gazebo_ros', executable='spawn_entity.py',
-                                    arguments=args)]
+        spawn_args = ['-file', f.name, '-entity', ENTITY]
+    else:
+        spawn_args = ['-topic', '/robot_description', '-entity', ENTITY]
+    actions.append(launch_ros.actions.Node(package='gazebo_ros', executable='spawn_entity.py',
+                                           arguments=spawn_args))
+
+    def spawner(name, *extra):
+        return launch_ros.actions.Node(package='controller_manager', executable='spawner',
+                                       arguments=[name, *extra], output='screen')
+
+    controllers = [spawner('joint_state_broadcaster'), spawner('arm_controller')]
+    if base == 'plugin':
+        script = os.path.join(get_package_prefix('scr_description'), 'lib', 'scr_description',
+                              'mecanum_controller.py')
+        actions.append(ExecuteProcess(cmd=['python3', script], output='screen'))
+        controllers.append(spawner('wheel_controller'))
+    else:
+        extra = []
+        if localization == 'ekf':
+            extra = ['--param-file', os.path.join(
+                get_package_share_directory('scr_base_control'), 'config',
+                'base_controller_ekf.yaml')]
+            actions.append(launch_ros.actions.Node(
+                package='robot_localization', executable='ekf_node', name='ekf_filter_node',
+                output='screen',
+                parameters=[os.path.join(get_package_share_directory('scr_navigation'),
+                                         'config', 'ekf.yaml')],
+                remappings=[('odometry/filtered', '/odom')]))
+        controllers.append(spawner('base_controller', *extra))
+    actions.append(TimerAction(period=5.0, actions=controllers))
+    return actions
 
 
 def generate_launch_description():
-    robot_name_in_model = "scr_robot_gazebo"
-    urdf_tutorial_path = get_package_share_directory('scr_description')
-    default_model_path = os.path.join(
-        urdf_tutorial_path, 'urdf', 'scr_robot_gazebo.urdf')
-    
-    # 默认世界文件
-    default_world_path = os.path.join(
-        urdf_tutorial_path, 'worlds', 'room.world')
+    share = get_package_share_directory('scr_description')
+    with open(os.path.join(share, 'urdf', 'scr_robot_gazebo.urdf')) as f:
+        robot_description = f.read().replace('$(find scr_description)', share)
 
-    # Read URDF file content
-    with open(default_model_path, 'r') as urdf_file:
-        robot_description = urdf_file.read()
-    
-    # 替换 URDF 中的 $(find scr_description) 为实际路径
-    robot_description = robot_description.replace(
-        '$(find scr_description)', 
-        urdf_tutorial_path
-    )
-
-    # 声明world参数
-    declare_world = DeclareLaunchArgument(
-        'world',
-        default_value=default_world_path,
-        description='Gazebo world file'
-    )
-
-    robot_state_publisher_node = launch_ros.actions.Node(
-        package='robot_state_publisher',
-        executable='robot_state_publisher',
-        parameters=[{'robot_description': robot_description}]
-    )
-
-    # 直接启动 Gazebo，但需要加载 ROS 2 插件
-    # 使用环境变量加载必要的 Gazebo ROS 插件
-    
-    # 设置 Gazebo 插件路径
-    gazebo_plugin_path = os.path.join(get_package_prefix('gazebo_ros'), 'lib')
-    # 本包的 Gazebo 插件（libscr_planar_move.so）
-    gazebo_plugin_path += os.pathsep + os.path.join(get_package_prefix('scr_description'), 'lib')
-    if 'GAZEBO_PLUGIN_PATH' in os.environ:
-        os.environ['GAZEBO_PLUGIN_PATH'] = os.environ['GAZEBO_PLUGIN_PATH'] + os.pathsep + gazebo_plugin_path
+    # Gazebo 插件路径：gazebo_ros、本包（libscr_planar_move.so）
+    plugin_path = os.pathsep.join([os.path.join(get_package_prefix('gazebo_ros'), 'lib'),
+                                   os.path.join(get_package_prefix('scr_description'), 'lib')])
+    os.environ['GAZEBO_PLUGIN_PATH'] = (os.environ['GAZEBO_PLUGIN_PATH'] + os.pathsep + plugin_path
+                                        if 'GAZEBO_PLUGIN_PATH' in os.environ else plugin_path)
+    # 模型路径：本包（含 AprilTag 定位标记 model://scr_apriltag_*）
+    model_path = os.pathsep + os.path.join(get_package_prefix('scr_description'), 'share') + \
+        os.pathsep + os.path.join(share, 'models')
+    if 'GAZEBO_MODEL_PATH' in os.environ:
+        os.environ['GAZEBO_MODEL_PATH'] += model_path
     else:
-        os.environ['GAZEBO_PLUGIN_PATH'] = gazebo_plugin_path
-    
-    # 启动 gzserver，加载 ROS 工厂插件
-    gzserver = ExecuteProcess(
-        cmd=['gzserver', 
-             '--verbose',
-             '-s', 'libgazebo_ros_init.so',
-             '-s', 'libgazebo_ros_factory.so',
-             LaunchConfiguration('world')],
-        output='screen'
-    )
-    
-    # gui:=false 时不启动 Gazebo 窗口（gzclient），可显著降低内存/显卡占用
-    declare_gui = DeclareLaunchArgument(
-        'gui',
-        default_value='true',
-        description='Start Gazebo GUI (gzclient)'
-    )
+        os.environ['GAZEBO_MODEL_PATH'] = '/usr/share/gazebo-11/models' + model_path
 
-    # rtf：仿真速度上限（相对实时的倍数）。1.0 = 实时（默认）；2.5 = 最快 2.5 倍；0 = 不限速。
-    # 控制器均按仿真时钟计时，因此加速不改变控制律；但感知 / 控制代码的计算延迟按仿真时间
-    # 计会放大 rtf 倍，批量实验前应先与 rtf=1 对比确认结果一致。
-    declare_rtf = DeclareLaunchArgument(
-        'rtf',
-        default_value='1.0',
-        description='Max real-time factor (1.0 = real time, 0 = unlimited)'
-    )
+    args = [
+        DeclareLaunchArgument('world', default_value=os.path.join(share, 'worlds', 'room.world'),
+                              description='Gazebo world file'),
+        DeclareLaunchArgument('gui', default_value='true',
+                              description='Start Gazebo GUI (gzclient)'),
+        # rtf：仿真速度上限（相对实时的倍数）。控制器按仿真时钟计时，加速不改变控制律；但
+        # 感知 / 控制代码的计算延迟按仿真时间计会放大 rtf 倍，批量实验前应先与 rtf=1 对比
+        DeclareLaunchArgument('rtf', default_value='1.0',
+                              description='Max real-time factor (1.0 = real time, 0 = unlimited)'),
+        DeclareLaunchArgument('camera_yaw_error_deg', default_value='0.0',
+                              description='Camera mount yaw error injected into the Gazebo '
+                                          'sensor only (deg)'),
+        DeclareLaunchArgument('base_control', default_value='ros2_control',
+                              description='ros2_control | plugin (early force plugin, '
+                                          'ground-truth odometry)'),
+        DeclareLaunchArgument('plant', default_value='force',
+                              description='ros2_control base plant: force | wheels'),
+        DeclareLaunchArgument('odom_error', default_value='true',
+                              description='Wheel encoder error model on (force plant)'),
+        DeclareLaunchArgument('odom_seed', default_value='1',
+                              description='Seed of the encoder slip process'),
+        DeclareLaunchArgument('localization', default_value='ekf',
+                              description='ekf (wheel odometry + IMU) | wheel'),
+    ]
+
+    gzserver = ExecuteProcess(
+        cmd=['gzserver', '--verbose', '-s', 'libgazebo_ros_init.so',
+             '-s', 'libgazebo_ros_factory.so', LaunchConfiguration('world')],
+        output='screen')
+    gzclient = ExecuteProcess(cmd=['gzclient', '--verbose'], output='screen',
+                              condition=IfCondition(LaunchConfiguration('gui')))
     unthrottle = TimerAction(
         period=3.0,
         actions=[ExecuteProcess(
             cmd=['gz', 'physics', '-u',
-                 PythonExpression(['str(int(1000 * float("', LaunchConfiguration('rtf'), '")))'])],
+                 PythonExpression(['str(int(1000 * float("', LaunchConfiguration('rtf'),
+                                   '")))'])],
             output='screen')],
-        condition=IfCondition(PythonExpression(['float("', LaunchConfiguration('rtf'), '") != 1.0']))
-    )
-
-    gzclient = ExecuteProcess(
-        cmd=['gzclient', '--verbose'],
-        output='screen',
-        condition=IfCondition(LaunchConfiguration('gui'))
-    )
-
-    # 相机安装偏角（度，绕竖直轴）：0 = 名义安装（默认）；用于验证零位标定
-    declare_camera_yaw = DeclareLaunchArgument(
-        'camera_yaw_error_deg',
-        default_value='0.0',
-        description='Camera mount yaw error injected into the Gazebo sensor only (deg)'
-    )
-
-    # Spawn robot
-    spawn_entity_node = OpaqueFunction(
-        function=spawn_robot, args=[robot_name_in_model, robot_description])
-
-    # Set GAZEBO_MODEL_PATH
-    package_name = 'scr_description'
-    pkg_share = os.pathsep + os.path.join(get_package_prefix(package_name), 'share')
-    # 本包的 Gazebo 模型（AprilTag 定位标记，model://scr_apriltag_*）
-    pkg_share += os.pathsep + os.path.join(urdf_tutorial_path, 'models')
-    if 'GAZEBO_MODEL_PATH' in os.environ:
-        os.environ['GAZEBO_MODEL_PATH'] += pkg_share
-    else:
-        os.environ['GAZEBO_MODEL_PATH'] = "/usr/share/gazebo-11/models" + pkg_share
-
-    # 麦克纳姆轮控制器
-    # Python 脚本安装在 lib 目录下，不是 share 目录
-    mecanum_controller_script = os.path.join(
-        get_package_prefix('scr_description'), 'lib', 'scr_description', 'mecanum_controller.py')
-    
-    mecanum_controller_node = ExecuteProcess(
-        cmd=['python3', mecanum_controller_script],
-        output='screen'
-    )
-
-    # 启动 joint_state_broadcaster
-    joint_state_broadcaster_spawner = launch_ros.actions.Node(
-        package='controller_manager',
-        executable='spawner',
-        arguments=['joint_state_broadcaster'],
-        output='screen'
-    )
-
-    # 启动 arm_controller
-    arm_controller_spawner = launch_ros.actions.Node(
-        package='controller_manager',
-        executable='spawner',
-        arguments=['arm_controller'],
-        output='screen'
-    )
-
-    # 启动 wheel_controller
-    wheel_controller_spawner = launch_ros.actions.Node(
-        package='controller_manager',
-        executable='spawner',
-        arguments=['wheel_controller'],
-        output='screen'
-    )
-
-    # 延迟启动控制器
-    delayed_controllers = TimerAction(
-        period=5.0,
-        actions=[joint_state_broadcaster_spawner, arm_controller_spawner, wheel_controller_spawner]
-    )
-
-    return launch.LaunchDescription([
-        declare_world,
-        declare_gui,
-        declare_rtf,
-        declare_camera_yaw,
-        unthrottle,
-        robot_state_publisher_node,
-        gzserver,
-        gzclient,
-        spawn_entity_node,
-        mecanum_controller_node,
-        delayed_controllers
-    ])
-
+        condition=IfCondition(PythonExpression(['float("', LaunchConfiguration('rtf'),
+                                                '") != 1.0'])))
+    robot = OpaqueFunction(function=launch_robot, args=[robot_description])
+    return launch.LaunchDescription(args + [unthrottle, gzserver, gzclient, robot])

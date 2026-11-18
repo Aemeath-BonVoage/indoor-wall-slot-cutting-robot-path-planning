@@ -65,6 +65,8 @@ ALIGNMENT_PARAMS = {
     'lost_timeout': 10.0,              # 标记丢失超过该时间判定失败（秒）
     'sigma_hold': 0.01,                # σ_u 超过该值（米）时停车等待标记
     'fold_residual': True,             # 多站：以估计的标记位置（而非停车位姿）为墙面坐标原点
+    # 多站：站间横移时定位标记仍在视野内则继续用它更新沿墙位置（默认只用里程计外推）
+    'strafe_tag_updates': False,
 }
 
 
@@ -861,8 +863,8 @@ class CuttingSkills(Node):
 
         EKF 的沿墙估计 u 相对定位标记；fold_alignment_residual 时保留停车残差（u ≠ 0），
         后续各站以“标记位置”而不是“停车位姿”为原点。第一版语义（以停车位姿为原点）：
-        fold_alignment_residual = False 或非 visual 模式。之后关闭标记更新，站间沿墙位置
-        只由里程计外推。
+        fold_alignment_residual = False 或非 visual 模式。之后默认关闭标记更新，站间沿墙
+        位置只由里程计外推；alignment.strafe_tag_updates 为 true 时标记在视野内仍参与更新。
         """
         log, est = self.get_logger(), self.estimator
         if not est.ekf.initialized:
@@ -877,5 +879,5 @@ class CuttingSkills(Node):
             log.info(f'墙面坐标原点 = 停车位姿（精对位残差 {u_res * 1000:+.2f} mm 未计入）')
         else:
             log.info(f'墙面坐标原点 = 定位标记（停车位姿沿墙残差 {u_res * 1000:+.2f} mm 已计入）')
-        est.use_tag = False
+        est.use_tag = bool(self.align_cfg['strafe_tag_updates'])
         return u_res

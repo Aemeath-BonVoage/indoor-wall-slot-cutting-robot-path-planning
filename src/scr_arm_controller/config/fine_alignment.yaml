@@ -33,3 +33,5 @@
       # 多站执行：true = 以 EKF 估计的标记位置为墙面坐标原点（停车残差计入）；
       # false = 以精对位停车位姿为原点（第一版语义）
       fold_residual: true
+      # 多站执行：站间横移时定位标记在视野内则继续用于更新沿墙位置（false = 只用里程计外推）
+      strafe_tag_updates: false

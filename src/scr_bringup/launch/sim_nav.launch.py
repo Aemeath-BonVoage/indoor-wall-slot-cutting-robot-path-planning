@@ -7,6 +7,10 @@
   ros2 launch scr_bringup sim_nav.launch.py params_file:=/path/to/nav2_params_xxx.yaml
                                                                # 换用其他 Nav2 参数文件
   ros2 launch scr_bringup sim_nav.launch.py task:=false        # 不启动任务层（只做导航实验）
+  ros2 launch scr_bringup sim_nav.launch.py localization:=wheel  # 只用轮式里程计（不融合 IMU）
+  ros2 launch scr_bringup sim_nav.launch.py odom_error:=false     # 理想轮式里程计
+  ros2 launch scr_bringup sim_nav.launch.py plant:=wheels        # 轮子摩擦驱动底盘
+  ros2 launch scr_bringup sim_nav.launch.py base_control:=plugin # 早期力控插件（/odom 为真值）
 
 任务层就绪后执行任务：
   ros2 run scr_arm_controller navigation_cutting_task task_at_target.yaml
@@ -46,6 +50,17 @@ def generate_launch_description():
                               description='Nav2 params file (e.g. nav2_params_scr_planner.yaml)'),
         DeclareLaunchArgument('nav_delay', default_value='8.0',
                               description='Seconds to wait for Gazebo before starting Nav2'),
+        DeclareLaunchArgument('base_control', default_value='ros2_control',
+                              description='ros2_control | plugin (early force plugin, '
+                                          'ground-truth odometry)'),
+        DeclareLaunchArgument('plant', default_value='force',
+                              description='ros2_control base plant: force | wheels'),
+        DeclareLaunchArgument('odom_error', default_value='true',
+                              description='Wheel encoder error model on (force plant)'),
+        DeclareLaunchArgument('odom_seed', default_value='1',
+                              description='Seed of the encoder slip process'),
+        DeclareLaunchArgument('localization', default_value='ekf',
+                              description='ekf (wheel odometry + IMU) | wheel'),
         DeclareLaunchArgument('use_composition', default_value='True',
                               description='Nav2 servers in one container (False: one process '
                                           'per server)'),
@@ -63,6 +78,11 @@ def generate_launch_description():
             'world': LaunchConfiguration('world'),
             'gui': LaunchConfiguration('gui'),
             'rtf': LaunchConfiguration('rtf'),
+            'base_control': LaunchConfiguration('base_control'),
+            'plant': LaunchConfiguration('plant'),
+            'odom_error': LaunchConfiguration('odom_error'),
+            'odom_seed': LaunchConfiguration('odom_seed'),
+            'localization': LaunchConfiguration('localization'),
         }.items(),
     )
 

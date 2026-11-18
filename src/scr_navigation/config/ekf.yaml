@@ -1,0 +1,34 @@
+# robot_localization EKF：轮式里程计（vx, vy）+ IMU 陀螺（wz）→ /odom 与 odom → base_link
+# 平面模式；不用 IMU 的姿态（无磁力计时航向不可观）与加速度（零偏积分发散）。
+# 角速度只取陀螺：轮式里程计的 wz 含转向打滑与轮径误差引起的系统偏差，与陀螺一起融合时
+# 滤波器的角速度在两次陀螺更新之间被拉向轮式值（实测 60 s、10 rad 转动后航向误差 5°）。
+ekf_filter_node:
+  ros__parameters:
+    use_sim_time: true
+    frequency: 50.0
+    sensor_timeout: 0.1
+    two_d_mode: true
+    publish_tf: true
+    map_frame: map
+    odom_frame: odom
+    base_link_frame: base_link
+    world_frame: odom
+
+    odom0: /wheel/odom
+    odom0_config: [false, false, false,
+                   false, false, false,
+                   true,  true,  false,
+                   false, false, false,
+                   false, false, false]
+    odom0_queue_size: 10
+    odom0_differential: false
+
+    imu0: /imu
+    imu0_config: [false, false, false,
+                  false, false, false,
+                  false, false, false,
+                  false, false, true,
+                  false, false, false]
+    imu0_queue_size: 20
+    imu0_differential: false
+    imu0_remove_gravitational_acceleration: true
