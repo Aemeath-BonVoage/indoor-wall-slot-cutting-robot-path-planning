@@ -4,8 +4,8 @@
   <name>scr_viz</name>
   <version>0.1.0</version>
   <description>SCR 墙面开槽可视化与演示：RViz MarkerArray（墙面障碍 / 槽线 / 停靠站 / 刀尖轨迹）、Gazebo 墙面实体生成、演示相机录制</description>
-  <maintainer email="scr@robot.com">SCR Team</maintainer>
-  <license>Apache-2.0</license>
+  <maintainer email="Aemeath-BonVoage@users.noreply.github.com">Aemeath-BonVoage</maintainer>
+  <license>MIT</license>
 
   <depend>rclpy</depend>
   <depend>geometry_msgs</depend>

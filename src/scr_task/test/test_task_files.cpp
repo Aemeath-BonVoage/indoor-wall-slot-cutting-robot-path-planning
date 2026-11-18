@@ -1,5 +1,5 @@
-// Copyright 2026 SCR Team
-// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Aemeath-BonVoage
+// SPDX-License-Identifier: MIT
 //
 // 任务文件解析：对照实际的 11 站规划文件与单站任务文件检查（与 Python 侧
 // scr_arm_controller.slot_execution 的规则一致）.

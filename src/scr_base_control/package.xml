@@ -4,8 +4,8 @@
   <name>scr_base_control</name>
   <version>0.1.0</version>
   <description>ros2_control for the SCR mecanum base: drive controller with wheel odometry and a simulated hardware interface (force-driven body, encoder error model)</description>
-  <maintainer email="scr@robot.com">SCR Team</maintainer>
-  <license>Apache-2.0</license>
+  <maintainer email="Aemeath-BonVoage@users.noreply.github.com">Aemeath-BonVoage</maintainer>
+  <license>MIT</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 

@@ -1,5 +1,5 @@
-// Copyright 2026 SCR Team
-// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Aemeath-BonVoage
+// SPDX-License-Identifier: MIT
 //
 // 行为树任务执行器：与 Nav2 bt_navigator 相同的结构，每种任务是一个由行为树执行的 action.
 //

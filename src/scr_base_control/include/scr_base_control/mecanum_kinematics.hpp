@@ -1,5 +1,5 @@
-// Copyright 2026 SCR Team
-// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Aemeath-BonVoage
+// SPDX-License-Identifier: MIT
 //
 // 麦克纳姆轮底盘运动学与里程计积分（纯计算，不依赖 ROS）.
 //

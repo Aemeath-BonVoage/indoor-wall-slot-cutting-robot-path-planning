@@ -1,5 +1,5 @@
-// Copyright 2026 SCR Team
-// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Aemeath-BonVoage
+// SPDX-License-Identifier: MIT
 //
 // 行为树节点：技能 action 客户端（基于 nav2_behavior_tree::BtActionNode）与任务流程节点.
 //

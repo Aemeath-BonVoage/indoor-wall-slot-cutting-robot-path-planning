@@ -4,8 +4,8 @@
   <name>scr_navigation</name>
   <version>0.0.1</version>
   <description>SCR机器人导航建图功能包</description>
-  <maintainer email="user@example.com">user</maintainer>
-  <license>Apache-2.0</license>
+  <maintainer email="Aemeath-BonVoage@users.noreply.github.com">Aemeath-BonVoage</maintainer>
+  <license>MIT</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 

@@ -1,5 +1,5 @@
-// Copyright 2026 SCR Team
-// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Aemeath-BonVoage
+// SPDX-License-Identifier: MIT
 //
 // 麦克纳姆轮底盘控制器（ros2_control 控制器插件）.
 //

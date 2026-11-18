@@ -4,8 +4,8 @@
   <name>scr_description</name>
   <version>0.0.1</version>
   <description>SCR robot with 4-DOF manipulator URDF description package</description>
-  <maintainer email="user@todo.todo">user</maintainer>
-  <license>TODO</license>
+  <maintainer email="Aemeath-BonVoage@users.noreply.github.com">Aemeath-BonVoage</maintainer>
+  <license>MIT</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 

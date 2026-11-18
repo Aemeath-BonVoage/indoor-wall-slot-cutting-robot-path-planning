@@ -17,10 +17,10 @@ setup(
     ],
     install_requires=['setuptools'],
     zip_safe=True,
-    maintainer='SCR Team',
-    maintainer_email='scr@robot.com',
+    maintainer='Aemeath-BonVoage',
+    maintainer_email='Aemeath-BonVoage@users.noreply.github.com',
     description='SCR wall slot visualization (RViz markers, Gazebo wall fixtures, demo camera)',
-    license='Apache-2.0',
+    license='MIT',
     extras_require={'test': ['pytest']},
     entry_points={
         'console_scripts': [

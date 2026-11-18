@@ -1,5 +1,5 @@
-// Copyright 2026 SCR Team
-// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Aemeath-BonVoage
+// SPDX-License-Identifier: MIT
 //
 // 任务文件解析：离线开槽规划（plan_wall_slots.py 输出）与单站任务（task_at_target.yaml 格式）.
 //

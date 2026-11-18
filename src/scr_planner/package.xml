@@ -9,8 +9,8 @@
     (no horizontal chases on load-bearing walls, horizontal length limit,
     conduit bend radius). ROS-free C++ core with a C API / Python wrapper.
   </description>
-  <maintainer email="noreply@example.com">SCR Project</maintainer>
-  <license>Apache-2.0</license>
+  <maintainer email="Aemeath-BonVoage@users.noreply.github.com">Aemeath-BonVoage</maintainer>
+  <license>MIT</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
   <exec_depend>python3-numpy</exec_depend>

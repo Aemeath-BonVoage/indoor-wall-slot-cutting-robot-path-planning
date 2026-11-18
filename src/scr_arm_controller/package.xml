@@ -4,8 +4,8 @@
   <name>scr_arm_controller</name>
   <version>0.0.0</version>
   <description>SCR robot arm controller package for kinematics and control algorithms</description>
-  <maintainer email="scr@robot.com">SCR Team</maintainer>
-  <license>Apache-2.0</license>
+  <maintainer email="Aemeath-BonVoage@users.noreply.github.com">Aemeath-BonVoage</maintainer>
+  <license>MIT</license>
 
   <depend>rclpy</depend>
   <depend>std_msgs</depend>

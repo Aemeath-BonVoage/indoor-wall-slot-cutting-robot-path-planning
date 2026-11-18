@@ -1,5 +1,5 @@
-// Copyright 2026 SCR Team
-// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Aemeath-BonVoage
+// SPDX-License-Identifier: MIT
 //
 // 行为树任务执行器入口：等待 Nav2 与技能服务器就绪后自行完成 configure → activate.
 #include <chrono>
