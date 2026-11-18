@@ -33,5 +33,17 @@
       # 多站执行：true = 以 EKF 估计的标记位置为墙面坐标原点（停车残差计入）；
       # false = 以精对位停车位姿为原点（第一版语义）
       fold_residual: true
-      # 多站执行：站间横移时定位标记在视野内则继续用于更新沿墙位置（false = 只用里程计外推）
+      # 多站执行：站间横移与到站残差测量时，视野内的定位标记继续参与沿墙位置更新
+      # （false = 站间沿墙位置只用里程计外推）
       strafe_tag_updates: false
+      # 横移前机械臂回观测位姿，使墙上的标记在画面内（只在 strafe_tag_updates 时生效）
+      observe_between_stations: true
+      # 标记地图（相对路径按本包 config 目录解析；空串 = 只有 tag_id 一个标记）。
+      # 格式见 scr_arm_controller/tag_map.py，世界中的标记由 scr_description 的
+      # scripts/generate_apriltag_model.py 生成
+      tag_map: ''
+      # 横移比例修正 s 作为 EKF 的第四个状态在线估计（真实横移 = (1 + s)·里程计横移）
+      estimate_scale: false
+      scale_init: 0.0             # s 的先验（可填离线标定值）
+      scale_sigma: 0.05           # s 的先验标准差
+      # 实验与对比见 docs/experiments/along_wall_accuracy/README.md

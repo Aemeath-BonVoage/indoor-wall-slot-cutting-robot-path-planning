@@ -162,6 +162,7 @@ class SkillServer:
             if g.standoff > 0.0:
                 sk.distance_from_marker = g.standoff
             sk.set_phase('move', station=-1)
+            sk.observe_before_strafe()
             ok = sk.strafe_to(g.lateral_offset, max_lin=g.max_speed or 0.1,
                               timeout=g.timeout or 60.0, ready_cb=feedback)
             if sk.abort_requested():
@@ -177,6 +178,7 @@ class SkillServer:
             res.lateral_error = float(X[1] - g.lateral_offset)
             res.standoff_error = float(X[0] - sk.distance_from_marker)
             res.yaw_error = float(X[2])
+            res.odom_since_fix = float(sk.estimator.odom_since_fix)
             accept = ok or residual_is_compensable(res.lateral_error, res.standoff_error,
                                                    res.yaw_error)
             res.message = ('converged' if ok else

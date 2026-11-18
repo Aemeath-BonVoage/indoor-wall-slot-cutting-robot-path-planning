@@ -21,6 +21,7 @@ spin 本节点）。
 """
 
 import math
+import os
 import time
 
 import rclpy
@@ -31,10 +32,16 @@ from rclpy.duration import Duration
 from rclpy.node import Node
 from rclpy.parameter import Parameter
 
+try:
+    from ament_index_python.packages import get_package_share_directory
+except ImportError:            # 纯算法测试环境
+    get_package_share_directory = None
+
 from scr_arm_controller.base_hold import BaseHold
 from scr_arm_controller.cartesian_cutting import CartesianCuttingController
 from scr_arm_controller.docking_control import ConvergenceMonitor, WallAlignController
 from scr_arm_controller.slot_execution import cut_phases
+from scr_arm_controller.tag_map import TagMap, resolve_path
 from scr_arm_controller.trajectory_visualizer import TrajectoryVisualizer
 from scr_arm_controller.visual_servo import pbvs_command
 from scr_arm_controller.visual_servo_ros import WallMarkerServo
@@ -65,8 +72,18 @@ ALIGNMENT_PARAMS = {
     'lost_timeout': 10.0,              # 标记丢失超过该时间判定失败（秒）
     'sigma_hold': 0.01,                # σ_u 超过该值（米）时停车等待标记
     'fold_residual': True,             # 多站：以估计的标记位置（而非停车位姿）为墙面坐标原点
-    # 多站：站间横移时定位标记仍在视野内则继续用它更新沿墙位置（默认只用里程计外推）
+    # 多站：站间横移与到站残差测量时，视野内的定位标记继续参与沿墙位置更新
     'strafe_tag_updates': False,
+    # 横移前机械臂先回观测位姿（滑台 observe_joint1、伸缩轴缩回），使墙上的标记处在画面内、
+    # 不被机械臂遮挡；只在 strafe_tag_updates 时生效。切割位姿下滑台较低，标记落在画面上沿外
+    'observe_between_stations': True,
+    # 标记地图（tag_map.py 的 YAML；相对路径按本包 config 目录解析）。空串 = 只有 tag_id
+    # 一个标记，站间沿墙位置只能由里程计外推
+    'tag_map': '',
+    # 横移比例修正 s 作为 EKF 的第四个状态在线估计（真实横移 = (1 + s)·里程计横移）
+    'estimate_scale': False,
+    'scale_init': 0.0,                 # s 的先验（可填离线标定值）
+    'scale_sigma': 0.05,               # s 的先验标准差
 }
 
 
@@ -148,9 +165,14 @@ class CuttingSkills(Node):
         self.align_cfg = {k: self.get_parameter('alignment.' + k).value
                           for k in ALIGNMENT_PARAMS}
         a = self.align_cfg
-        self.servo = WallMarkerServo(self, detector=a['detector'], tag_family=a['tag_family'],
-                                     tag_id=int(a['tag_id']), tag_size=float(a['tag_size']))
-        self.estimator = WallStateEstimator(self, self.servo, odom_topic=self.odom_topic)
+        self.tag_map = self.load_tag_map()
+        self.servo = WallMarkerServo(self, detector=a['detector'], tag_family=self.tag_map.family,
+                                     tag_id=self.tag_map.reference_id, tag_size=self.tag_map.size)
+        self.servo.tag_ids = self.tag_map.ids
+        self.estimator = WallStateEstimator(
+            self, self.servo, odom_topic=self.odom_topic, tag_map=self.tag_map,
+            estimate_scale=bool(a['estimate_scale']), scale_init=float(a['scale_init']),
+            scale_sigma=float(a['scale_sigma']))
         self.apply_alignment_config()
         self.align_trace = []           # 最近一次对位的逐周期记录（实验用）
         self.fold_alignment_residual = bool(a['fold_residual'])
@@ -168,6 +190,29 @@ class CuttingSkills(Node):
         self.servo_feedback = None      # 墙面闭环每周期的估计回调（action 反馈）
 
         self.get_logger().info('切割任务技能库已初始化')
+
+    def load_tag_map(self):
+        """按 alignment.tag_map 加载标记地图；空串时只有参考标记 alignment.tag_id."""
+        a, log = self.align_cfg, self.get_logger()
+        config_dir = None
+        if get_package_share_directory is not None:
+            try:
+                config_dir = os.path.join(get_package_share_directory('scr_arm_controller'),
+                                          'config')
+            except Exception:  # noqa: BLE001
+                config_dir = None
+        path = resolve_path(str(a['tag_map']), config_dir)
+        if path is None:
+            m = TagMap.single(int(a['tag_id']), a['tag_family'], float(a['tag_size']))
+            log.info(f'标记地图：只有参考标记 {m.reference_id}（站间沿墙位置由里程计外推）')
+            return m
+        m = TagMap.load(path)
+        if m.reference_id != int(a['tag_id']):
+            log.warn(f'标记地图的参考标记 {m.reference_id} 与 alignment.tag_id = {a["tag_id"]} '
+                     f'不同，以地图为准')
+        log.info(f'标记地图 {path}：{len(m)} 个标记，最大间距 {m.spacing():.2f} m，'
+                 f'位置误差 σ = {m.sigma(m.ids[-1]) * 1000:.1f} mm')
+        return m
 
     def apply_alignment_config(self, **overrides):
         """应用（并可覆盖）精对位参数：检测器、零位标定偏置、容差."""
@@ -412,12 +457,19 @@ class CuttingSkills(Node):
             self._guard_active = False
         return cmd
 
-    def move_arm_for_approach(self, joint1=0.0):
+    def move_arm_for_approach(self, joint1=0.0, duration=2.0):
         """接近墙面前把机械臂移到安全位姿：滑台高度 joint1，伸缩轴完全缩回."""
         self.get_logger().info(
             f'机械臂移至接近位姿 joint1={joint1:.2f} m, joint3={self.approach_joint3:+.3f} m（缩回）')
-        self.arm_controller.move_to_joints([joint1, 0.0, self.approach_joint3, 0.0], duration=2.0)
+        self.arm_controller.move_to_joints([joint1, 0.0, self.approach_joint3, 0.0],
+                                           duration=duration)
         self.sleep_sim(0.5)
+
+    def observe_before_strafe(self):
+        """站间横移使用标记更新时，先把机械臂移到观测位姿（见 observe_between_stations）."""
+        a = self.align_cfg
+        if self.estimator.use_tag and bool(a['observe_between_stations']):
+            self.move_arm_for_approach(joint1=self.observe_joint1, duration=1.5)
 
     def make_align_controller(self, dt, max_lin=None):
         a = self.align_cfg
@@ -821,8 +873,8 @@ class CuttingSkills(Node):
         """
         横移到沿墙 u = du_target（相对定位标记，面向墙面向右为正，米）处，离墙 distance_from_marker.
 
-        与精对位共用墙面相对状态估计（EKF）与控制律：沿墙位置由里程计增量外推（站间默认
-        不用标记更新，见 run_slot_plan），离墙距离与朝向由激光更新。也用于从 Nav2 的离墙位姿
+        与精对位共用墙面相对状态估计（EKF）与控制律：沿墙位置由里程计增量外推（估计横移
+        比例修正时按修正后的增量），视野内有地图标记时由标记更新，离墙距离与朝向由激光更新。也用于从 Nav2 的离墙位姿
         （nav_standoff）接近墙面。剩余误差由到站后的机械臂点补偿消除。
         """
         tol_lat, tol_norm, tol_yaw = self.strafe_tol
@@ -868,8 +920,8 @@ class CuttingSkills(Node):
 
         EKF 的沿墙估计 u 相对定位标记；fold_alignment_residual 时保留停车残差（u ≠ 0），
         后续各站以“标记位置”而不是“停车位姿”为原点。第一版语义（以停车位姿为原点）：
-        fold_alignment_residual = False 或非 visual 模式。之后默认关闭标记更新，站间沿墙
-        位置只由里程计外推；alignment.strafe_tag_updates 为 true 时标记在视野内仍参与更新。
+        fold_alignment_residual = False 或非 visual 模式。alignment.strafe_tag_updates 为 true
+        （默认）时，之后视野内的地图标记继续参与更新；false 时站间沿墙位置只由里程计外推。
         """
         log, est = self.get_logger(), self.estimator
         if not est.ekf.initialized:
@@ -879,6 +931,7 @@ class CuttingSkills(Node):
                     break
                 self.sleep_sim(0.1)
         u_res = float(est.ekf.x[1]) if est.ekf.initialized else 0.0
+        est.reset_tag_log()
         if self.positioning_mode != 'visual' or not self.fold_alignment_residual:
             est.rebase_u(0.0)
             log.info(f'墙面坐标原点 = 停车位姿（精对位残差 {u_res * 1000:+.2f} mm 未计入）')

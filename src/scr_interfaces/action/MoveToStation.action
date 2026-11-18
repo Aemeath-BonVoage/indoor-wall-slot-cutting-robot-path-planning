@@ -12,6 +12,7 @@ float64 lateral_error        # 结束时的估计残差（米 / 米 / 弧度）
 float64 standoff_error
 float64 yaw_error
 float64 duration
+float64 odom_since_fix       # 到站时自上次接受标记更新以来的沿墙里程计行程（米）
 ---
 float64 lateral_error
 float64 standoff_error

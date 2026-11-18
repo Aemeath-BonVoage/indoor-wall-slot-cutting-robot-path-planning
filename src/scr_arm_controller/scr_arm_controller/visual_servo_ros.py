@@ -51,13 +51,16 @@ class WallMarkerServo:
         self.detector = detector
         self.detectors = {detector}
         self.tag_family, self.tag_id, self.tag_size = tag_family, tag_id, tag_size
+        # 需要输出的标记 ID 集合（多标记地图）；None 表示只用 tag_id
+        self.tag_ids = None
         self._tag_detector = None
         self.tag_sigma_px = 0.2         # 角点噪声（像素，用于测量协方差）
         self.blob_sigma_px = 0.5        # 色块质心噪声（像素）
 
         self.scan = None
         self.detection = None           # 色块 (u, v, stamp)
-        self.tag = None                 # AprilTag dict(corners, center, stamp)
+        self.tag = None                 # AprilTag（tag_id）dict(id, corners, center, stamp)
+        self.tags = {}                  # 本帧检测到的地图内标记 {id: dict}
         self.K = None                   # (fx, fy, cx, cy)
         self._filtered = None
 
@@ -96,8 +99,10 @@ class WallMarkerServo:
         if 'apriltag' in self.detectors:
             if self._tag_detector is None:
                 self._tag_detector = fd.make_detector(self.tag_family, refine='subpix')
-            tags = fd.detect_apriltags(img, self._tag_detector, self.tag_id)
-            self.tag = None if not tags else dict(tags[0], stamp=stamp)
+            wanted = {self.tag_id} if self.tag_ids is None else set(self.tag_ids)
+            tags = fd.detect_apriltags(img, self._tag_detector, None)
+            self.tags = {t['id']: dict(t, stamp=stamp) for t in tags if t['id'] in wanted}
+            self.tag = self.tags.get(self.tag_id)
 
     # ---------- 工具 ----------
     def _fresh(self, stamp):
@@ -154,32 +159,44 @@ class WallMarkerServo:
     # ---------- 相机：标记在 base_link 中的位置 ----------
     def tag_in_base(self, stamp_after=None):
         """
-        标记（AprilTag）中心在 base_link 中的位置与协方差 → (dict(p, cov, stamp, corners), None).
+        参考标记（tag_id）中心在 base_link 中的位置与协方差 → (dict(id, p, cov, stamp, corners), None).
 
         stamp_after：只返回比该时间戳更新的检测（避免同一帧重复更新滤波器）。
         """
+        tags, why = self.tags_in_base(stamp_after, ids=(self.tag_id,))
+        return (tags[0], None) if tags else (None, why)
+
+    def tags_in_base(self, stamp_after=None, ids=None):
+        """
+        本帧检测到的全部地图内标记 → ([dict(id, p, cov, stamp, corners), ...], 原因).
+
+        ids：只返回这些 ID（None = 全部）。同一帧中的多个标记共享时间戳。
+        """
         if self.K is None:
-            return None, '未收到相机内参'
-        tag = self.tag
-        if tag is None or not self._fresh(tag['stamp']):
-            return None, '未检测到 AprilTag'
-        if stamp_after is not None and tag['stamp'] <= stamp_after:
-            return None, '无新图像'
-        corners = tag['corners']
-        if self.pixel_noise > 0:
-            corners = corners + self.rng.normal(0.0, self.pixel_noise, corners.shape)
-        pose = fd.tag_pose(corners, self.K_matrix(), self.tag_size)
-        if pose is None:
-            return None, 'PnP 失败'
-        _, t_cam = pose
+            return [], '未收到相机内参'
+        tags = [t for i, t in sorted(self.tags.items()) if ids is None or i in ids]
+        if not tags or not self._fresh(tags[0]['stamp']):
+            return [], '未检测到 AprilTag'
+        if stamp_after is not None and tags[0]['stamp'] <= stamp_after:
+            return [], '无新图像'
         try:
             p_cb, R_cb = self._lookup(self.base_frame, self.camera_frame)
         except Exception as e:  # noqa: BLE001
-            return None, f'TF 查询失败: {e}'
+            return [], f'TF 查询失败: {e}'
         sigma = math.hypot(self.tag_sigma_px, self.pixel_noise)
-        cov_cam = fd.tag_position_covariance(t_cam, self.K[0], self.tag_size, sigma_px=sigma)
-        return {'p': p_cb + R_cb @ t_cam, 'cov': R_cb @ cov_cam @ R_cb.T,
-                'stamp': tag['stamp'], 'corners': corners}, None
+        out = []
+        for tag in tags:
+            corners = tag['corners']
+            if self.pixel_noise > 0:
+                corners = corners + self.rng.normal(0.0, self.pixel_noise, corners.shape)
+            pose = fd.tag_pose(corners, self.K_matrix(), self.tag_size)
+            if pose is None:
+                continue
+            _, t_cam = pose
+            cov_cam = fd.tag_position_covariance(t_cam, self.K[0], self.tag_size, sigma_px=sigma)
+            out.append({'id': tag['id'], 'p': p_cb + R_cb @ t_cam, 'cov': R_cb @ cov_cam @ R_cb.T,
+                        'stamp': tag['stamp'], 'corners': corners})
+        return out, (None if out else 'PnP 失败')
 
     def blob_in_base(self, wall, stamp_after=None):
         """

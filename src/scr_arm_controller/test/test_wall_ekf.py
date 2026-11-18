@@ -125,3 +125,120 @@ def test_relative_pose_composes_with_ekf_prediction():
     f.reset(*wall_state(a))
     f.predict(*relative_pose(a, b))
     assert np.allclose(f.x, wall_state(b), atol=1e-12)
+
+
+# ----------------------------------------------------------------------
+# 多标记地图与横移比例修正
+# ----------------------------------------------------------------------
+def test_tag_model_with_map_offset_is_a_shift_of_u():
+    X = np.array([0.7, 0.62, math.radians(3)])
+    shifted = X - np.array([0.0, 0.6, 0.0])
+    assert np.allclose(WallEKF.h_tag(X, 0.6), WallEKF.h_tag(shifted))
+    H = WallEKF.H_tag(X, 0.6)
+    eps = 1e-7
+    for j in range(3):
+        dX = np.zeros(3)
+        dX[j] = eps
+        num = (WallEKF.h_tag(X + dX, 0.6) - WallEKF.h_tag(X - dX, 0.6)) / (2 * eps)
+        assert np.allclose(H[:, j], num, atol=1e-6)
+    d, u, psi, _ = WallEKF.init_from((X[0], -X[2]), WallEKF.h_tag(X, 0.6), u_tag=0.6)
+    assert (d, u, psi) == pytest.approx(tuple(X), abs=1e-12)
+
+
+def test_mapped_tag_corrects_along_wall_position():
+    """在 u = 0.62 处看到 u = 0.6 的标记：先验偏 2 cm 的 u 被拉回真值."""
+    rng = np.random.default_rng(1)
+    truth = np.array([0.70, 0.62, 0.0])
+    f = WallEKF()
+    f.reset(0.70, 0.64, 0.0, sigma=(0.005, 0.03, 0.01))
+    for _ in range(60):
+        f.predict(0.0, 0.0, 0.0)
+        f.update_wall(*(WallEKF.h_wall(truth) + rng.multivariate_normal(np.zeros(2), R_WALL)),
+                      R_WALL)
+        z = WallEKF.h_tag(truth, 0.6) + rng.multivariate_normal(np.zeros(2), R_TAG)
+        f.update_tag(z, R_TAG, u_tag=0.6)
+    assert f.x[1] == pytest.approx(0.62, abs=0.5e-3)
+    assert f.stats['tag'][1] == 0
+
+
+def test_map_uncertainty_keeps_a_misplaced_tag_from_being_rejected():
+    """标记实际偏 4 mm：不计地图误差时被当成离群值拒收，计入 σ_map = 2 mm 后接受."""
+    truth = np.array([0.70, 0.30, 0.0])
+    z = WallEKF.h_tag(truth, 0.6 + 0.004)        # 实际粘贴位置 0.604，地图记 0.6
+    results = {}
+    for sigma_map in (0.0, 0.002):
+        f, _ = run_static(np.array([0.70, 0.30, 0.0]), n=80)
+        ok, nis = f.update_tag(z, R_TAG, u_tag=0.6, sigma_map=sigma_map)
+        results[sigma_map] = ok
+    assert results == {0.0: False, 0.002: True}
+
+
+def strafe(f, truth, du, lateral_slip, tag_window, steps, rng, tags=(0.0,)):
+    """真值横移 du（沿墙，向右为正）；编码器高估横移 lateral_slip；|u − u_i| < tag_window 时看到标记 i."""
+    step = du / steps
+    for _ in range(steps):
+        truth[1] += step
+        dy_odom = -step * (1.0 + lateral_slip)   # 正对墙面：向右 = 机体 −y
+        f.predict(0.0, dy_odom, 0.0)
+        f.update_wall(*(WallEKF.h_wall(truth) + rng.multivariate_normal(np.zeros(2), R_WALL)),
+                      R_WALL)
+        for ut in tags:
+            if abs(truth[1] - ut) < tag_window:
+                z = WallEKF.h_tag(truth, ut) + rng.multivariate_normal(np.zeros(2), R_TAG)
+                f.update_tag(z, R_TAG, u_tag=ut)
+
+
+def far_station_error(estimate_scale, slip=0.03, seed=2):
+    """标记在 u = 0，视野 ±0.4 m；从 −0.25 横移到 +0.9 m，返回终点的估计误差与滤波器."""
+    rng = np.random.default_rng(seed)
+    truth = np.array([0.70, -0.25, 0.0])
+    f = WallEKF(estimate_scale=estimate_scale)
+    f.reset(*truth, sigma=(0.002, 0.002, 0.002))
+    strafe(f, truth, 1.15, slip, 0.4, 230, rng)
+    return f.x[1] - truth[1], f
+
+
+def test_scale_state_removes_dead_reckoning_drift_beyond_the_tag():
+    e_plain, _ = far_station_error(False)
+    e_scale, f = far_station_error(True)
+    # 不估计 s：出视野后的 0.5 m 按 3 % 累积（停得偏近 → 估计偏大）
+    assert e_plain == pytest.approx(0.5 * 0.03, rel=0.25)
+    assert abs(e_scale) < 0.2 * abs(e_plain)
+    s, sig_s = f.scale
+    assert s == pytest.approx(1.0 / 1.03 - 1.0, abs=3 * sig_s + 1e-3)
+    assert sig_s < 0.01
+
+
+def test_scale_is_not_observable_from_a_round_trip():
+    """往返同一位置：去程、回程的比例误差相互抵消，s 没有被约束（σ_s 仍接近先验）."""
+    rng = np.random.default_rng(4)
+    truth = np.array([0.70, 0.0, 0.0])
+    f = WallEKF(estimate_scale=True, scale_sigma=0.05)
+    f.reset(*truth, sigma=(0.002, 0.002, 0.002))
+    for _ in range(20):                                    # 静止看标记
+        f.predict(0.0, 0.0, 0.0)
+        f.update_tag(WallEKF.h_tag(truth) + rng.multivariate_normal(np.zeros(2), R_TAG), R_TAG)
+    strafe(f, truth, 0.8, 0.03, 0.0, 80, rng)             # 出视野（tag_window = 0）
+    strafe(f, truth, -0.8, 0.03, 0.0, 80, rng)
+    for _ in range(20):                                    # 回到原处再看标记
+        f.predict(0.0, 0.0, 0.0)
+        f.update_tag(WallEKF.h_tag(truth) + rng.multivariate_normal(np.zeros(2), R_TAG), R_TAG)
+    assert f.scale[1] > 0.8 * 0.05
+
+
+def test_scale_survives_a_new_alignment():
+    _, f = far_station_error(True)
+    s, sig = f.scale
+    f.clear()
+    assert not f.initialized and f.scale == (pytest.approx(s), pytest.approx(sig))
+    f.reset(0.7, 0.0, 0.0)
+    assert f.x[3] == pytest.approx(s) and math.sqrt(f.P[3, 3]) == pytest.approx(sig)
+    assert f.sigma().shape == (3,)
+
+
+def test_known_scale_corrects_the_prediction():
+    f = WallEKF(estimate_scale=True, scale_init=-0.03, scale_sigma=1e-6)
+    f.reset(0.7, 0.0, 0.0)
+    f.predict(0.0, -0.1, 0.0)                     # 里程计向右 0.1 m
+    assert f.x[1] == pytest.approx(0.097)
+    assert f.correct_increment(-0.1) == pytest.approx(-0.097)
