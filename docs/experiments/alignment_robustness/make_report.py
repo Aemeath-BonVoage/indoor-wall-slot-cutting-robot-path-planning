@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
 汇总精对位对比实验：合并各次运行的 trials.csv，输出 summary.csv、robustness.png、
-traces.png 以及 README 用的 Markdown 表格.
+traces.png 以及 README 用的 Markdown 表格；各次运行目录与 v1_baseline/ 下的 robustness.png
+由各自的 summary.csv 重绘。图使用 docs/figstyle 的统一样式（英文，PDF + PNG）.
 
   python3 docs/experiments/alignment_robustness/make_report.py
 """
@@ -22,8 +23,22 @@ SUPERSEDED = {('run_nominal_launch', 'occlusion_static', 'v2'),
               ('run_nominal_launch', 'nominal', 'v2_taught')}
 AIM_D = 0.70       # 瞄准点：base_link x 轴与墙面的交点（离墙 0.70 m）
 sys.path.insert(0, os.path.join(HERE, '..', '..', '..', 'src', 'scr_arm_controller'))
+sys.path.insert(0, os.path.join(HERE, '..', '..'))
 
-from scr_arm_controller.alignment_benchmark import COND_ORDER, PIPELINES, plot  # noqa: E402
+import figstyle as fs  # noqa: E402
+from scr_arm_controller.alignment_benchmark import COND_ORDER, PIPELINES  # noqa: E402
+
+# 图中的英文名称
+COND_EN = {
+    'nominal': 'Nominal', 'odom_drift_3cm': 'Odom. drift\n3 cm, 1°',
+    'odom_drift_10cm': 'Odom. drift\n10 cm, 3°', 'drift_10cm_noguard': 'Drift 10 cm,\nno guard',
+    'sensor_noise_low': 'Noise\n2 px, 2 cm', 'sensor_noise_high': 'Noise\n5 px, 5 cm',
+    'light_strong': 'Strong\nlight', 'light_cool': 'Cool\nlight',
+    'occlusion_intermittent': 'Intermittent\nocclusion', 'occlusion_static': 'Static\nocclusion',
+    'camera_yaw_1deg': 'Camera\nyaw 1°'}
+PIPE_EN = {'v1': 'v1 (colour blob + PBVS)', 'v2': 'v2 (AprilTag + LiDAR EKF)',
+           'v2_blob': 'v2 estimator + colour blob', 'v2_taught': 'v2 + taught zero offset'}
+PIPE_ROLE = {'v1': 'baseline', 'v2': 'proposed', 'v2_blob': 'alt', 'v2_taught': 'alt2'}
 
 
 def load():
@@ -95,19 +110,98 @@ def markdown(summary):
     return '\n'.join(lines)
 
 
+def plot_robustness(summary, path):
+    """各条件、各流水线的真值位置误差（均值 ± 标准差）；全部失败的格只标注."""
+    conds = [c for c in COND_ORDER if any(s['condition'] == c for s in summary)]
+    pipes = [p for p in PIPELINES if any(s['pipeline'] == p for s in summary)]
+    top = 16.0
+    wide = len(conds) > 3
+    fig, ax = fs.subplots(width='double' if wide else 'single', height=2.5 if wide else 2.2)
+    width = min(0.8 / len(pipes), 0.3)
+    for j, c in enumerate(conds):
+        present = [p for p in pipes
+                   if any(s['condition'] == c and s['pipeline'] == p for s in summary)]
+        for i, p in enumerate(present):
+            s = next(s for s in summary if s['condition'] == c and s['pipeline'] == p)
+            x = j + (i - (len(present) - 1) / 2) * width
+            n, ok = int(s['n']), int(s['success'])
+            if ok == 0:
+                ax.text(x, 0.3, f'all {n} failed', rotation=90, ha='center', va='bottom',
+                        fontsize=7, color=fs.color(PIPE_ROLE[p]))
+                continue
+            ax.bar(x, float(s['pos_mean_mm']), width, yerr=float(s['pos_std_mm']),
+                   error_kw=dict(lw=0.6, capsize=1.5), **fs.bar(PIPE_ROLE[p]))
+            if ok < n:
+                ax.text(x, min(float(s['pos_mean_mm']) + float(s['pos_std_mm']) + 0.3, top - 1),
+                        f'{ok}/{n}', ha='center', va='bottom', fontsize=7)
+    for p in pipes:
+        ax.bar(0, 0, 0, label=PIPE_EN[p], **fs.bar(PIPE_ROLE[p]))
+    ax.set_xticks(range(len(conds)))
+    ax.set_xticklabels([COND_EN.get(c, c) for c in conds])
+    ax.set_xlim(-0.6, len(conds) - 0.4)
+    ax.set_ylabel(fs.label('Final position error', 'mm'))
+    ax.set_ylim(0, top)
+    if wide:
+        ax.legend(ncol=2, loc='upper left')
+    else:
+        ax.legend(ncol=1, loc='lower left', bbox_to_anchor=(0, 1.0))
+    fs.save(fig, path)
+
+
+def plot_v1_archive(path):
+    """v1_baseline/：第一版的里程计对位与视觉 PBVS（存档实验，对数纵轴）."""
+    p = os.path.join(HERE, 'v1_baseline', 'summary.csv')
+    with open(p) as fh:
+        rows = list(csv.DictReader(fh))
+    conds = list(dict.fromkeys(r['condition'] for r in rows))
+    modes = [('odom', 'Odometry only (baseline)', 'baseline'),
+             ('visual', 'Visual PBVS (LiDAR + colour blob)', 'proposed')]
+    fig, ax = fs.subplots(width='single', height=2.4)
+    w = 0.38
+    for i, (m, lab, role) in enumerate(modes):
+        for j, c in enumerate(conds):
+            r = next((r for r in rows if r['condition'] == c and r['mode'] == m), None)
+            if r is None:
+                continue
+            present = [mm for mm, _, _ in modes
+                       if any(q['condition'] == c and q['mode'] == mm for q in rows)]
+            x = j + (present.index(m) - (len(present) - 1) / 2) * w
+            mean, std = float(r['pos_mean_mm']), float(r['pos_std_mm'])
+            # 对数纵轴：柱从坐标下限 1 mm 画起，下误差棒截在下限以上
+            ax.bar(x, mean - 1.0, w, bottom=1.0, **fs.bar(role))
+            ax.errorbar(x, mean, yerr=[[min(std, mean - 1.05)], [std]], fmt='none',
+                        ecolor=fs.BLACK, elinewidth=0.6, capsize=1.5)
+            notes = []
+            if int(r['success']) < int(r['n']):
+                notes.append(f"{r['success']}/{r['n']}")
+            if int(r['collisions']):
+                notes.append(f"{r['collisions']} hit")
+            if notes:
+                ax.text(x, (mean + std) * 1.15, '\n'.join(notes), ha='center', va='bottom',
+                        fontsize=7)
+        ax.bar(0, 0, 0, label=lab, **fs.bar(role))
+    ax.set_yscale('log')
+    fs.plain_log(ax)
+    ax.set_ylim(1, 300)
+    ax.set_xticks(range(len(conds)))
+    ax.set_xticklabels([COND_EN.get(c, c) for c in conds], fontsize=7)
+    ax.set_xlim(-0.6, len(conds) - 0.4)
+    ax.set_ylabel(fs.label('Final position error', 'mm'))
+    fs.light_grid(ax, axis='y')
+    ax.legend(loc='lower left', bbox_to_anchor=(0, 1.0))
+    fs.save(fig, path)
+
+
 def plot_traces(path):
     """本版名义条件与间歇遮挡条件的估计时间历程（沿墙估计、σ_u、标记更新）."""
     p = os.path.join(HERE, 'traces.csv')
     if not os.path.exists(p):
         return
-    import matplotlib
-    matplotlib.use('Agg')
-    import matplotlib.pyplot as plt
-    plt.rcParams['font.family'] = ['Noto Sans CJK JP', 'DejaVu Sans']
     with open(p) as fh:
         tr = list(csv.DictReader(fh))
-    fig, ax = plt.subplots(1, 3, figsize=(11, 3.3))
-    for cond, col in [('nominal', '#2F6FDE'), ('occlusion_intermittent', '#D9480F')]:
+    fig, ax = fs.subplots(1, 3, width='double', height=2.3)
+    for cond, role, name in [('nominal', 'proposed', 'Nominal'),
+                             ('occlusion_intermittent', 'alt', 'Intermittent occlusion')]:
         for k in range(3):
             rs = [r for r in tr if r['condition'] == cond and r['pipeline'] == 'v2'
                   and int(r['trial']) == k and r['u'] != 'nan']
@@ -118,23 +212,28 @@ def plot_traces(path):
             d = (np.array([float(r['d']) for r in rs]) - 0.70) * 1000
             su = np.array([float(r['sigma_u']) for r in rs]) * 1000
             ok = np.array([r['tag_ok'] == 'True' for r in rs])
-            lab = {'nominal': '名义', 'occlusion_intermittent': '间歇遮挡'}[cond] if k == 0 else None
-            ax[0].plot(t, np.abs(d), color=col, lw=1, label=lab)
-            ax[1].plot(t, np.abs(u), color=col, lw=1, label=lab)
-            ax[2].plot(t, su, color=col, lw=1, label=lab)
+            lab = name if k == 0 else None
+            kw = fs.line(role, lw=0.8)
+            ax[0].plot(t, np.abs(d), label=lab, **kw)
+            ax[1].plot(t, np.abs(u), label=lab, **kw)
+            ax[2].plot(t, su, label=lab, **kw)
             if cond == 'occlusion_intermittent':
-                ax[2].plot(t[~ok], su[~ok], '.', ms=2, color=col)
-    ax[0].set_ylabel('|d − d*| 估计（mm）')
-    ax[1].set_ylabel('|u| 估计（mm）')
-    ax[2].set_ylabel('σ_u（mm），点 = 该周期无标记更新')
+                ax[2].plot(t[~ok], su[~ok], 'o', ms=1.6, color=fs.color(role), mew=0,
+                           label='No marker update' if k == 0 else None)
+    ax[0].set_ylabel(fs.label('Distance estimate |d − d*|', 'mm'))
+    ax[1].set_ylabel(fs.label('Along-wall estimate |u|', 'mm'))
+    ax[2].set_ylabel(fs.label('Std. dev. of u estimate', 'mm'))
     for a in ax:
-        a.set_xlabel('时间（s，仿真）')
+        a.set_xlabel(fs.label('Simulation time', 's'))
         a.set_yscale('log')
-        a.spines[['top', 'right']].set_visible(False)
-    ax[0].legend(frameon=False, fontsize=8)
-    fig.suptitle('本版精对位的估计时间历程（Gazebo，每个条件前 3 次试验）', fontsize=9)
-    fig.tight_layout()
-    fig.savefig(path, dpi=150)
+        fs.plain_log(a)
+    fs.panel_labels(ax)
+    h0, l0 = ax[0].get_legend_handles_labels()
+    h2, l2 = ax[2].get_legend_handles_labels()
+    fig.legend(h0 + h2[-1:], l0 + l2[-1:], loc='upper center', ncol=3,
+               bbox_to_anchor=(0.5, 1.0))
+    fs.fixed_layout(fig, left=0.42, right=0.06, bottom=0.46, top=0.36, wspace=0.62)
+    fs.save(fig, path)
 
 
 def main():
@@ -145,8 +244,15 @@ def main():
         w.writeheader()
         w.writerows({k: (round(v, 4) if isinstance(v, float) else v) for k, v in s.items()}
                     for s in summary)
-    plot(summary, os.path.join(HERE, 'robustness.png'))
+    plot_robustness(summary, os.path.join(HERE, 'robustness.png'))
     plot_traces(os.path.join(HERE, 'traces.png'))
+    # 各次运行目录的单独汇总图（由该目录的 summary.csv 重绘）
+    for r in RUNS:
+        p = os.path.join(HERE, r, 'summary.csv')
+        if os.path.exists(p) and os.path.exists(os.path.join(HERE, r, 'robustness.png')):
+            with open(p) as fh:
+                plot_robustness(list(csv.DictReader(fh)), os.path.join(HERE, r, 'robustness.png'))
+    plot_v1_archive(os.path.join(HERE, 'v1_baseline', 'robustness.png'))
     print(markdown(summary))
     print(f'\n{len(rows)} 次试验')
     # 消融：8 s 示教偏置下的 nominal / v2_taught（被 30 s 示教取代）

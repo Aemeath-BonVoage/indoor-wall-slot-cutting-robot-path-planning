@@ -1,38 +1,35 @@
-"""作图：由 trials_*.csv 与少量在线仿真生成 fig_*.png."""
+"""作图：由 trials_*.csv 与少量在线仿真生成 fig_*.png / fig_*.pdf（docs/figstyle 统一样式，英文）."""
 import math
 import os
+import sys
 
-import matplotlib
+import numpy as np
 
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt  # noqa: E402
-import numpy as np  # noqa: E402
-
-import sim  # noqa: E402
-from sim import ibvs, Scenario  # noqa: E402
+import sim
+from sim import ibvs, Scenario
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-COLORS = {'PBVS': '#2a78d6', 'IBVS': '#eb6834', 'Hybrid': '#1baf7a'}
-LABELS = {'PBVS': 'PBVS（现有）', 'IBVS': 'IBVS（四角点）', 'Hybrid': '2.5D 混合'}
-SURFACE, INK, INK2, GRID = '#fcfcfb', '#0b0b0b', '#52514e', '#e4e3df'
+sys.path.insert(0, os.path.join(HERE, '..', '..'))
+import figstyle as fs  # noqa: E402
+
+# PBVS 为系统现用方法（proposed 色），IBVS 与 2.5D 混合为被比较的备选
+ROLES = {'PBVS': 'proposed', 'IBVS': 'alt2', 'Hybrid': 'alt'}
+COLORS = {m: fs.color(r) for m, r in ROLES.items()}
+LABELS = {'PBVS': 'PBVS (current)', 'IBVS': 'IBVS (four corners)', 'Hybrid': '2.5D hybrid'}
+INK2 = fs.GREY
 METHODS = ['PBVS', 'IBVS', 'Hybrid']
 DEG = math.pi / 180
-
-plt.rcParams.update({
-    'font.family': ['Noto Sans CJK JP', 'DejaVu Sans'],
-    'axes.unicode_minus': False,
-    'figure.facecolor': SURFACE, 'axes.facecolor': SURFACE, 'savefig.facecolor': SURFACE,
-    'axes.edgecolor': GRID, 'axes.labelcolor': INK2, 'xtick.color': INK2,
-    'ytick.color': INK2, 'text.color': INK, 'axes.grid': True, 'grid.color': GRID,
-    'grid.linewidth': 0.8, 'axes.spines.top': False, 'axes.spines.right': False,
-    'lines.linewidth': 2.0, 'font.size': 10, 'axes.titlesize': 11,
-    'legend.frameon': False,
-})
+COND_EN = {'无噪声': 'No noise', '基准 0.5px/1cm': 'Base noise\n0.5 px, 1 cm',
+           '2px/2cm': '2 px, 2 cm', '5px/5cm': '5 px, 5 cm'}
+CALIB_EN = {'cam_yaw': 'Camera yaw (°)', 'cam_pitch': 'Camera pitch (°)',
+            'cam_roll': 'Camera roll (°)', 'cam_dy': 'Camera lateral offset (mm)',
+            'cam_dx': 'Camera fore-aft offset (mm)', 'lidar_yaw': 'LiDAR yaw (°)',
+            'lidar_dx': 'LiDAR fore-aft offset (mm)', 'fx_scale': 'Focal-length error (%)',
+            'cx_err': 'Principal point cx error (px)', 'cy_err': 'Principal point cy error (px)'}
 
 
 def _save(fig, name):
-    fig.savefig(os.path.join(HERE, name), dpi=130, bbox_inches='tight')
-    plt.close(fig)
+    fs.save(fig, os.path.join(HERE, name))
 
 
 def _group(rows, exp):
@@ -47,45 +44,51 @@ def _group(rows, exp):
 def fig_trajectories():
     starts = sim.random_starts(6, seed=7, dist=(0.8, 2.0), lateral=0.8, yaw_deg=35.0)
     sc = Scenario(pixel_noise=0.5, range_noise=0.01)
-    fig, axes = plt.subplots(2, 3, figsize=(13, 8.2))
+    fig, axes = fs.subplots(2, 3, width='double', height=4.0)
+    any_lost = False
     for col, m in enumerate(METHODS):
         ax, axi = axes[0, col], axes[1, col]
         for i, s in enumerate(starts):
             r = sim.run_trial(m, sc, s, seed=1000 + i, keep_traj=True)
             tr, cen = r['traj'], r['centroid']
             lost = r['status'].startswith('lost')
-            ls = ':' if lost else '-'
-            ax.plot(tr[:, 1], -tr[:, 0], ls, color=COLORS[m], lw=1.6)
-            ax.plot(tr[0, 1], -tr[0, 0], 'o', ms=5, color=INK2)
+            any_lost |= lost
+            ls = (0, (1, 1)) if lost else '-'
+            ax.plot(tr[:, 1], -tr[:, 0], ls=ls, color=COLORS[m], lw=0.9)
+            ax.plot(tr[0, 1], -tr[0, 0], 'o', ms=3, color=INK2)
             for p in tr[::12]:
-                ax.annotate('', xy=(p[1] + 0.06 * math.sin(p[2]), -p[0] - 0.06 * math.cos(p[2])),
-                            xytext=(p[1], -p[0]),
-                            arrowprops=dict(arrowstyle='-', color=COLORS[m], lw=0.8))
+                ax.plot([p[1], p[1] + 0.06 * math.sin(p[2])],
+                        [-p[0], -p[0] - 0.06 * math.cos(p[2])], color=COLORS[m], lw=0.5)
             if lost:
-                ax.plot(tr[-1, 1], -tr[-1, 0], 'x', ms=9, mew=2, color=INK)
-            axi.plot(cen[:, 0], cen[:, 1], ls, color=COLORS[m], lw=1.6)
-            axi.plot(cen[0, 0], cen[0, 1], 'o', ms=5, color=INK2)
-        ax.plot(0, sim.D_DES, '+', ms=14, mew=2, color=INK)
-        ax.set_title(LABELS[m])
-        ax.set_xlabel('沿墙横向 y (m)')
-        ax.set_ylabel('离墙距离 (m)')
-        ax.set_xlim(-0.9, 0.9)
-        ax.set_ylim(0.6, 2.1)
-        ax.invert_yaxis()
-        ax.set_aspect('equal')
+                ax.plot(tr[-1, 1], -tr[-1, 0], 'x', ms=5, mew=1.2, color=fs.BLACK)
+            axi.plot(cen[:, 0], cen[:, 1], ls=ls, color=COLORS[m], lw=0.9)
+            axi.plot(cen[0, 0], cen[0, 1], 'o', ms=3, color=INK2)
+        ax.plot(0, sim.D_DES, '+', ms=8, mew=1.2, color=fs.BLACK)
+        ax.set_xlabel(fs.label('Lateral position y', 'm'))
+        ax.set_ylabel(fs.label('Distance from wall', 'm'))
+        ax.set_xlim(-0.98, 0.98)     # 与下排像面图同一纵横比，两排面板等宽
+        ax.set_ylim(2.1, 0.6)
+        ax.set_aspect('equal', adjustable='box')
         px, _ = sim.nominal_reference()
         c = ibvs.polygon_centroid(px)
-        axi.plot(*c, '+', ms=14, mew=2, color=INK)
-        axi.add_patch(plt.Rectangle((0, 0), sim.IMG_W, sim.IMG_H, fill=False, ec=INK2, lw=1))
+        axi.plot(*c, '+', ms=8, mew=1.2, color=fs.BLACK)
+        axi.add_patch(fs.plt.Rectangle((0, 0), sim.IMG_W, sim.IMG_H, fill=False, ec=INK2, lw=0.6))
         axi.set_xlim(-20, sim.IMG_W + 20)
         axi.set_ylim(sim.IMG_H + 20, -20)
-        axi.set_aspect('equal')
-        axi.set_xlabel('u (px)')
-        axi.set_ylabel('v (px)')
-        axi.set_title('方块质心像面轨迹')
-    fig.suptitle('6 个大范围起点（E4 分布：离墙 0.8–2 m、横向 ±0.8 m、朝向 ±35°），基准噪声。'
-                 '上：俯视轨迹（短线为朝向，墙在上方）；虚线 + × = 方块出视野后停住失败',
-                 fontsize=10, color=INK2)
+        axi.set_aspect('equal', adjustable='box')
+        axi.set_xlabel(fs.label('Image u', 'px'))
+        axi.set_ylabel(fs.label('Image v', 'px'))
+        fs.panel_label(ax, 'abc'[col], f'{LABELS[m]}: top view')
+        fs.panel_label(axi, 'def'[col], f'{m}: marker centroid in image')
+    from matplotlib.lines import Line2D
+    handles = [Line2D([], [], color=INK2, marker='o', ls='none', ms=3, label='Start'),
+               Line2D([], [], color=fs.BLACK, marker='+', ls='none', ms=8, mew=1.2,
+                      label='Goal'),
+               Line2D([], [], color=INK2, lw=0.5, label='Heading (every 12th step)')]
+    if any_lost:
+        handles.append(Line2D([], [], color=fs.BLACK, ls=(0, (1, 1)), marker='x', ms=5,
+                              label='Marker left the view (stopped, failed)'))
+    fig.legend(handles=handles, loc='outside lower center', ncol=len(handles))
     _save(fig, 'fig_trajectories.png')
 
 
@@ -94,7 +97,7 @@ def fig_main(rows):
     from run_experiments import E1_CONDS
     g = _group(rows, 'E1')
     conds = [c for c, _ in E1_CONDS]
-    fig, axes = plt.subplots(1, 3, figsize=(14, 4.2))
+    fig, axes = fs.subplots(1, 3, width='double', height=2.3)
     w = 0.26
     x = np.arange(len(conds))
     for k, m in enumerate(METHODS):
@@ -102,20 +105,20 @@ def fig_main(rows):
         yaw = [np.abs([r['yaw'] for r in g[(f'{c}|stop', m)]]) / DEG for c in conds]
         tim = [np.array([r['time'] for r in g[(f'{c}|stop', m)]]) for c in conds]
         for ax, data in zip(axes, [pos, yaw, tim]):
-            ax.bar(x + (k - 1) * w, [d.mean() for d in data], w * 0.92, color=COLORS[m],
-                   label=LABELS[m], yerr=[d.std() for d in data], ecolor=INK2,
-                   error_kw=dict(lw=1, capsize=2))
-    axes[0].axhline(10, color=INK2, lw=1, ls='--')
-    axes[1].axhline(1, color=INK2, lw=1, ls='--')
-    axes[0].set_ylabel('停止时真值位置误差 (mm)')
-    axes[1].set_ylabel('停止时真值偏航误差 (°)')
-    axes[2].set_ylabel('停止时间 (s，超时记 50 s)')
+            ax.bar(x + (k - 1) * w, [d.mean() for d in data], w * 0.92,
+                   yerr=[d.std() for d in data], error_kw=dict(lw=0.6, capsize=1.5),
+                   label=LABELS[m], **fs.bar(ROLES[m]))
+    axes[0].axhline(10, **fs.line('reference', lw=0.7))
+    axes[1].axhline(1, **fs.line('reference', lw=0.7))
+    axes[0].set_ylabel(fs.label('Final position error', 'mm'))
+    axes[1].set_ylabel(fs.label('Final yaw error', '°'))
+    axes[2].set_ylabel(fs.label('Time to stop (timeout = 50 s)', 's'))
     for ax in axes:
-        ax.set_xticks(x, [c.replace(' ', '\n') for c in conds])
-        ax.grid(axis='x', visible=False)
-    axes[0].legend(loc='upper left')
-    fig.suptitle('E1：Gazebo 同分布起点 × 100，停止模式（虚线 = 1 cm / 1° 容差）',
-                 fontsize=11)
+        ax.set_xticks(x, [COND_EN.get(c, c) for c in conds], fontsize=7)
+        fs.light_grid(ax, axis='y')
+    fs.panel_labels(axes)
+    h, lab = axes[0].get_legend_handles_labels()
+    fig.legend(h, lab, loc='outside upper center', ncol=3)
     _save(fig, 'fig_main.png')
 
 
@@ -123,27 +126,29 @@ def fig_main(rows):
 def fig_noise(rows):
     from run_experiments import PIX_LEVELS, RANGE_LEVELS
     g = _group(rows, 'E2')
-    fig, axes = plt.subplots(2, 2, figsize=(11, 7.5))
+    fig, axes = fs.subplots(2, 2, width='double', height=4.2)
     for row, (kind, levels, xl) in enumerate([
-            ('pix', PIX_LEVELS, '每个角点像素噪声 σ (px)，激光 σ = 1 cm'),
-            ('range', RANGE_LEVELS, '每束激光测距噪声 σ (m)，像素 σ = 0.5 px')]):
+            ('pix', PIX_LEVELS, 'Corner pixel noise σ (px), LiDAR σ = 1 cm'),
+            ('range', RANGE_LEVELS, 'LiDAR range noise σ (m), pixel σ = 0.5 px')]):
         for m in METHODS:
             pos = [np.sqrt(np.mean(np.square([r['pos_err'] for r in g[(f'{kind}|{lv}', m)]])))
                    * 1000 for lv in levels]
             yaw = [np.sqrt(np.mean(np.square([r['yaw'] for r in g[(f'{kind}|{lv}', m)]]))) / DEG
                    for lv in levels]
-            axes[row, 0].plot(levels, pos, 'o-', ms=6, color=COLORS[m], label=LABELS[m])
-            axes[row, 1].plot(levels, yaw, 'o-', ms=6, color=COLORS[m], label=LABELS[m])
-        axes[row, 0].set_ylabel('稳态位置误差 RMS (mm)')
-        axes[row, 1].set_ylabel('稳态偏航误差 RMS (°)')
+            axes[row, 0].plot(levels, pos, label=LABELS[m], **fs.line(ROLES[m], marker=True))
+            axes[row, 1].plot(levels, yaw, label=LABELS[m], **fs.line(ROLES[m], marker=True))
+        axes[row, 0].set_ylabel(fs.label('Steady-state position RMS', 'mm'))
+        axes[row, 1].set_ylabel(fs.label('Steady-state yaw RMS', '°'))
         for ax in axes[row]:
             ax.set_xlabel(xl)
             ax.set_yscale('symlog', linthresh=0.1)
-        axes[row, 0].axhline(10, color=INK2, lw=1, ls='--')
-        axes[row, 1].axhline(1, color=INK2, lw=1, ls='--')
-    axes[0, 0].legend()
-    fig.suptitle('E2：噪声扫描（稳态模式：不停止，30 s 末 5 s 的真值 RMS；50 个起点）', fontsize=11)
-    fig.tight_layout()
+            fs.plain_ticks(ax)
+            fs.light_grid(ax, axis='y')
+        axes[row, 0].axhline(10, **fs.line('reference', lw=0.7))
+        axes[row, 1].axhline(1, **fs.line('reference', lw=0.7))
+    fs.panel_labels(axes.flat)
+    h, lab = axes[0, 0].get_legend_handles_labels()
+    fig.legend(h, lab, loc='outside upper center', ncol=3)
     _save(fig, 'fig_noise.png')
 
 
@@ -152,34 +157,37 @@ def fig_calibration(rows):
     from run_experiments import CALIB
     g = _group(rows, 'E3')
     keys = ['cam_yaw', 'cam_dy', 'cam_pitch', 'lidar_yaw', 'fx_scale', 'cx_err']
-    info = {k: (lab, lv) for k, lab, lv, _ in CALIB}
-    fig, axes = plt.subplots(2, len(keys), figsize=(3.1 * len(keys), 6.4), sharey='row')
+    info = {k: lv for k, _, lv, _ in CALIB}
+    fig, axes = fs.subplots(2, len(keys), width='double', height=3.6, sharey='row')
     for col, key in enumerate(keys):
-        lab, levels = info[key]
+        levels = info[key]
         xs = sorted(levels)
         for m in METHODS:
-            for ref, ls in [('model', '-'), ('taught', '--')]:
+            for ref, ls in [('model', '-'), ('taught', (0, (3, 1.5)))]:
                 pos, yaw = [], []
                 for lv in xs:
                     rs = g[(f'{key}|{lv}|{ref}', m)]
                     pos.append(np.mean([r['pos_err'] for r in rs]) * 1000)
                     yaw.append(np.mean(np.abs([r['yaw'] for r in rs])) / DEG)
-                kw = dict(color=COLORS[m], ls=ls, marker='o', ms=4, lw=1.6)
-                axes[0, col].plot(xs, pos, label=f'{m} {"模型" if ref == "model" else "示教"}',
-                                  **kw)
+                kw = dict(color=COLORS[m], ls=ls, marker=fs.MARKER[ROLES[m]], ms=2.6, lw=0.8,
+                          mfc='white' if ref == 'taught' else COLORS[m])
+                ref_en = 'nominal model' if ref == 'model' else 'taught at goal'
+                axes[0, col].plot(xs, pos, label=f'{m}, {ref_en}', **kw)
                 axes[1, col].plot(xs, yaw, **kw)
-        axes[0, col].set_title(lab)
-        axes[1, col].set_xlabel(lab)
-        axes[0, col].axhline(10, color=INK2, lw=1, ls=':')
-        axes[1, col].axhline(1, color=INK2, lw=1, ls=':')
+        axes[1, col].set_xlabel(CALIB_EN[key].replace(' error', '\nerror')
+                                .replace(' offset', '\noffset'))
+        axes[0, col].axhline(10, **fs.line('reference', lw=0.6))
+        axes[1, col].axhline(1, **fs.line('reference', lw=0.6))
         axes[0, col].set_yscale('symlog', linthresh=1.0)
         axes[1, col].set_yscale('symlog', linthresh=0.1)
-    axes[0, 0].set_ylabel('稳态位置误差 (mm)')
-    axes[1, 0].set_ylabel('稳态偏航误差 (°)')
-    axes[0, 0].legend(fontsize=8, ncol=1)
-    fig.suptitle('E3：标定误差敏感性（无噪声，稳态偏差；实线 = 期望值由标称模型计算，'
-                 '虚线 = 在期望位姿示教；纵轴对称对数；PBVS 的 ≈3.5 mm / 0.3° 底噪来自死区）', fontsize=11)
-    fig.tight_layout()
+        fs.plain_ticks(axes[0, col])
+        fs.plain_ticks(axes[1, col])
+        fs.panel_label(axes[0, col], 'abcdef'[col])
+        fs.panel_label(axes[1, col], 'ghijkl'[col])
+    axes[0, 0].set_ylabel(fs.label('Steady-state position error', 'mm'))
+    axes[1, 0].set_ylabel(fs.label('Steady-state yaw error', '°'))
+    h, lab = axes[0, 0].get_legend_handles_labels()
+    fig.legend(h, lab, loc='outside upper center', ncol=3)
     _save(fig, 'fig_calibration.png')
 
 
@@ -222,25 +230,24 @@ def observability_table():
 def fig_observability(rows):
     sizes = np.linspace(0.03, 0.40, 40)
     ly, _ = laser_sigma()
-    fig, axes = plt.subplots(1, 3, figsize=(14, 4.0))
+    fig, axes = fs.subplots(1, 3, width='double', height=2.4)
     yaw = [crlb(s, sim.D_DES)[0][2] / DEG for s in sizes]
     lat = [crlb(s, sim.D_DES)[0][1] * 1000 for s in sizes]
-    axes[0].plot(sizes * 100, yaw, color=COLORS['IBVS'], label='IBVS 四角点（1 px）')
-    axes[0].axhline(ly / DEG, color=COLORS['Hybrid'], ls='--', lw=1.6,
-                    label='激光拟合墙面（1 cm）')
+    axes[0].plot(sizes * 100, yaw, label='IBVS, four corners (1 px)', **fs.line('alt2'))
+    axes[0].axhline(ly / DEG, label='LiDAR wall fit (1 cm)', **fs.line('alt'))
     axes[0].set_yscale('log')
-    axes[0].set_xlabel('方块边长 (cm)')
-    axes[0].set_ylabel('单帧偏航标准差 (°)')
-    axes[0].legend()
-    axes[0].set_title('偏航可观性')
-    axes[1].plot(sizes * 100, lat, color=COLORS['IBVS'], label='IBVS 底盘横向（1 px）')
+    fs.plain_log(axes[0])
+    axes[0].set_xlabel(fs.label('Marker side length', 'cm'))
+    axes[0].set_ylabel(fs.label('Single-frame yaw std. dev.', '°'))
+    axes[0].legend(loc='upper right')
+    axes[1].plot(sizes * 100, lat, label='IBVS, base lateral (1 px)', **fs.line('alt2'))
     axes[1].axhline((sim.D_DES - sim.P_C_NOM[0]) * 0.5 / sim.K_NOM[0] * 1000,
-                    color=COLORS['Hybrid'], ls='--', lw=1.6, label='质心横向（1 px，已知朝向）')
+                    label='Centroid lateral (1 px, known yaw)', **fs.line('alt'))
     axes[1].set_yscale('log')
-    axes[1].set_xlabel('方块边长 (cm)')
-    axes[1].set_ylabel('单帧横向标准差 (mm)')
-    axes[1].legend()
-    axes[1].set_title('横向可观性')
+    fs.plain_log(axes[1])
+    axes[1].set_xlabel(fs.label('Marker side length', 'cm'))
+    axes[1].set_ylabel(fs.label('Single-frame lateral std. dev.', 'mm'))
+    axes[1].legend(loc='upper right')
     g = _group(rows, 'E7')
     labels, xs = [], []
     for i, size in enumerate(['0.05', '0.1', '0.2']):
@@ -249,17 +256,18 @@ def fig_observability(rows):
             if not rs:
                 continue
             v = np.sqrt(np.mean(np.square([r['yaw'] for r in rs]))) / DEG
-            axes[2].bar(i + (k - 1) * 0.26, v, 0.24, color=COLORS[m],
-                        label=LABELS[m] if i == 0 else None)
+            axes[2].bar(i + (k - 1) * 0.26, v, 0.24, label=LABELS[m] if i == 0 else None,
+                        **fs.bar(ROLES[m]))
         labels.append(f'{float(size)*100:.0f} cm')
         xs.append(i)
     axes[2].set_xticks(xs, labels)
-    axes[2].set_xlabel('方块边长（E7，基准噪声，稳态）')
-    axes[2].set_ylabel('闭环稳态偏航 RMS (°)')
-    axes[2].grid(axis='x', visible=False)
-    axes[2].legend()
-    axes[2].set_title('闭环结果')
-    fig.tight_layout()
+    axes[2].set_xlabel('Marker side length')
+    axes[2].set_ylabel(fs.label('Closed-loop steady-state yaw RMS', '°'))
+    axes[2].legend(loc='upper left')
+    axes[2].set_ylim(0, axes[2].get_ylim()[1] * 1.35)
+    fs.panel_labels(axes, ['Yaw observability', 'Lateral observability',
+                           'Closed loop, base noise'])
+    fs.fixed_layout(fig, left=0.45, right=0.06, bottom=0.44, top=0.2, wspace=0.62)
     _save(fig, 'fig_observability.png')
 
 
@@ -274,4 +282,3 @@ def make_all(rows):
     fig_observability(rows)
     with open(os.path.join(HERE, 'observability.md'), 'w') as f:
         f.write(observability_table() + '\n')
-

@@ -13,6 +13,9 @@
   fig_scale.png                 横移比例修正的在线估计（± 1σ）
   fig_estimate_error.png        估计的沿墙位置误差（估计 − 真值）随时间的变化
   tag_bias.csv                  标记测量误差（视线 / 垂直视线方向）随方位角的分布
+
+图使用 docs/figstyle 的统一样式（英文，PDF + PNG）：颜色表示方法组（基线 / 多标记 / 重新对位 /
+比例修正 / 默认），标记形状区分组内配置，实线 / 虚线区分打滑种子。
 """
 import csv
 import glob
@@ -51,10 +54,42 @@ LABELS = {
 ORDER = list(LABELS)
 VISIBLE = (-0.39, 0.44)   # 由 tag_window() 按数据更新
 
+# 图中的英文名称
+LABELS_EN = {
+    'single_off': 'One marker, odometry only between stations (baseline)',
+    'single_on_noobs': 'One marker, marker updates while strafing, no observe pose',
+    'single_on': 'One marker, marker updates while strafing',
+    'tags_0.3_noobs': 'Multi-marker 0.3 m, no observe pose (trial run)',
+    'tags_0.3': 'Multi-marker map, spacing 0.3 m',
+    'tags_0.6': 'Multi-marker map, spacing 0.6 m',
+    'tags_1.2': 'Multi-marker map, spacing 1.2 m',
+    'tags_0.6_err3': 'Multi-marker 0.6 m, map error ±3 mm',
+    'realign_0.15': 'One marker + re-alignment every 0.15 m',
+    'realign_0.3': 'One marker + re-alignment every 0.3 m',
+    'realign_0.6': 'One marker + re-alignment every 0.6 m',
+    'scale_single': 'One marker + strafe-scale correction',
+    'scale_realign_0.3': 'One marker + scale correction + 0.3 m re-alignment',
+    'scale_tags_1.2': 'Multi-marker 1.2 m + scale correction',
+    'scale_tags_0.6': 'Multi-marker 0.6 m + scale correction',
+    'scale_tags_0.6_err3': 'Multi-marker 0.6 m + scale correction, map error ±3 mm',
+    'default': 'Default configuration (rerun, bag recorded)',
+    'single_off_bag': 'Baseline rerun (bag recorded)',
+}
+GROUP_COLOR = {'基线': 'baseline', '多标记': 'alt', '重新对位': 'alt2', '比例修正': 'proposed',
+               '默认': 'reference'}
+GROUP_MARKERS = ('o', 's', '^', 'D', 'v', 'P')
+
 
 def color(c):
-    import matplotlib.pyplot as plt
-    return plt.get_cmap('tab20')(ORDER.index(c) % 20 if c in ORDER else 19)
+    """颜色按方法组（docs/figstyle 的语义色）."""
+    import figstyle as fs
+    return fs.color(GROUP_COLOR[LABELS[c][1]])
+
+
+def mark(c):
+    """组内配置按出现顺序分配标记形状."""
+    same = [k for k in ORDER if LABELS[k][1] == LABELS[c][1]]
+    return GROUP_MARKERS[same.index(c) % len(GROUP_MARKERS)]
 
 
 def read_csv(path):
@@ -80,12 +115,10 @@ def write_csv(path, rows):
 
 
 def setup_plot():
-    import matplotlib
-    matplotlib.use('Agg')
-    import matplotlib.pyplot as plt
-    plt.rcParams['font.family'] = ['Noto Sans CJK JP', 'DejaVu Sans']
-    plt.rcParams['axes.unicode_minus'] = False
-    return plt
+    import sys
+    sys.path.insert(0, os.path.join(HERE, '..', '..'))
+    import figstyle as fs
+    return fs
 
 
 def load_runs():
@@ -164,75 +197,83 @@ def aggregate(per_run):
     return out
 
 
-def fig_error_vs_distance(plt, runs):
+def fig_error_vs_distance(fs, runs):
+    from matplotlib.lines import Line2D
+    from matplotlib.patches import Patch
     panels = [
-        ('(a) 基线与多标记地图',
+        ('Baseline and multi-marker maps',
          ['single_off', 'single_on', 'tags_1.2', 'tags_0.6', 'tags_0.3', 'tags_0.6_err3']),
-        ('(b) 重新对位与横移比例修正',
+        ('Re-alignment and strafe-scale correction',
          ['single_on', 'realign_0.15', 'realign_0.3', 'scale_single', 'scale_tags_1.2',
           'scale_tags_0.6', 'default'])]
-    fig, axes = plt.subplots(2, 2, figsize=(11, 8.0), sharey='row', sharex=True)
+    fig, axes = fs.subplots(2, 2, width='double', height=5.6, sharey='row', sharex=True)
     for col_i, (title, cfgs) in enumerate(panels):
+        handles = []
         for row_i in range(2):
             ax = axes[row_i, col_i]
             for c in cfgs:
                 rs = [r for r in runs if r['config'] == c]
                 if not rs:
                     continue
-                col = color(c)
                 for j, r in enumerate(rs):
                     d = [fnum(s['u_c']) - MARKER_U for s in r['stations']]
                     e = ([fnum(s['lateral_mm']) for s in r['stations']] if row_i == 0
                          else list(tip_errors(r['stations'])))
-                    ax.plot(d, e, '-o' if j == 0 else '--s', color=col, ms=3.5, lw=1.2,
-                            label=f'{LABELS[c][0]}（n = {len(rs)}）' if j == 0 else None)
-            ax.axhline(0, color='0.5', lw=0.8)
-            ax.axvspan(*VISIBLE, color='0.92', zorder=0)
-            ax.grid(alpha=0.3)
-            if row_i == 0:
-                ax.set_title(title, fontsize=11)
-                ax.legend(fontsize=7.5, loc='lower left')
-            else:
-                ax.set_xlabel('停靠站相对参考标记的沿墙距离 (m)')
-    axes[0, 0].set_ylabel('到站沿墙误差（真值）(mm)')
-    axes[1, 0].set_ylabel('补偿后刀尖沿墙误差 (mm)')
-    fig.text(0.5, -0.01, '灰色区域：参考标记（ID 0）参与更新的底盘位置范围；实线 / 虚线为打滑种子 1 / 2',
-             ha='center', fontsize=8.5)
-    fig.tight_layout()
-    fig.savefig(os.path.join(HERE, 'fig_error_vs_distance.png'), dpi=150, bbox_inches='tight')
-    plt.close(fig)
+                    ax.plot(d, e, color=color(c), marker=mark(c), ms=2.8, lw=0.8,
+                            mfc='white' if j else color(c), ls='-' if j == 0 else (0, (3, 1.5)))
+                if row_i == 0:
+                    handles.append(Line2D([], [], color=color(c), marker=mark(c), ms=2.8, lw=0.8,
+                                          label=f'{LABELS_EN[c]} (n = {len(rs)})'))
+            ax.axhline(0, color=fs.GREY, lw=0.5)
+            ax.axvspan(*VISIBLE, color='0.92', lw=0, zorder=0)
+            fs.light_grid(ax)
+            if row_i == 1:
+                ax.set_xlabel(fs.label('Station distance from the reference marker', 'm'))
+        handles += [Line2D([], [], color=fs.BLACK, lw=0.8, label='Slip seed 1'),
+                    Line2D([], [], color=fs.BLACK, lw=0.8, ls=(0, (3, 1.5)), marker='o',
+                           ms=2.8, mfc='white', label='Slip seed 2'),
+                    Patch(color='0.92', label='Reference marker (ID 0) in view')]
+        axes[1, col_i].legend(handles=handles, loc='upper center', bbox_to_anchor=(0.5, -0.2),
+                              ncol=1)
+    axes[0, 0].set_ylabel(fs.label('Along-wall error on arrival', 'mm'))
+    axes[1, 0].set_ylabel(fs.label('Tool-tip along-wall error\nafter compensation', 'mm'))
+    fs.panel_labels(axes.flat, ['Baseline and multi-marker maps: arrival error',
+                                'Re-alignment and scale correction: arrival error',
+                                'Baseline and multi-marker maps: tool tip',
+                                'Re-alignment and scale correction: tool tip'])
+    fs.save(fig, os.path.join(HERE, 'fig_error_vs_distance.png'))
 
 
-def fig_accuracy_time(plt, per_run):
+def fig_accuracy_time(fs, per_run):
+    from matplotlib.lines import Line2D
     cfgs = [c for c in ORDER if any(r['config'] == c for r in per_run)]
-    fig, axes = plt.subplots(1, 2, figsize=(11, 5.4))
+    fig, axes = fs.subplots(1, 2, width='double', height=4.0)
+    handles = []
     for c in cfgs:
         rs = [r for r in per_run if r['config'] == c]
-        col = color(c)
         t = [fnum(r['sim_time_s']) for r in rs]
-        axes[0].scatter(t, [fnum(r['lateral_max_abs_mm']) for r in rs], color=col, s=28,
-                        label=LABELS[c][0])
-        axes[1].scatter(t, [fnum(r['tip_max_abs_mm']) for r in rs], color=col, s=28)
-    axes[0].set_ylabel('最大到站沿墙误差（真值）(mm)')
-    axes[1].set_ylabel('补偿后刀尖最大沿墙误差 (mm)')
+        kw = dict(color=color(c), marker=mark(c), ls='none', ms=3.5, mfc='none', mew=0.9)
+        axes[0].plot(t, [fnum(r['lateral_max_abs_mm']) for r in rs], **kw)
+        axes[1].plot(t, [fnum(r['tip_max_abs_mm']) for r in rs], **kw)
+        handles.append(Line2D([], [], label=LABELS_EN[c], **kw))
+    axes[0].set_ylabel(fs.label('Max. along-wall error on arrival', 'mm'))
+    axes[1].set_ylabel(fs.label('Max. tool-tip along-wall error', 'mm'))
     for ax in axes:
-        ax.set_xlabel('任务总耗时（仿真秒，含导航与精对位）')
+        ax.set_xlabel(fs.label('Total task time incl. navigation and alignment', 's'))
         ax.set_yscale('log')
-        ax.grid(alpha=0.3, which='both')
-    h, lab = axes[0].get_legend_handles_labels()
-    fig.legend(h, lab, loc='lower center', ncol=3, fontsize=8, bbox_to_anchor=(0.5, -0.02),
-               frameon=False)
-    fig.tight_layout(rect=(0, 0.17, 1, 1))
-    fig.savefig(os.path.join(HERE, 'fig_accuracy_time.png'), dpi=150, bbox_inches='tight')
-    plt.close(fig)
+        fs.plain_log(ax)
+        fs.light_grid(ax)
+    fs.panel_labels(axes)
+    fig.legend(handles=handles, loc='outside lower center', ncol=2)
+    fs.save(fig, os.path.join(HERE, 'fig_accuracy_time.png'))
 
 
-def fig_scale(plt, runs):
+def fig_scale(fs, runs):
     cfgs = [c for c in ('scale_single', 'scale_tags_1.2', 'scale_tags_0.6', 'default')
             if any(r['config'] == c for r in runs)]
     if not cfgs:
         return
-    fig, ax = plt.subplots(figsize=(7.5, 3.8))
+    fig, ax = fs.subplots(width='single', height=3.0)
     for i, c in enumerate(cfgs):
         for j, r in enumerate(x for x in runs if x['config'] == c):
             e = r['ekf']
@@ -242,25 +283,27 @@ def fig_scale(plt, runs):
             s = np.array([fnum(x['lateral_scale']) for x in e]) * 100
             sg = np.array([fnum(x['sigma_scale']) for x in e]) * 100
             t = t - t[0]
-            ax.plot(t, s, color=color(c), lw=1.0, ls='-' if j == 0 else '--',
-                    label=LABELS[c][0] if j == 0 else None)
+            lo, hi = -6.0, 2.0          # 纵轴范围；范围外的线段不画，±1σ 带截到范围边界
+            ax.plot(t, np.where((s >= lo) & (s <= hi), s, np.nan), color=color(c), lw=0.8,
+                    ls='-' if j == 0 else (0, (3, 1.5)), label=LABELS_EN[c] if j == 0 else None)
             if j == 0:
-                ax.fill_between(t, s - sg, s + sg, color=color(c), alpha=0.15, lw=0)
-    ax.axhline((1 / 1.03 - 1) * 100, color='k', lw=0.8, ls=':', label='编码器模型的横向打滑 3 %')
+                ax.fill_between(t, np.clip(s - sg, lo, hi), np.clip(s + sg, lo, hi),
+                                color=color(c), alpha=0.15, lw=0)
+    ax.axhline((1 / 1.03 - 1) * 100, **fs.line('reference', lw=0.8,
+                                               label='Encoder model: 3 % lateral slip'))
     ax.set_ylim(-6, 2)
-    ax.set_xlabel('时间（仿真秒，自首次估计起）')
-    ax.set_ylabel('横移比例修正 s (%)')
-    ax.grid(alpha=0.3)
-    ax.legend(fontsize=8)
-    fig.tight_layout()
-    fig.savefig(os.path.join(HERE, 'fig_scale.png'), dpi=150, bbox_inches='tight')
-    plt.close(fig)
+    ax.set_xlabel(fs.label('Time since first estimate', 's'))
+    ax.set_ylabel(fs.label('Strafe-scale correction s', '%'))
+    fs.light_grid(ax)
+    ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.22), ncol=1)
+    fs.save(fig, os.path.join(HERE, 'fig_scale.png'))
 
 
-def fig_estimate_error(plt, runs):
+def fig_estimate_error(fs, runs):
     cfgs = [c for c in ('single_off', 'single_on', 'tags_0.6', 'scale_single', 'default')
             if any(r['config'] == c for r in runs)]
-    fig, ax = plt.subplots(figsize=(7.5, 3.8))
+    fig, ax = fs.subplots(width='single', height=3.0)
+    styles = ['-', (0, (3, 1.5)), (0, (4, 1, 1, 1)), (0, (1, 1)), '-']
     for i, c in enumerate(cfgs):
         r = next(x for x in runs if x['config'] == c)
         e = r['ekf']
@@ -268,14 +311,13 @@ def fig_estimate_error(plt, runs):
             continue
         t = np.array([fnum(x['t']) for x in e])
         err = np.array([fnum(x['u']) - fnum(x['true_u']) for x in e]) * 1000
-        ax.plot(t - t[0], err, color=color(c), lw=0.9, label=f'{LABELS[c][0]}（种子 {r["seed"]}）')
-    ax.set_xlabel('时间（仿真秒，自首次估计起）')
-    ax.set_ylabel('沿墙位置估计误差 û − u (mm)')
-    ax.grid(alpha=0.3)
-    ax.legend(fontsize=8)
-    fig.tight_layout()
-    fig.savefig(os.path.join(HERE, 'fig_estimate_error.png'), dpi=150, bbox_inches='tight')
-    plt.close(fig)
+        ax.plot(t - t[0], err, color=color(c), lw=0.8, ls=styles[i % len(styles)],
+                label=f'{LABELS_EN[c]} (seed {r["seed"]})')
+    ax.set_xlabel(fs.label('Time since first estimate', 's'))
+    ax.set_ylabel(fs.label('Along-wall estimate error û − u', 'mm'))
+    fs.light_grid(ax)
+    ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.22), ncol=1)
+    fs.save(fig, os.path.join(HERE, 'fig_estimate_error.png'))
 
 
 TAG_U_WORLD = {5: -0.3, 0: 0.0, 1: 0.3, 2: 0.6, 3: 0.9, 4: 1.2}   # 世界中的实际位置
@@ -389,11 +431,11 @@ def main():
     global VISIBLE
     VISIBLE = tag_window(runs)
     print(f'标记参与更新的范围（底盘 − 标记）：{VISIBLE[0]:+.3f} … {VISIBLE[1]:+.3f} m')
-    plt = setup_plot()
-    fig_error_vs_distance(plt, runs)
-    fig_accuracy_time(plt, per_run)
-    fig_scale(plt, runs)
-    fig_estimate_error(plt, runs)
+    fs = setup_plot()
+    fig_error_vs_distance(fs, runs)
+    fig_accuracy_time(fs, per_run)
+    fig_scale(fs, runs)
+    fig_estimate_error(fs, runs)
     for r in aggregate(per_run):
         print(f"{r['config']:22s} n={r['runs']} max {r.get('lateral_max_abs_mm')} "
               f"mean {r.get('lateral_mean_abs_mm')} slope {r.get('lateral_slope_pct')} % "

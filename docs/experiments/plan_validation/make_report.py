@@ -11,7 +11,7 @@
              runs/rule_s*、runs/joint_s*（room3 南墙示例任务，align_v3 下的两份规划）
              runs/demo_joint（演示录制：联合规划 + 墙面外观实体 + 演示相机）
 输出：calibration.csv、runs_summary.csv、stations_all.csv、fig_time_model.png、
-     fig_joint_vs_rule.png（中文字体自动选择）
+     fig_joint_vs_rule.png（docs/figstyle 统一样式，英文，PDF + PNG）
 """
 import csv
 import glob
@@ -25,6 +25,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.abspath(os.path.join(HERE, '..', '..', '..'))
 sys.path.insert(0, os.path.join(REPO, 'src', 'scr_planner', 'scripts'))
 sys.path.insert(0, os.path.join(REPO, 'src', 'scr_planner', 'python'))
+sys.path.insert(0, os.path.join(REPO, 'docs'))
 import calibrate_time_model as cal  # noqa: E402
 import slot_plan as sp  # noqa: E402
 
@@ -102,89 +103,69 @@ def write_csv(path, rows):
             w.writerow({k: (f'{v:.4g}' if isinstance(v, float) else v) for k, v in r.items()})
 
 
-def cjk_font():
-    from matplotlib import font_manager
-    for name in ('Noto Sans CJK SC', 'Noto Sans CJK JP', 'Noto Serif CJK SC', 'WenQuanYi Zen Hei',
-                 'AR PL UKai CN'):
-        if any(f.name == name for f in font_manager.fontManager.ttflist):
-            return name
-    return None
-
-
 def plot_time_model(cal_rows, val_rows, out):
-    import matplotlib
-    matplotlib.use('Agg')
-    import matplotlib.pyplot as plt
-    f = cjk_font()
-    if f:
-        plt.rcParams['font.family'] = f
-    plt.rcParams['axes.unicode_minus'] = False
-    fig, axes = plt.subplots(1, 2, figsize=(10, 4.2))
+    import figstyle as fs
+    fig, axes = fs.subplots(1, 2, width='double', height=3.1)
     for ax, name in zip(axes, ('align_v2', 'align_v3')):
         p = tm_tuple(name)
-        for rows, mk, lab in ((cal_rows, 'o', '标定数据'), (val_rows, '^', '验证数据')):
-            lab += f'（{len({r["run"] for r in rows})} 次运行，{len(rows)} 站）'
+        for rows, role, lab in ((cal_rows, 'neutral', 'Calibration data'),
+                                (val_rows, 'proposed', 'Validation data')):
+            lab += f' ({len({r["run"] for r in rows})} runs, {len(rows)} stations)'
             a = cal.arrays(rows)
-            ax.scatter(a['y'], cal.predict(p, a), s=18, marker=mk, alpha=0.7, label=lab)
+            mk = 'o' if role == 'neutral' else '^'
+            ax.plot(a['y'], cal.predict(p, a), ls='none', marker=mk, ms=3.2, mfc='none',
+                    mec=fs.color(role), mew=0.7, label=lab)
         lim = [5, 40]
-        ax.plot(lim, lim, 'k--', lw=0.8)
+        ax.plot(lim, lim, label='Prediction = measurement', **fs.line('reference', lw=0.7))
         ax.set_xlim(lim)
         ax.set_ylim(lim)
-        ax.set_xlabel('实测每站耗时（s，仿真时间）')
-        ax.set_ylabel('预测每站耗时（s）')
-        e = np.concatenate([cal.predict(p, cal.arrays(r)) - cal.arrays(r)['y']
-                            for r in (val_rows,)])
-        ax.set_title(f'{name}：验证数据每站 RMSE {np.sqrt(np.mean(e ** 2)):.2f} s，'
-                     f'平均偏差 {np.mean(e):+.2f} s', fontsize=10)
-        ax.grid(alpha=0.3)
-        ax.legend(fontsize=8, loc='upper left')
-    fig.tight_layout()
-    fig.savefig(out, dpi=150)
-    plt.close(fig)
+        ax.set_aspect('equal', adjustable='box')
+        ax.set_xlabel(fs.label('Measured time per station (simulation)', 's'))
+        ax.set_ylabel(fs.label('Predicted time per station', 's'))
+        e = cal.predict(p, cal.arrays(val_rows)) - cal.arrays(val_rows)['y']
+        bias = f'{np.mean(e):+.2f}'.replace('-', '−')
+        fs.note(ax, f'Validation: RMSE {np.sqrt(np.mean(e ** 2)):.2f} s,\n'
+                    f'mean bias {bias} s', x=0.97, y=0.03, va='bottom')
+        ax.legend(loc='upper left')
+    fs.panel_labels(axes, ['Time model align_v2', 'Time model align_v3 (recalibrated)'])
+    fs.save(fig, out)
 
 
 def plot_joint_vs_rule(summ, out):
-    import matplotlib
-    matplotlib.use('Agg')
-    import matplotlib.pyplot as plt
-    f = cjk_font()
-    if f:
-        plt.rcParams['font.family'] = f
-    plt.rcParams['axes.unicode_minus'] = False
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4.0),
-                                   gridspec_kw=dict(width_ratios=[1.3, 1]))
-    groups = [('rule', '规则路线\n（88 点）'), ('joint', '联合规划\n（80 点）')]
-    for i, (g, lab) in enumerate(groups):
+    import figstyle as fs
+    fig, (ax1, ax2) = fs.subplots(1, 2, width='double', height=2.5,
+                                  gridspec_kw=dict(width_ratios=[1, 1.3]))
+    groups = [('rule', 'Rule-based routes\n(88 points)', 'baseline'),
+              ('joint', 'Joint planning\n(80 points)', 'proposed')]
+    for i, (g, lab, role) in enumerate(groups):
         rs = [r for r in summ if r['group'] == g]
         y = [r['measured_stations_s'] for r in rs]
-        ax1.scatter([i] * len(y), y, color='C0', zorder=3,
-                    label='实测（每次运行）' if i == 0 else None)
-        ax1.hlines(rs[0]['pred_align_v3_s'], i - 0.25, i + 0.25, color='C3', lw=2,
-                   label='align_v3 预测' if i == 0 else None)
-        ax1.hlines(rs[0]['pred_align_v2_s'], i - 0.25, i + 0.25, color='C7', lw=1.5, ls='--',
-                   label='align_v2 预测' if i == 0 else None)
+        ax1.plot([i] * len(y), y, zorder=3, **fs.marker(role, ms=4))
+        ax1.hlines(rs[0]['pred_align_v3_s'], i - 0.25, i + 0.25, color=fs.BLACK, lw=1.2,
+                   label='Predicted, align_v3' if i == 0 else None)
+        ax1.hlines(rs[0]['pred_align_v2_s'], i - 0.25, i + 0.25, color=fs.GREY, lw=1.0,
+                   ls=(0, (3, 1.5)), label='Predicted, align_v2' if i == 0 else None)
+    ax1.plot([], [], ls='none', marker='o', ms=4, color=fs.GREY,
+             label='Measured (one point per run)')
     ax1.set_xticks(range(len(groups)))
-    ax1.set_xticklabels([lab for _, lab in groups])
+    ax1.set_xticklabels([lab for _, lab, _ in groups])
     ax1.set_xlim(-0.6, 1.6)
-    ax1.set_ylabel('各站耗时之和（s，仿真时间）')
-    ax1.set_title('11 个停靠站的执行时间：实测 vs 预测', fontsize=10)
-    ax1.grid(alpha=0.3, axis='y')
-    ax1.legend(fontsize=8)
-    for g, c in (('rule', 'C0'), ('joint', 'C1')):
+    ax1.set_ylabel(fs.label('Sum of station times (simulation)', 's'))
+    ax1.legend(loc='upper right')
+    for g, role, name in (('rule', 'baseline', 'Rule-based routes'),
+                          ('joint', 'proposed', 'Joint planning')):
         for r in (r for r in summ if r['group'] == g):
             rows = cal.load([os.path.join(HERE, 'runs', r['run'])])
             ax2.plot([int(x['station']) + 1 for x in rows],
-                     [float(x['station_s']) for x in rows], 'o-', color=c, ms=3, lw=0.8,
-                     alpha=0.8, label={'rule': '规则路线', 'joint': '联合规划'}[g]
-                     if r['run'].endswith('s1') else None)
-    ax2.set_xlabel('停靠站（执行顺序）')
-    ax2.set_ylabel('每站耗时（s）')
-    ax2.set_title('每站耗时（每条线一次运行）', fontsize=10)
-    ax2.grid(alpha=0.3)
-    ax2.legend(fontsize=8)
-    fig.tight_layout()
-    fig.savefig(out, dpi=150)
-    plt.close(fig)
+                     [float(x['station_s']) for x in rows], lw=0.7,
+                     label=name if r['run'].endswith('s1') else None,
+                     **fs.line(role, marker=True, ms=2.6))
+    ax2.set_xlabel('Station (execution order)')
+    ax2.set_ylabel(fs.label('Time per station', 's'))
+    ax2.legend(loc='upper right')
+    fs.panel_labels([ax1, ax2], ['11 stations: measured vs. predicted',
+                                 'Time per station (one line per run)'])
+    fs.save(fig, out)
 
 
 def main():

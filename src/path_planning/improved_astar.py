@@ -659,153 +659,107 @@ class PathVisualizer:
             'enhanced': '#3498DB',    # 蓝色
         }
     
+    # 图中的英文名称与语义角色（docs/figstyle）
+    NAMES_EN = ['Standard A*', 'Improved A* (turn penalty)', 'Enhanced A* (axis-aligned)']
+    ROLES = ['neutral', 'alt2', 'proposed']
+
+    def _fs(self):
+        import sys
+        sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                        '..', '..', 'docs'))
+        import figstyle as fs
+        return fs
+
     def visualize_comparison(self, results, start, goal):
         """
-        生成多算法对比可视化（2×2布局）
-        
-        参数:
-            results: [(name, path, info, color), ...]
-            start: 起点
-            goal: 终点
+        多算法路径对比（2×2）：(a) 叠加，(b)–(d) 各算法的路径与搜索范围。
+
+        图中不标注计算耗时：耗时随机器变化，量化指标见 visualize_metrics。
         """
-        fig, axes = plt.subplots(2, 2, figsize=(18, 16))
-        fig.suptitle('基于改进A*算法的室内开槽路径规划对比分析', 
-                     fontsize=18, fontweight='bold', y=0.98)
-        
-        # --- 子图1: 所有路径叠加对比 ---
+        fs = self._fs()
+        h, w = self.grid_map.grid.shape
+        fig, axes = fs.subplots(2, 2, width='double', height=7.16 * h / w + 0.9)
         ax1 = axes[0, 0]
         self._draw_map(ax1)
-        for name, path, info, color in results:
+        for i, (name, path, info, color) in enumerate(results):
             if path:
-                px = [p[0] for p in path]
-                py = [p[1] for p in path]
-                ax1.plot(px, py, color=color, linewidth=2.5, label=name, alpha=0.85)
-        
-        ax1.plot(start[0], start[1], 'o', color='#F39C12', markersize=14, 
-                 markeredgecolor='white', markeredgewidth=2, zorder=10, label='起点')
-        ax1.plot(goal[0], goal[1], '*', color='#E74C3C', markersize=18,
-                 markeredgecolor='white', markeredgewidth=2, zorder=10, label='终点')
-        ax1.legend(loc='upper left', fontsize=10, framealpha=0.9)
-        ax1.set_title('(a) 路径对比总览', fontsize=14, fontweight='bold', pad=10)
-        
-        # --- 子图2-4: 各算法单独展示（含搜索范围热力图）---
+                ax1.plot([p[0] for p in path], [p[1] for p in path], label=self.NAMES_EN[i],
+                         **fs.line(self.ROLES[i], lw=1.2))
+        ax1.plot(start[0], start[1], 'o', color=fs.BLACK, ms=4, zorder=10, label='Start')
+        ax1.plot(goal[0], goal[1], '*', color=fs.BLACK, ms=6, zorder=10, label='Goal')
+        fs.panel_label(ax1, 'a', 'All paths')
         for idx, (name, path, info, color) in enumerate(results):
             ax = axes[(idx + 1) // 2, (idx + 1) % 2]
             self._draw_map(ax)
-            
-            # 绘制搜索范围热力图
-            if 'all_expanded' in info and info['all_expanded']:
-                expanded = info['all_expanded']
-                ex = [e[0] for e in expanded]
-                ey = [e[1] for e in expanded]
-                ax.scatter(ex, ey, c=range(len(ex)), cmap='YlOrRd', 
-                          s=1, alpha=0.3, zorder=1)
-            
-            # 绘制路径
+            if info.get('all_expanded'):
+                ex = info['all_expanded']
+                ax.scatter([e[0] for e in ex], [e[1] for e in ex], c=range(len(ex)),
+                           cmap='Oranges', s=0.4, alpha=0.5, zorder=1, rasterized=True)
             if path:
-                px = [p[0] for p in path]
-                py = [p[1] for p in path]
-                ax.plot(px, py, color=color, linewidth=3, zorder=5)
-                
-                # 标注转折点
-                turns = []
-                for i in range(1, len(path) - 1):
-                    d1 = (path[i][0] - path[i-1][0], path[i][1] - path[i-1][1])
-                    d2 = (path[i+1][0] - path[i][0], path[i+1][1] - path[i][1])
-                    if d1 != d2:
-                        turns.append(path[i])
-                
+                ax.plot([p[0] for p in path], [p[1] for p in path], zorder=5,
+                        **fs.line(self.ROLES[idx], lw=1.2))
+                turns = [path[i] for i in range(1, len(path) - 1)
+                         if (path[i][0] - path[i - 1][0], path[i][1] - path[i - 1][1]) !=
+                         (path[i + 1][0] - path[i][0], path[i + 1][1] - path[i][1])]
                 if turns:
-                    tx = [t[0] for t in turns]
-                    ty = [t[1] for t in turns]
-                    ax.scatter(tx, ty, color='yellow', s=20, zorder=6, 
-                             edgecolors='black', linewidths=0.5)
-            
-            ax.plot(start[0], start[1], 'o', color='#F39C12', markersize=12,
-                    markeredgecolor='white', markeredgewidth=2, zorder=10)
-            ax.plot(goal[0], goal[1], '*', color='#E74C3C', markersize=16,
-                    markeredgecolor='white', markeredgewidth=2, zorder=10)
-            
-            # 信息标注
-            info_text = (f"路径长度: {info.get('path_length', 0)} 点\n"
-                        f"搜索节点: {info.get('expanded', 0)}\n"
-                        f"耗时: {info.get('time', 0)*1000:.1f} ms")
-            ax.text(0.98, 0.02, info_text, transform=ax.transAxes,
-                   fontsize=9, verticalalignment='bottom', horizontalalignment='right',
-                   bbox=dict(boxstyle='round,pad=0.5', facecolor='white', alpha=0.85))
-            
-            subplot_labels = ['', '(b)', '(c)', '(d)']
-            ax.set_title(f'{subplot_labels[idx+1]} {name}', fontsize=14, 
-                        fontweight='bold', pad=10)
-        
-        plt.tight_layout(rect=[0, 0, 1, 0.96])
-        
+                    ax.plot([t[0] for t in turns], [t[1] for t in turns], 's', ms=2.5,
+                            mfc='white', mec=fs.BLACK, mew=0.5, zorder=6)
+            ax.plot(start[0], start[1], 'o', color=fs.BLACK, ms=4, zorder=10)
+            ax.plot(goal[0], goal[1], '*', color=fs.BLACK, ms=6, zorder=10)
+            fs.note(ax, f"Path points: {info.get('path_length', 0)}\n"
+                        f"Expanded: {info.get('expanded', 0)} nodes", x=0.98, y=0.02,
+                    va='bottom', bbox=dict(fc='white', ec='none', pad=1.0))
+            fs.panel_label(ax, 'bcd'[idx], self.NAMES_EN[idx])
+        from matplotlib.lines import Line2D
+        handles, labels = ax1.get_legend_handles_labels()
+        handles += [Line2D([], [], ls='none', marker='s', ms=2.5, mfc='white', mec=fs.BLACK,
+                           label='Turn'),
+                    Line2D([], [], ls='none', marker='o', ms=3, color='#F4A261',
+                           label='Expanded node (colour: order)')]
+        fig.legend(handles=handles, loc='outside lower center', ncol=4)
         save_path = os.path.join(self.save_dir, 'path_comparison.png')
-        fig.savefig(save_path, dpi=200, bbox_inches='tight',
-                   facecolor='white', edgecolor='none')
+        fs.save(fig, save_path)
         print(f"\n对比图已保存: {save_path}")
-        plt.show(block=False)
-        plt.pause(1)
-        plt.close()
-    
+
     def visualize_metrics(self, results):
-        """生成量化指标对比柱状图"""
-        names = []
+        """量化指标对比柱状图（不含计算耗时：耗时随机器变化，见终端输出）."""
+        fs = self._fs()
         metrics = {
-            '路径长度(m)': [],
-            '转弯次数': [],
-            '90°转弯占比(%)': [],
-            '横平竖直比例(%)': [],
-            '搜索节点数': [],
-            '计算时间(ms)': [],
+            'Path length (m)': [],
+            'Number of turns': [],
+            'Right-angle turns (%)': [],
+            'Axis-aligned share (%)': [],
+            'Expanded nodes': [],
         }
-        
         for name, path, info, color in results:
-            names.append(name.replace('（', '\n（'))
-            
             path_len = self.analyzer.calculate_path_length(path, self.grid_map.resolution)
             turns = self.analyzer.count_turns(path)
             right_angles = self.analyzer.count_right_angle_turns(path)
             straightness = self.analyzer.calculate_straightness(path)
-            
-            metrics['路径长度(m)'].append(round(path_len, 2))
-            metrics['转弯次数'].append(turns)
-            metrics['90°转弯占比(%)'].append(
+            metrics['Path length (m)'].append(round(path_len, 2))
+            metrics['Number of turns'].append(turns)
+            metrics['Right-angle turns (%)'].append(
                 round(right_angles / turns * 100, 1) if turns > 0 else 100.0)
-            metrics['横平竖直比例(%)'].append(round(straightness * 100, 1))
-            metrics['搜索节点数'].append(info.get('expanded', 0))
-            metrics['计算时间(ms)'].append(round(info.get('time', 0) * 1000, 1))
-        
-        fig, axes = plt.subplots(2, 3, figsize=(18, 10))
-        fig.suptitle('路径规划算法量化指标对比', fontsize=16, fontweight='bold', y=0.98)
-        
-        colors_bar = [self.colors['standard'], self.colors['improved'], self.colors['enhanced']]
-        
-        for idx, (metric_name, values) in enumerate(metrics.items()):
-            ax = axes[idx // 3, idx % 3]
-            bars = ax.bar(range(len(names)), values, color=colors_bar[:len(values)],
-                         edgecolor='white', linewidth=1.5, width=0.6)
-            ax.set_xticks(range(len(names)))
-            ax.set_xticklabels(names, fontsize=9)
-            ax.set_title(metric_name, fontsize=13, fontweight='bold', pad=8)
-            ax.grid(axis='y', alpha=0.3)
-            ax.set_axisbelow(True)
-            
-            # 在柱子上显示数值
-            for bar, val in zip(bars, values):
-                ax.text(bar.get_x() + bar.get_width()/2., bar.get_height() + 0.01 * max(values),
-                       str(val), ha='center', va='bottom', fontsize=10, fontweight='bold')
-        
-        plt.tight_layout(rect=[0, 0, 1, 0.95])
-        
+            metrics['Axis-aligned share (%)'].append(round(straightness * 100, 1))
+            metrics['Expanded nodes'].append(info.get('expanded', 0))
+        fig, axes = fs.subplots(1, 5, width='double', height=2.2)
+        x = np.arange(len(results))
+        for ax, (metric_name, values) in zip(axes, metrics.items()):
+            for i, v in enumerate(values):
+                ax.bar(x[i], v, 0.65, label=self.NAMES_EN[i], **fs.bar(self.ROLES[i]))
+                ax.text(x[i], v, f'{v}', ha='center', va='bottom', fontsize=7)
+            ax.set_ylim(0, max(max(values) * 1.2, 1))
+            ax.set_xticks(x)
+            ax.set_xticklabels(['Std.', 'Impr.', 'Enh.'], fontsize=7)
+            ax.set_ylabel(metric_name)
+        fs.panel_labels(axes)
+        handles, labels = axes[0].get_legend_handles_labels()
+        fig.legend(handles, labels, loc='outside lower center', ncol=3)
+        fs.fixed_layout(fig, left=0.42, right=0.05, bottom=0.62, top=0.2, wspace=0.58)
         save_path = os.path.join(self.save_dir, 'metrics_comparison.png')
-        fig.savefig(save_path, dpi=200, bbox_inches='tight',
-                   facecolor='white', edgecolor='none')
+        fs.save(fig, save_path)
         print(f"指标图已保存: {save_path}")
-        plt.show(block=False)
-        plt.pause(1)
-        plt.close()
-    
+
     def print_metrics_table(self, results):
         """打印格式化的指标对比表"""
         analyzer = self.analyzer
@@ -852,9 +806,9 @@ class PathVisualizer:
         # 未知区域 - 浅灰色
         display_map[self.grid_map.grid == -1] = [0.75, 0.75, 0.75]
         
-        ax.imshow(display_map, origin='lower', alpha=0.9)
-        ax.set_xlabel('X (像素)', fontsize=10)
-        ax.set_ylabel('Y (像素)', fontsize=10)
+        ax.imshow(display_map, origin='lower', interpolation='nearest')
+        ax.set_xlabel('x (cells, 0.05 m)')
+        ax.set_ylabel('y (cells, 0.05 m)')
 
 
 # ============================================================================

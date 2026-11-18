@@ -17,22 +17,8 @@
 import os
 import sys
 import numpy as np
-import matplotlib.pyplot as plt
 import matplotlib.patches as patches
-import matplotlib
 
-import matplotlib.font_manager as fm
-
-# 直接加载系统自带的微软雅黑字体 (针对Windows系统)
-font_path = r"C:\Windows\Fonts\msyh.ttc"
-if os.path.exists(font_path):
-    my_font = fm.FontProperties(fname=font_path)
-else:
-    # 兼容性备择方案
-    matplotlib.rcParams['font.sans-serif'] = ['SimHei', 'Microsoft YaHei', 'sans-serif']
-    my_font = fm.FontProperties()
-    
-matplotlib.rcParams['axes.unicode_minus'] = False
 
 # 导入已经写好的极品A*算法模块
 try:
@@ -40,6 +26,16 @@ try:
 except ImportError:
     print("错误: 找不到 improved_astar.py，请确保两个脚本在同一目录下。")
     sys.exit(1)
+
+# 图使用仓库统一样式（docs/figstyle，英文，PDF + PNG）
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'docs'))
+import figstyle as fs  # noqa: E402
+
+# 障碍物的英文图注
+LABEL_EN = {'强电配电箱': 'Power panel', '电源插座1': 'Outlet 1', '电源插座2': 'Outlet 2',
+            '空调插座': 'A/C outlet', '承重钢筋横梁': 'Structural beam', '窗户区域': 'Window'}
+ALGO_EN = ['Standard A*', 'Improved A*\n(turn penalty)', 'Enhanced A*\n(axis-aligned)']
+ALGO_ROLE = ['neutral', 'alt2', 'proposed']
 
 
 # ============================================================================
@@ -196,140 +192,80 @@ def run_wall_cutting_planning():
 # ============================================================================
 
 def visualize_wall_comparison(wall, start, goal, paths, names, colors, infos):
-    """绘制极具视觉冲击力的开槽多算法对比仿真图"""
-    fig, ax = plt.subplots(figsize=(14, 11))
-    
-    # 墙面背景
-    ax.set_facecolor('#F8F9FA')  # 浅灰白墙面色
-    
-    # 绘制实体障碍物
+    """三种算法的开槽轨迹对比图（墙面坐标，厘米）."""
+    fig, ax = fs.subplots(width='single', height=3.6)
     for obs in wall.obstacles_info:
         x, y, w, h = obs['rect']
-        rect = patches.Rectangle((x, y), w, h, linewidth=2, edgecolor='#2D3436', 
-                                 facecolor='#B2BEC3', alpha=0.9, zorder=5)
-        ax.add_patch(rect)
-        ax.text(x + w/2, y + h/2, obs['label'], 
-                ha='center', va='center', fontsize=10, fontweight='bold',
-                fontproperties=my_font,
-                color='black', bbox=dict(facecolor='white', alpha=0.7, edgecolor='none', boxstyle='round,pad=0.2'), zorder=6)
-
-    # 绘制机械臂安全禁区(仅外框以保持整洁)
-    y_inf, x_inf = np.where(wall.inflated_grid == 1)
-    ax.scatter(x_inf, y_inf, color='#FFEAA7', s=1, alpha=0.3, zorder=1, label='机械臂避障安全区(膨胀层)')
-
-    # 绘制三条路径
-    path_styles = [
-        {'ls': '--', 'lw': 2, 'alpha': 0.8}, # 标准
-        {'ls': '-.', 'lw': 3, 'alpha': 0.9}, # 改进
-        {'ls': '-', 'lw': 4, 'alpha': 1.0}   # 增强
-    ]
-    
-    for i, (path, name, color, style) in enumerate(zip(paths, names, colors, path_styles)):
-        if not path: continue
-        px = [p[0] for p in path]
-        py = [p[1] for p in path]
-        
-        # 路径发光
-        ax.plot(px, py, color=color, linewidth=style['lw']+4, alpha=0.2, zorder=7+i)
-        ax.plot(px, py, color=color, linewidth=style['lw'], linestyle=style['ls'], 
-                alpha=style['alpha'], label=name, zorder=10+i)
-        
-        # 仅标注终极版(增强A*)的转向点
+        ax.add_patch(patches.Rectangle((x, y), w, h, lw=0.5, edgecolor=fs.BLACK,
+                                       facecolor=fs.LIGHT, zorder=5))
+        name = LABEL_EN.get(obs['label'], obs['label'])
+        if w >= 30:                       # 大障碍物：标签写在框内
+            ax.text(x + w / 2, y + h / 2, name.replace(' panel', '\npanel'),
+                    ha='center', va='center', fontsize=7, zorder=6,
+                    rotation=90 if h > 2 * w else 0)
+        elif y > 100:                     # 小插座：标签写在左侧 / 下方，避开轨迹
+            ax.text(x - 3, y + h / 2, name, ha='right', va='center', fontsize=7, zorder=6)
+        else:
+            ax.text(x + w / 2, y - 3, name, ha='center', va='top', fontsize=7, zorder=6)
+    # 安全边距（膨胀层）
+    margin = np.ma.masked_where((wall.inflated_grid == 0) | (wall.grid == 1),
+                                np.ones_like(wall.grid, dtype=float))
+    ax.imshow(margin, origin='lower', cmap='Greys', vmin=0, vmax=8, alpha=1.0,
+              extent=(0, wall.width, 0, wall.height), interpolation='nearest', zorder=1)
+    for i, path in enumerate(paths):
+        if not path:
+            continue
+        ax.plot([p[0] for p in path], [p[1] for p in path], zorder=10 + i,
+                label=ALGO_EN[i].replace('\n', ' '),
+                **fs.line(ALGO_ROLE[i], lw=1.4 if i == 2 else 1.0))
         if i == 2:
-            turns = []
-            for j in range(1, len(path) - 1):
-                d1 = (path[j][0] - path[j-1][0], path[j][1] - path[j-1][1])
-                d2 = (path[j+1][0] - path[j][0], path[j+1][1] - path[j][1])
-                if d1 != d2:
-                    turns.append(path[j])
+            turns = [path[j] for j in range(1, len(path) - 1)
+                     if (path[j][0] - path[j - 1][0], path[j][1] - path[j - 1][1]) !=
+                     (path[j + 1][0] - path[j][0], path[j + 1][1] - path[j][1])]
             if turns:
-                tx = [t[0] for t in turns]
-                ty = [t[1] for t in turns]
-                ax.scatter(tx, ty, color='#FDCB6E', s=80, marker='s', zorder=15, 
-                           edgecolors='#2D3436', linewidths=1.5, label='规划打孔/转向点 (最佳方案)')
-
-    # 起点和终点
-    ax.plot(start[0], start[1], 'o', color='#00B894', markersize=14, markeredgecolor='white', markeredgewidth=2.5, zorder=20, label='起槽点(Start)')
-    ax.plot(goal[0], goal[1], '*', color='#0984E3', markersize=20, markeredgecolor='white', markeredgewidth=2.0, zorder=20, label='收槽点(Goal)')
-
-    # 图表设置
-    ax.set_title('机器视觉感知：三种墙面开槽轨迹算法直观对比', fontsize=18, fontweight='bold', pad=15, fontproperties=my_font)
-    ax.set_xlabel('墙面X轴长度定位 (cm)', fontsize=12, fontproperties=my_font)
-    ax.set_ylabel('墙面Y轴高度定位 (cm)', fontsize=12, fontproperties=my_font)
+                ax.plot([t[0] for t in turns], [t[1] for t in turns], 's', ms=3.5,
+                        mfc='white', mec=fs.BLUE, zorder=15, label='Turn (enhanced A*)')
+    ax.plot(*start, 'o', color=fs.BLACK, ms=4, zorder=20, label='Start')
+    ax.plot(*goal, '*', color=fs.BLACK, ms=6, zorder=20, label='Goal')
+    ax.plot([], [], 's', color='0.88', ms=5, label='Safety margin (8 cm)')
+    ax.set_xlabel(fs.label('Wall position x', 'cm'))
+    ax.set_ylabel(fs.label('Wall height y', 'cm'))
     ax.set_xlim(0, wall.width)
     ax.set_ylim(0, wall.height)
-    
-    # 添加图例
-    legend = ax.legend(loc='lower right', fontsize=11, framealpha=0.9, edgecolor='#7F8CA6')
-    for text in legend.get_texts():
-        text.set_fontproperties(my_font)
-        text.set_fontsize(11)
-
-    # 保存退出
-    plt.tight_layout()
-    save_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'wall_cutting_comparison.png')
-    fig.savefig(save_path, dpi=250, bbox_inches='tight')
+    ax.set_aspect('equal')
+    fig.legend(loc='outside lower center', ncol=2)
+    save_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                             'wall_cutting_comparison.png')
+    fs.save(fig, save_path)
     print(f"\n[成功] 墙面多算法路径对比图已保存: \n{save_path}")
-    plt.show(block=False)
-    plt.pause(1)
-    plt.close()
+
 
 def visualize_wall_metrics(metrics_list, names, colors):
-    """绘制开槽策略量化指标对比图"""
-    fig, axes = plt.subplots(2, 2, figsize=(12, 10))
-    fig.suptitle('墙面智能开槽算法核心性能量化指标对比', fontsize=16, fontweight='bold', fontproperties=my_font, y=0.95)
-    
-    metrics = {
-        '转向次数 (越少越好)': ('turns', axes[0, 0]),
-        '横平竖直段比例 (100%最佳)': ('straightness', axes[0, 1]),
-        '绝对斜切比例 (0%最佳)': ('diagonal_ratio', axes[1, 0]),
-        '切割总长度 / 米': ('length', axes[1, 1])
-    }
-    
-    x = np.arange(len(names))
-    width = 0.5
-    
-    for title, (key, ax) in metrics.items():
-        values = [m[key] for m in metrics_list]
-        
-        # 针对百分比特化显示
-        if key in ['straightness', 'diagonal_ratio']:
-            display_values = [v * 100 for v in values]
-            bars = ax.bar(x, display_values, width, color=colors, alpha=0.8, edgecolor='black', linewidth=1)
-            ax.set_ylabel('百分比 (%)', fontproperties=my_font)
-            ax.set_ylim(0, 110)
-        else:
-            bars = ax.bar(x, values, width, color=colors, alpha=0.8, edgecolor='black', linewidth=1)
-            ax.set_ylabel('数值', fontproperties=my_font)
-            # 给最高值多留出空间写字
-            ax.set_ylim(0, max(values) * 1.25 if max(values) > 0 else 1)
-            
-        ax.set_title(title, fontsize=12, fontweight='bold', fontproperties=my_font)
+    """开槽轨迹的量化指标对比."""
+    fig, axes = fs.subplots(2, 2, width='single', height=3.6)
+    metrics = [('turns', 'Number of turns'), ('straightness', 'Axis-aligned share (%)'),
+               ('diagonal_ratio', 'Diagonal share (%)'), ('length', 'Slot length (m)')]
+    x = np.arange(len(metrics_list))
+    for ax, (key, ylab) in zip(axes.flat, metrics):
+        values = [m[key] * (100 if key in ('straightness', 'diagonal_ratio') else 1)
+                  for m in metrics_list]
+        for i, v in enumerate(values):
+            ax.bar(x[i], v, 0.6, label=ALGO_EN[i].replace('\n', ' '), **fs.bar(ALGO_ROLE[i]))
+            txt = f'{v:.1f}' if key != 'turns' else f'{int(v)}'
+            if key == 'length':
+                txt = f'{v:.2f}'
+            ax.text(x[i], v, txt, ha='center', va='bottom', fontsize=7)
+        ax.set_ylim(0, max(max(values) * 1.25, 1))
         ax.set_xticks(x)
-        ax.set_xticklabels(names, fontproperties=my_font)
-        ax.grid(axis='y', linestyle='--', alpha=0.7)
-        
-        # 柱子上加字
-        for bar in bars:
-            height = bar.get_height()
-            if key in ['straightness', 'diagonal_ratio']:
-                label = f"{height:.1f}%"
-            elif key == 'length':
-                label = f"{height:.2f}m"
-            else:
-                label = f"{int(height)}次"
-            ax.text(bar.get_x() + bar.get_width()/2., height + (max(values)*0.05 if key not in ['straightness', 'diagonal_ratio'] else 5),
-                    label, ha='center', va='bottom', fontsize=10, fontweight='bold', fontproperties=my_font)
-
-    plt.tight_layout()
-    fig.subplots_adjust(top=0.88)
-    save_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'wall_cutting_metrics.png')
-    fig.savefig(save_path, dpi=250, bbox_inches='tight')
+        ax.set_xticklabels(['Std.', 'Impr.', 'Enh.'], fontsize=7)
+        ax.set_ylabel(ylab)
+    fs.panel_labels(axes.flat)
+    handles, labels = axes[0, 0].get_legend_handles_labels()
+    fig.legend(handles, labels, loc='outside lower center', ncol=1)
+    save_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                             'wall_cutting_metrics.png')
+    fs.save(fig, save_path)
     print(f"[成功] 墙面多算法指标图已保存: \n{save_path}")
-    plt.show(block=False)
-    plt.pause(1)
-    plt.close()
-
 
 if __name__ == '__main__':
     run_wall_cutting_planning()

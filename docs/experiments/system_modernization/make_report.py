@@ -9,6 +9,8 @@
   odom_summary.csv / fig_odom_drift.png                        定位融合（轮式里程计 vs EKF vs AMCL）
   base_summary.csv                                             底盘被控对象（力驱动 vs 轮子摩擦驱动）
   slot_summary.csv                                             多站执行（各配置）
+
+图使用 docs/figstyle 的统一样式（英文，PDF + PNG）。
 """
 import csv
 import glob
@@ -23,6 +25,7 @@ RUNS = os.path.join(HERE, 'runs')
 MAP_YAML = os.path.join(HERE, '..', '..', '..', 'src', 'scr_navigation', 'maps', 'my_map.yaml')
 
 NAV = [('nav_navfn_dwb', 'NavFn + DWB'), ('nav_mppi_smac2d', 'Smac 2D + MPPI')]
+NAV_ROLE = {'nav_navfn_dwb': 'baseline', 'nav_mppi_smac2d': 'proposed'}
 CPU_KEYS = ('cpu_controller_serv', 'cpu_planner_server', 'cpu_bt_navigator', 'cpu_amcl',
             'cpu_system')
 
@@ -56,12 +59,10 @@ def mean_std(vals):
 
 
 def setup_plot():
-    import matplotlib
-    matplotlib.use('Agg')
-    import matplotlib.pyplot as plt
-    plt.rcParams['font.family'] = ['Noto Sans CJK JP', 'DejaVu Sans']
-    plt.rcParams['axes.unicode_minus'] = False
-    return plt
+    import sys
+    sys.path.insert(0, os.path.join(HERE, '..', '..'))
+    import figstyle as fs
+    return fs
 
 
 def load_map():
@@ -128,46 +129,47 @@ def nav_report(plt):
     write_csv(os.path.join(HERE, 'nav_per_goal.csv'), per_goal)
 
     # 轨迹图
+    fs = plt
     img, ext = load_map()
-    fig, ax = plt.subplots(1, 2, figsize=(10, 4.6), sharey=True)
+    fig, ax = fs.subplots(1, 2, width='double', height=3.0, sharey=True)
     for a, (label, name) in zip(ax, NAV):
-        a.imshow(img, cmap='gray', extent=ext, origin='upper', vmin=0, vmax=255)
+        a.imshow(img, cmap='gray', extent=ext, origin='upper', vmin=0, vmax=255,
+                 interpolation='nearest')
         tp = os.path.join(RUNS, label, 'trajectory.csv')
         if os.path.exists(tp):
             t = read_csv(tp)
-            a.plot([fnum(r['gt_x']) for r in t], [fnum(r['gt_y']) for r in t], lw=0.8,
-                   color='tab:red' if 'mppi' in label else 'tab:blue')
-        a.set_title(f'{name}（3 圈真值轨迹）', fontsize=9)
-        a.set_xlabel('x (m)')
+            a.plot([fnum(r['gt_x']) for r in t], [fnum(r['gt_y']) for r in t], lw=0.6,
+                   color=fs.color(NAV_ROLE[label]))
+        a.set_xlabel(fs.label('x', 'm'))
         a.set_xlim(ext[0], ext[1])
         a.set_ylim(ext[2], ext[3])
-    ax[0].set_ylabel('y (m)')
-    fig.tight_layout()
-    fig.savefig(os.path.join(HERE, 'fig_nav_paths.png'), dpi=150)
-    plt.close(fig)
+    ax[0].set_ylabel(fs.label('y', 'm'))
+    fs.panel_labels(ax, [f'{name} (ground truth, 3 laps)' for _, name in NAV])
+    fs.save(fig, os.path.join(HERE, 'fig_nav_paths.png'))
 
     # 指标图：逐段对比
-    keys = [('time_s', '用时 (s)'), ('path_m', '路径长度 (m)'), ('clearance_m', '最小间隙 (m)'),
-            ('jerk_rms', '加加速度 RMS (m/s³)')]
-    fig, ax = plt.subplots(1, 4, figsize=(12, 3))
+    keys = [('time_s', fs.label('Time', 's')), ('path_m', fs.label('Path length', 'm')),
+            ('clearance_m', fs.label('Min. clearance', 'm')),
+            ('jerk_rms', fs.label('Jerk RMS', 'm/s³'))]
+    fig, ax = fs.subplots(1, 4, width='double', height=2.1)
     x = np.arange(len(goals))
-    for a, (k, title) in zip(ax, keys):
+    for a, (k, ylab) in zip(ax, keys):
         for i, (label, name) in enumerate(NAV):
             if label not in legs:
                 continue
             m = [mean_std([fnum(r[k]) for r in legs[label] if r['goal'] == g
                            and r['success'] == '1']) for g in goals]
             a.bar(x + (i - 0.5) * 0.38, [v[0] for v in m], 0.38, yerr=[v[1] for v in m],
-                  label=name, capsize=2,
-                  color='tab:red' if 'mppi' in label else 'tab:blue', alpha=0.8)
+                  label=name, error_kw=dict(lw=0.5, capsize=1.2), **fs.bar(NAV_ROLE[label]))
         a.set_xticks(x)
-        a.set_xticklabels([g.split('_')[0] for g in goals], fontsize=8)
-        a.set_title(title, fontsize=9)
-    ax[0].legend(fontsize=7, frameon=False)
-    fig.suptitle('逐目标均值 ± 标准差（每个目标 3 次）', fontsize=9)
-    fig.tight_layout()
-    fig.savefig(os.path.join(HERE, 'fig_nav_metrics.png'), dpi=150)
-    plt.close(fig)
+        a.set_xticklabels([g.split('_')[0] for g in goals], fontsize=7)
+        a.set_xlabel('Goal')
+        a.set_ylabel(ylab)
+    fs.panel_labels(ax)
+    h, lab = ax[0].get_legend_handles_labels()
+    fig.legend(h, lab, loc='outside upper center', ncol=2)
+    fs.fixed_layout(fig, left=0.4, right=0.05, bottom=0.42, top=0.42, wspace=0.5)
+    fs.save(fig, os.path.join(HERE, 'fig_nav_metrics.png'))
 
 
 # ---------------------------------------------------------------------------
@@ -199,9 +201,11 @@ def odom_report(plt):
     if not runs:
         return
     rows = []
-    fig, ax = plt.subplots(1, 2, figsize=(10, 3.6))
-    colors = {'wheel': 'tab:orange', 'odom': 'tab:green', 'map': 'tab:purple'}
-    names = {'wheel': '仅轮式里程计', 'odom': 'EKF（轮式 + 陀螺）', 'map': 'AMCL（map 系）'}
+    fs = plt
+    fig, ax = fs.subplots(1, 2, width='double', height=2.3)
+    roles = {'wheel': 'baseline', 'odom': 'alt', 'map': 'proposed'}
+    names = {'wheel': 'Wheel odometry only', 'odom': 'EKF (wheel + gyro)',
+             'map': 'AMCL (map frame)'}
     for k, p in enumerate(runs):
         label = os.path.basename(os.path.dirname(p))
         t = read_csv(p)
@@ -216,10 +220,10 @@ def odom_report(plt):
                              drift_pct=round(float(100 * e[-1] / dist[-1]), 2),
                              final_yaw_err_deg=round(float(yaw[-1]), 2),
                              max_abs_yaw_err_deg=round(float(np.abs(yaw).max()), 2)))
-            ax[0].plot(dist, e, color=colors[src], lw=0.9,
-                       label=names[src] if k == 0 else None)
-            ax[1].plot(dist, yaw, color=colors[src], lw=0.9,
-                       label=names[src] if k == 0 else None)
+            ax[0].plot(dist, e, label=names[src] if k == 0 else None,
+                       **fs.line(roles[src], lw=0.7))
+            ax[1].plot(dist, yaw, label=names[src] if k == 0 else None,
+                       **fs.line(roles[src], lw=0.7))
     # 修正前（速度闭环与传感器用连杆速度）的同一路线，只进表不进图
     for p in sorted(glob.glob(os.path.join(RUNS, 'linkvel_loc_seed*', 'trajectory.csv'))):
         t = read_csv(p)
@@ -235,15 +239,13 @@ def odom_report(plt):
                                  final_yaw_err_deg=round(float(yaw[-1]), 2),
                                  max_abs_yaw_err_deg=round(float(np.abs(yaw).max()), 2)))
     write_csv(os.path.join(HERE, 'odom_summary.csv'), rows)
-    ax[0].set_xlabel('行驶距离 (m)')
-    ax[0].set_ylabel('位置误差 (m)')
-    ax[1].set_xlabel('行驶距离 (m)')
-    ax[1].set_ylabel('航向误差 (°)')
-    ax[0].legend(fontsize=8, frameon=False)
-    fig.suptitle(f'定位漂移（起点对齐，{len(runs)} 次长路线导航，每次 3 圈）', fontsize=9)
-    fig.tight_layout()
-    fig.savefig(os.path.join(HERE, 'fig_odom_drift.png'), dpi=150)
-    plt.close(fig)
+    for a in ax:
+        a.set_xlabel(fs.label('Distance travelled', 'm'))
+    ax[0].set_ylabel(fs.label('Position error', 'm'))
+    ax[1].set_ylabel(fs.label('Heading error', '°'))
+    ax[0].legend(loc='upper left')
+    fs.panel_labels(ax, ['Position drift', 'Heading drift'])
+    fs.save(fig, os.path.join(HERE, 'fig_odom_drift.png'))
 
 
 # ---------------------------------------------------------------------------

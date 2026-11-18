@@ -12,6 +12,8 @@ k_lin = 20）、激光 10 Hz、相机 30 Hz、测量延迟 50 ms；噪声水平�
 控制器、估计器、收敛判据直接调用 scr_arm_controller 中的同一份代码。
 
   python3 docs/experiments/fine_alignment/analysis.py [--trials 200] [--out docs/experiments/fine_alignment]
+
+图使用 docs/figstyle 的统一样式（英文，PDF + PNG）。
 """
 import argparse
 import csv
@@ -23,6 +25,7 @@ import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, '..', '..', '..', 'src', 'scr_arm_controller'))
+sys.path.insert(0, os.path.join(HERE, '..', '..'))
 
 from scr_arm_controller.docking_control import ConvergenceMonitor, WallAlignController  # noqa
 from scr_arm_controller.visual_servo import pbvs_command  # noqa: E402
@@ -211,40 +214,40 @@ def main():
     ap.add_argument('--out', default=HERE)
     args = ap.parse_args()
 
-    import matplotlib
-    matplotlib.use('Agg')
-    import matplotlib.pyplot as plt
-    plt.rcParams['font.family'] = ['Noto Sans CJK JP', 'DejaVu Sans']
-    plt.rcParams['axes.unicode_minus'] = False
+    import figstyle as fs
 
     # ---- 1. 极点
     kTs = np.linspace(0.01, 1.2, 240)
     rho = [max(abs(closed_loop_poles(x))) for x in kTs]
-    fig, ax = plt.subplots(1, 2, figsize=(9.5, 3.6))
-    ax[0].plot(kTs, rho, color='#2F6FDE')
-    ax[0].axhline(1.0, color='#999', lw=0.8, ls='--')
-    for kT, lab in [(0.1, 'k = 2 /s（本项目）'), (0.04, '第一版 k = 0.8 /s（10 Hz 时 kT = 0.08）')]:
-        ax[0].plot(kT, max(abs(closed_loop_poles(kT))), 'o', color='#D9480F' if kT == 0.1 else '#666')
-        ax[0].annotate(lab, (kT, max(abs(closed_loop_poles(kT)))), xytext=(8, -14),
-                       textcoords='offset points', fontsize=8)
-    ax[0].set_xlabel('k·T')
-    ax[0].set_ylabel('最大极点模 |z|')
-    ax[0].set_title('线性区离散闭环（T = 50 ms，τ = 50 ms，一拍延迟）', fontsize=9)
+    fig, ax = fs.subplots(1, 2, width='double', height=2.4,
+                          gridspec_kw=dict(width_ratios=[1.6, 1]))
+    ax[0].plot(kTs, rho, color=fs.BLACK, lw=1.0)
+    ax[0].axhline(1.0, **fs.line('reference', lw=0.6))
+    ax[0].text(1.18, 1.008, 'stability limit |z| = 1', ha='right', va='bottom', fontsize=7)
+    for kT, role, lab, ty in [(0.1, 'proposed', 'v2: k = 2 /s (kT = 0.1)', 1.06),
+                              (0.04, 'baseline', 'v1: k = 0.8 /s (kT = 0.08 at 10 Hz)', 1.13)]:
+        z = max(abs(closed_loop_poles(kT)))
+        ax[0].plot(kT, z, **fs.marker(role, ms=4))
+        ax[0].annotate(lab, (kT, z), xytext=(0.2, ty), textcoords='data', fontsize=7,
+                       color=fs.color(role), va='center',
+                       arrowprops=dict(arrowstyle='-', lw=0.5, color=fs.color(role),
+                                       shrinkA=1, shrinkB=2, relpos=(0, 0.5)))
+    ax[0].set_xlabel('Normalised gain k·T')
+    ax[0].set_ylabel('Largest closed-loop pole magnitude |z|')
     th = np.linspace(0, 2 * np.pi, 200)
-    ax[1].plot(np.cos(th), np.sin(th), color='#bbb', lw=0.8)
-    for kT, col in [(0.1, '#2F6FDE'), (0.25, '#7FB069'), (0.5, '#D9480F'), (0.9, '#8E44AD')]:
+    ax[1].plot(np.cos(th), np.sin(th), color=fs.GREY, lw=0.6)
+    for kT, role in [(0.1, 'proposed'), (0.25, 'alt'), (0.5, 'alt2'), (0.9, 'alt3')]:
         z = closed_loop_poles(kT)
-        ax[1].plot(z.real, z.imag, 'x', color=col, label=f'kT = {kT}')
-    ax[1].set_aspect('equal')
-    ax[1].set_xlim(-1.1, 1.1)
-    ax[1].set_ylim(-1.1, 1.1)
-    ax[1].legend(fontsize=8, frameon=False)
-    ax[1].set_title('闭环极点（z 平面）', fontsize=9)
-    for a in ax:
-        a.spines[['top', 'right']].set_visible(False)
-    fig.tight_layout()
-    fig.savefig(os.path.join(args.out, 'fig_poles.png'), dpi=150)
-    plt.close(fig)
+        ax[1].plot(z.real, z.imag, ls='none', marker=fs.MARKER[role], ms=4, mfc='none',
+                   mec=fs.color(role), mew=0.9, label=f'kT = {kT}')
+    ax[1].set_aspect('equal', adjustable='datalim')
+    ax[1].set_xlim(-1.15, 1.15)
+    ax[1].set_ylim(-1.15, 1.15)
+    ax[1].set_xlabel('Re z')
+    ax[1].set_ylabel('Im z')
+    ax[1].legend(loc='center left', bbox_to_anchor=(1.0, 0.5))
+    fs.panel_labels(ax, ['Largest pole vs. gain', 'Closed-loop poles (z-plane)'])
+    fs.save(fig, os.path.join(args.out, 'fig_poles.png'))
     pole_rows = [{'kT': kT, 'k_per_s': kT / 0.05,
                   'poles': ' '.join(f'{z:.3f}' for z in closed_loop_poles(kT)),
                   'max_abs': max(abs(closed_loop_poles(kT)))}
@@ -278,48 +281,52 @@ def main():
     for s in summary:
         print(s)
 
-    fig, ax = plt.subplots(1, 2, figsize=(9.5, 3.4))
+    fig, ax = fs.subplots(1, 2, width='double', height=2.2)
     bins = np.linspace(0, 12, 49)
-    for name, col, lab in [('v1', '#9AA5B1', '第一版'), ('v2', '#2F6FDE', '本版'),
-                           ('v2_occlusion', '#D9480F', '本版，间歇遮挡')]:
+    for name, role, lab in [('v1', 'baseline', 'v1 (colour blob + PBVS)'),
+                            ('v2', 'proposed', 'v2 (AprilTag + LiDAR EKF)'),
+                            ('v2_occlusion', 'alt', 'v2, intermittent occlusion')]:
         a = np.array(results[name])
-        ax[0].hist(np.hypot(a[:, 0], a[:, 1]), bins=bins, histtype='step', lw=1.4, color=col,
-                   label=lab)
-        ax[1].hist(np.abs(a[:, 2]), bins=np.linspace(0, 1.2, 49), histtype='step', lw=1.4,
-                   color=col, label=lab)
-    ax[0].set_xlabel('最终位置误差（mm）')
-    ax[1].set_xlabel('最终朝向误差（°）')
-    ax[0].set_ylabel(f'试验次数（n = {args.trials}）')
-    ax[0].legend(fontsize=8, frameon=False)
-    for a in ax:
-        a.spines[['top', 'right']].set_visible(False)
-    fig.tight_layout()
-    fig.savefig(os.path.join(args.out, 'fig_sim_mc.png'), dpi=150)
-    plt.close(fig)
+        kw = dict(histtype='step', lw=1.0, color=fs.color(role), ls=fs.LINESTYLE[role],
+                  label=lab)
+        ax[0].hist(np.hypot(a[:, 0], a[:, 1]), bins=bins, **kw)
+        ax[1].hist(np.abs(a[:, 2]), bins=np.linspace(0, 1.2, 49), **kw)
+    ax[0].set_xlabel(fs.label('Final position error', 'mm'))
+    ax[1].set_xlabel(fs.label('Final heading error', '°'))
+    ax[0].set_ylabel(f'Trials (n = {args.trials} per method)')
+    ax[1].set_ylabel('Trials')
+    ax[0].legend(loc='upper right')
+    fs.panel_labels(ax)
+    fs.save(fig, os.path.join(args.out, 'fig_sim_mc.png'))
 
     # ---- 3. 单次时间响应
     s = S[0]
     _, tr1 = run_v1(s, np.random.default_rng(1))
     _, tr2 = run_v2(s, np.random.default_rng(1))
-    fig, ax = plt.subplots(1, 3, figsize=(10, 3.2))
-    for tr, col, lab in [(tr1, '#9AA5B1', '第一版'), (tr2, '#2F6FDE', '本版')]:
+    fig, ax = fs.subplots(1, 3, width='double', height=2.2)
+    for tr, role, lab in [(tr1, 'baseline', 'v1 (stops inside the 1 cm tolerance)'),
+                          (tr2, 'proposed', 'v2')]:
         a = np.array(tr)
-        ax[0].plot(a[:, 0], np.abs(a[:, 1] - D) * 1000, color=col, label=lab)
-        ax[1].plot(a[:, 0], np.abs(a[:, 2]) * 1000, color=col, label=lab)
-        ax[2].plot(a[:, 0], np.hypot(a[:, 4], a[:, 5]) * 1000, color=col, label=lab)
-    ax[0].set_ylabel('|离墙误差|（mm）')
-    ax[1].set_ylabel('|沿墙误差|（mm）')
-    ax[2].set_ylabel('平移速度指令（mm/s）')
+        kw = fs.line(role, label=lab)
+
+        def vis(v):          # 低于纵轴下限 0.05 的点不画（对数轴，避免路径延伸到坐标区外）
+            return np.where(v >= 0.05, v, np.nan)
+        ax[0].plot(a[:, 0], vis(np.abs(a[:, 1] - D) * 1000), **kw)
+        ax[1].plot(a[:, 0], vis(np.abs(a[:, 2]) * 1000), **kw)
+        ax[2].plot(a[:, 0], vis(np.hypot(a[:, 4], a[:, 5]) * 1000), **kw)
+    ax[0].set_ylabel(fs.label('Distance error |d − d*|', 'mm'))
+    ax[1].set_ylabel(fs.label('Along-wall error |u|', 'mm'))
+    ax[2].set_ylabel(fs.label('Translational speed command', 'mm/s'))
     for a in ax:
-        a.set_xlabel('时间（s）')
+        a.set_xlabel(fs.label('Time', 's'))
         a.set_yscale('log')
+        fs.plain_log(a)
         a.set_ylim(bottom=0.05)
-        a.spines[['top', 'right']].set_visible(False)
-    ax[0].legend(fontsize=8, frameon=False)
-    fig.suptitle('同一起点的单次仿真（第一版停在 1 cm 容差内即结束）', fontsize=9)
-    fig.tight_layout()
-    fig.savefig(os.path.join(args.out, 'fig_sim_response.png'), dpi=150)
-    plt.close(fig)
+    fs.panel_labels(ax)
+    h, lab = ax[0].get_legend_handles_labels()
+    fig.legend(h, lab, loc='upper center', ncol=2, bbox_to_anchor=(0.5, 1.0))
+    fs.fixed_layout(fig, left=0.42, right=0.06, bottom=0.42, top=0.36, wspace=0.62)
+    fs.save(fig, os.path.join(args.out, 'fig_sim_response.png'))
 
 
 if __name__ == '__main__':
