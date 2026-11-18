@@ -307,6 +307,10 @@ def main():
     nav_panel = MapPanel(scene.wall)
     sched = schedule(ev, a.fps, a.speed_nav, a.speed_align, a.speed_cut)
     n_st = len(scene.stations)
+    # 站间移动时记录为 −1：沿用上一个停靠站，标题与当前站框不跳回第 1 站
+    last_station = np.maximum.accumulate(np.where(tr['station'] >= 0,
+                                                  np.arange(len(tr['station'])), -1))
+    last_station = np.where(last_station >= 0, tr['station'][np.maximum(last_station, 0)], -1)
     tmp = a.frames_dir or tempfile.mkdtemp(prefix='slot_demo_')
     os.makedirs(tmp, exist_ok=True)
     stills = {}
@@ -315,7 +319,7 @@ def main():
             'cut': ev['stations'] + 0.62 * (ev['end'] - ev['stations'])}
     for i, (t, speed) in enumerate(sched):
         k = int(np.searchsorted(tr['t'], t, side='right')) - 1
-        station = int(tr['station'][max(k, 0)])
+        station = int(last_station[max(k, 0)])
         view = a.overview if (t < ev['align'] - 2.0 and a.overview in cams) else a.close
         cam = cams[view].at(t)
         title, sub = phase_text(t, ev, station, n_st)

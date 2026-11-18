@@ -64,6 +64,12 @@ BAG_TOPICS = ['/odom', '/wheel/odom', '/ground_truth/odom', '/task_skills/wall_e
               '/task_executor/station_records', '/scan', '/clock']
 
 
+def portable(cmd):
+    """记录的命令行改用仓库相对路径与 ~，便于在其他机器上复现."""
+    repo = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', '..'))
+    return cmd.replace(repo + os.sep, '').replace(os.path.expanduser('~') + os.sep, '~/')
+
+
 def isolated_env():
     env = dict(os.environ)
     env['ROS_DOMAIN_ID'] = '47'
@@ -151,7 +157,7 @@ def main():
     if realign is not None:
         rec.append(f'--realign-distance={realign if realign > 0 else -1.0}')
     with open(os.path.join(out, 'command.txt'), 'w') as f:
-        f.write(' '.join(launch) + '\n' + ' '.join(rec) + '\n')
+        f.write(portable(' '.join(launch)) + '\n' + portable(' '.join(rec)) + '\n')
 
     t0 = time.time()
     procs = {}

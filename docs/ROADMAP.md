@@ -13,13 +13,14 @@
 - [ ] 标记位置误差几乎一比一进入结果（±3 mm → 5.2 mm）：标记贴好后测量其实际位置，或在执行中用相邻标记的已知间距在线修正标记地图
 - [ ] 不估计横移比例时残留 1–2 mm 偏差，与约 0.1° 的朝向估计误差同步，推测是未建模的横移误差泄漏到朝向估计中，需要单独的对照实验
 - [ ] 无标记方案：墙角、门框等稀疏特征或 BIM 墙面模型配准，作为标记的补充（目前只有分析）
-- [ ] 默认配置每站多出约 2 s（横移前回到观测位姿），按新执行路径重新标定时间模型
 
-### 2. 规划结果的 Gazebo 验证与演示
+### 2. 执行层的遗留问题
 
-- [ ] 在 Gazebo 中执行联合规划生成的示例任务，与时间模型的预测对比（`align_v2` 预测 208.9 s；默认配置改变后需先重新标定）
-- [ ] 在 Gazebo 中验证墙面实体的运行时生成、演示相机出图和运行中的刀尖轨迹
-- [ ] 录制完整多站开槽演示（GIF / MP4），放入 README
+规划验证与演示已完成（[规划验证](experiments/plan_validation/README.md)、[演示](experiments/demo/README.md)），运行中观察到的问题：
+
+- [ ] Nav2 在目标附近缓慢爬行或静止 10–15 s 才报告到达，导航段耗时波动大
+- [ ] 偶发约 2.7 s 的停顿（切割阶段，每次运行约一次），原因未查明
+- [ ] Nav2 组件偶尔启动失败（实验脚本已加检查与重试，根因未查明）
 
 ### 3. 任务级规划的后续工作
 
@@ -55,6 +56,7 @@
 | 任务级联合规划：随机住宅墙生成器、站感知选线、下界证书、Lee 布线基线 | [演进 9](EVOLUTION.md#9-任务级联合规划)、[报告](experiments/task_planning/README.md) |
 | 系统层现代化：行为树任务编排、Nav2 Smac 2D + MPPI、编码器误差模型 + 陀螺 + EKF、底盘 ros2_control | [演进 10](EVOLUTION.md#10-系统层现代化)、[报告](experiments/system_modernization/README.md) |
 | 多站沿墙精度：多标记地图、横移比例在线估计、按行程重新对位的对比 | [演进 11](EVOLUTION.md#11-多站沿墙精度标记地图与横移比例估计)、[报告](experiments/along_wall_accuracy/README.md) |
+| 时间模型按当前执行路径重新标定（`align_v3`，样本外误差 ≤ 0.7 %）；联合规划在 Gazebo 中实测节省 7.3 %；多站开槽演示 GIF | [演进 12](EVOLUTION.md#12-规划预测的-gazebo-验证与演示)、[规划验证](experiments/plan_validation/README.md)、[演示](experiments/demo/README.md) |
 | 时间模型按精对位第二版重新标定（`align_v2`）；技术报告与英文摘要 | [演进 10](EVOLUTION.md#10-系统层现代化)、[技术报告](report/README.md) |
 | PBVS / IBVS / 2.5D 混合伺服离线对比 | [演进 7](EVOLUTION.md#7-方法对比与可视化)、[报告](experiments/ibvs_vs_pbvs/README.md) |
 | RViz 开槽可视化、墙面实体、演示录制工具 | [演进 7](EVOLUTION.md#7-方法对比与可视化)、[说明](experiments/demo/README.md) |

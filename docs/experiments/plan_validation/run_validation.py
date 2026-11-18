@@ -34,6 +34,12 @@ BAG_TOPICS = ['/odom', '/wheel/odom', '/ground_truth/odom', '/task_skills/wall_e
               '/map', '/robot_description', '/gazebo/link_states']
 
 
+def portable(cmd):
+    """记录的命令行改用仓库相对路径与 ~，便于在其他机器上复现."""
+    repo = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', '..'))
+    return cmd.replace(repo + os.sep, '').replace(os.path.expanduser('~') + os.sep, '~/')
+
+
 def isolated_env():
     env = dict(os.environ)
     env['ROS_DOMAIN_ID'] = DOMAIN
@@ -187,7 +193,7 @@ def main():
     with open(os.path.join(out, 'command.txt'), 'w') as f:
         for c in [launch, fix] + list(cams.values()) + [rec]:
             if c:
-                f.write(' '.join(c) + '\n')
+                f.write(portable(' '.join(c)) + '\n')
 
     t0 = time.time()
     rc = 1
