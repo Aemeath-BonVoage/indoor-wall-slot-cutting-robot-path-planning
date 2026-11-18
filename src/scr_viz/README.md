@@ -51,7 +51,7 @@ ros2 launch scr_viz plan_viz.launch.py plan_file:=/tmp/plan.yaml use_sim_time:=t
 ```bash
 # 只生成 SDF（离线）
 ros2 run scr_viz spawn_wall_fixtures src/scr_viz/config/wall_task_room3_south_demo.yaml --out /tmp/fixtures
-# 运行时生成 / 删除（不修改 room.world）
+# 运行时生成 / 删除（不修改 room.world）：调 gazebo_ros_factory 的 /spawn_entity、/delete_entity
 ros2 run scr_viz spawn_wall_fixtures src/scr_viz/config/wall_task_room3_south_demo.yaml --spawn
 ros2 run scr_viz spawn_wall_fixtures src/scr_viz/config/wall_task_room3_south_demo.yaml --delete
 ```
@@ -70,9 +70,30 @@ ros2 run scr_viz demo_record --out /tmp/demo_frames --preset oblique --rate 2 --
 ros2 run scr_viz make_demo_video /tmp/demo_frames /tmp/demo.gif --fps 12 --width 480
 ```
 
-预设视角（room3 南墙）：`oblique`（斜后方俯视）、`front`（机器人身后正对墙）、`side`（东侧近景看进给）、
-`top`（高处俯视底盘横移）；也可 `--eye X Y Z --target X Y Z`。按图像时间戳（仿真时间）抽帧，
-仿真慢于实时也不影响节奏；帧上叠加仿真时间。相机图像话题 `/<name>/image_raw`。
+预设视角（room3 南墙，`sdf_gen.CAMERA_PRESETS`）：
+
+| 预设 | 相机位置 → 目标点（m） | 用途 |
+|---|---|---|
+| `oblique`（默认） | (6.3, −2.6, 1.8) → (8.1, −3.85, 0.5) | 斜后方俯视底盘、机械臂与墙面；机器人在横移范围两端（x ≈ 7.4–8.8 m）时刀具与定位标记都不被立柱遮挡 |
+| `overview` | (4.3, −2.3, 7.5) → (4.3, −1.5, 0) | 近似正上方俯视，地面视野约 10 m × 5.8 m，覆盖起点 (0, 0) 与 room3 南墙，看导航全程 |
+| `front` / `side` / `top` | 见 `sdf_gen.py` | 机器人身后正对墙 / 东侧近景看进给 / 高处俯视底盘横移 |
+
+也可 `--eye X Y Z --target X Y Z`。按图像时间戳（仿真时间）抽帧，仿真慢于实时也不影响节奏；帧上叠加仿真时间。
+
+相机图像话题为 `/<name>/<name>/image_raw`（`sdf_gen.camera_topic()`）：`gazebo_ros_camera` 把图像发布在“插件命名空间 / 相机名”下，命名空间默认 `/<name>`，因此默认相机名 `demo_camera` 的话题是 `/demo_camera/demo_camera/image_raw`。同时开多台相机时用 `--name` 区分；`--no-spawn --topic <话题>` 只录已有相机。
+
+服务名与话题名都已在运行中的 gzserver 上核对（[demo 报告](../../docs/experiments/demo/README.md#排查gazebo-中的两处接口错误)），单元测试固定了它们。
+
+## 数据包回放（低内存机器）
+
+4 GB 内存的机器上，RViz 与 Gazebo + Nav2 + 任务层 + 演示相机同时运行会内存不足。此时执行时只录制数据包（须含 `/clock`、`/tf`、`/tf_static`、`/robot_description` 与 `/gazebo/link_states`），事后回放到 RViz：`plan_viz` 从回放的 `/gazebo/link_states` 推算刀尖轨迹，与在线运行的计算相同。
+
+```bash
+ros2 launch scr_viz plan_viz.launch.py task_file:=<任务.yaml> plan_file:=<plan.yaml> use_sim_time:=true
+ros2 bag play <数据包目录>          # 包内已录 /clock
+```
+
+录制、动画合成与按仿真时间截图的脚本（`run_validation.py`、`make_slot_demo.py`、`replay_rviz.py`）见 [使用指南 8.3](../../docs/USER_GUIDE.md#83-演示录制与数据包回放)。
 
 ## 测试
 

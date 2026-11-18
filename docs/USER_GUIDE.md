@@ -464,7 +464,7 @@ python3 src/scr_planner/scripts/plan_wall_slots.py src/scr_planner/config/wall_t
 | `--routes=rule\|joint` | `rule` | `rule`：逐条槽按规范代价选线后划分停靠站；`joint`：槽线与停靠站联合规划（[task_planning](experiments/task_planning/README.md)） |
 | `--partition=dp\|greedy\|per_slot` | 任务文件 `options.partition`，未设时 `dp` | 停靠站划分 |
 | `--order=sweep\|slot_by_slot` | 任务文件 `options.order`，未设时 `sweep` | 访问顺序 |
-| `--time-model=align_v2\|align_v1` | `align_v2` | 预测执行时间所用的时间模型预设（[7.4](#74-执行时间模型)）；也可在任务文件 `options.time_model` 中指定 |
+| `--time-model=align_v3\|align_v2\|align_v1` | `align_v3` | 预测执行时间所用的时间模型预设（[7.4](#74-执行时间模型)）；也可在任务文件 `options.time_model` 中指定 |
 
 也可以运行 ROS 节点 `wall_slot_planner_node.py`（参数 `task_file`、`output_file`），它额外在 `/wall_slot_plan/markers` 发布 RViz 显示。
 
@@ -518,25 +518,36 @@ ros2 bag record -o ~/scr_bags/run1 --use-sim-time \
     /task_executor/station_records /cmd_vel /joint_states /imu /scan /tf /tf_static /clock
 ```
 
-读取包中的 `scr_interfaces` 消息需要先 `source install/setup.bash`。相机图像约 27 MB/s，一般不录；行为树 action 的反馈属于隐藏话题，逐站结果从 `station_records` 读取。沿墙精度实验的脚本用 `run_experiment.py <配置> --bag <目录>` 录制同样的话题。
+读取包中的 `scr_interfaces` 消息需要先 `source install/setup.bash`。相机图像约 27 MB/s，一般不录；行为树 action 的反馈属于隐藏话题，逐站结果从 `station_records` 读取。沿墙精度实验的 `run_experiment.py <配置> --bag <目录>` 与规划验证的 `run_validation.py ... --bag <目录>`（[8.3](#83-演示录制与数据包回放)）录制同样的话题，后者另录 `/gazebo/link_states`、`/plan`、`/map` 与 `/robot_description`，可在 RViz 中回放。
 
 ### 7.4 执行时间模型
 
 规划器用时间模型预测执行时间：每站耗时 = `t_settle` + 横移距离 / `v_strafe` + 点数 × `t_point`。模型由 Gazebo 执行记录标定，标定结果保存为命名预设（`slot_plan.TIME_MODELS`）：
 
-| 预设 | 对应的执行路径 | `t_settle` | `v_strafe` | `t_point` |
-|---|---|---|---|---|
-| `align_v2`（默认） | 精对位第二版 | 2.83 s | 0.0984 m/s | 2.049 s |
-| `align_v1` | 第一版精对位，用于复现早期报告的数字 | 4.40 s | 0.0945 m/s | 2.034 s |
+| 预设 | 对应的执行路径 | 标定方法 | `t_settle` | `v_strafe` | `t_point` |
+|---|---|---|---|---|---|
+| `align_v3`（默认） | 当前默认：行为树任务层，标记地图 + 横移比例估计，横移前回观测位姿（44 站，每站 RMSE 0.22 s） | `phases-reg` | 4.70 s | 0.0971 m/s | 2.030 s |
+| `align_v2` | 行为树改造之前、精对位第二版、单标记，`/odom` 为真值 | `phases` | 2.83 s | 0.0984 m/s | 2.049 s |
+| `align_v1` | 第一版精对位，用于复现早期报告的数字 | `joint` | 4.40 s | 0.0945 m/s | 2.034 s |
 
-`plan_wall_slots.py`、`task_planning_benchmark.py` 与 `task_planning_report.py` 都接受 `--time-model`。用新的执行记录重标定：
+`plan_wall_slots.py`、`task_planning_benchmark.py` 与 `task_planning_report.py` 都接受 `--time-model`，默认 `align_v3`。在当前默认路径上，`align_v3` 对 5 次未参与标定的运行（联合规划、规则路线与 11 站规划）预测各站耗时之和的误差为 −1.7 … +0.7 s（≤ 0.7 %）；`align_v2` 每次运行低估 18–21 s，只用于复现此前的报告（[plan_validation](experiments/plan_validation/README.md)）。
+
+用新的执行记录（实验记录器的结果目录）重标定：
 
 ```bash
 python3 src/scr_planner/scripts/calibrate_time_model.py /tmp/run_a /tmp/run_b \
-    --method=phases --compare=align_v1,align_v2 --loo
+    --method=phases-reg --compare=align_v1,align_v2,align_v3 --loo
 ```
 
-`--method=joint`（默认）对每站总耗时做整体最小二乘；`--method=phases` 按横移、切割与固定开销分阶段估计，对少数站上的偶发停顿不敏感；`--compare` 在同一批数据上评估已有预设；`--loo` 给出逐次运行留一交叉验证的每站 RMSE。两个预设都在早期配置（`/odom` 为真值）下标定，执行路径或仿真配置改变后应重新标定。当前默认的精对位参数在横移前回到观测位姿，每站约多 2 s（沿墙精度实验的 11 站规划中，总耗时由单标记基线的 272 s 变为 295 s），`align_v2` 尚未按此重新标定，会低估默认配置下的执行时间。
+| 选项 | 说明 |
+|---|---|
+| `--method=joint`（默认） | 三个参数对每站总耗时整体最小二乘 |
+| `--method=phases` | 分阶段：横移阶段回归，`t_point` = 切割总时间 / 总点数，其余为固定开销均值；对少数站上的偶发停顿不敏感（`align_v2` 用此法） |
+| `--method=phases-reg` | 同 `phases`，但切割阶段也回归 `cut_s = c_cut + 点数 × t_point`，截距计入每站固定开销（`align_v3` 用此法） |
+| `--compare=<预设,...>` | 在同一批数据上评估已有预设的每站 RMSE、平均偏差与各站之和的误差 |
+| `--loo` | 逐次运行留一交叉验证的每站 RMSE |
+
+当前路径改用 `phases-reg` 的原因：横移前机械臂回到观测位姿后，每站切割阶段先要从观测位姿移到第一个切割点，这段约 1.0 s 的运动与点数无关。比值估计把它摊进 `t_point`（2.152 s，偏大 6 %），会高估“每少一个点省多少时间”，每站 RMSE 0.55 s；回归后 `t_point` = 2.030 s，每站 RMSE 0.22 s，与整体最小二乘一致。执行路径或仿真配置改变后应重新标定。
 
 ---
 
@@ -575,7 +586,43 @@ ros2 run scr_viz demo_record --out /tmp/demo_frames --preset oblique --rate 2 --
 ros2 run scr_viz make_demo_video /tmp/demo_frames /tmp/demo.gif --fps 12 --width 480
 ```
 
-视角预设：`oblique`、`front`、`side`、`top`，或用 `--eye X Y Z --target X Y Z` 指定。墙面实体的运行时生成和演示相机出图尚未在 Gazebo 中完整验证（见 [demo 报告](experiments/demo/README.md)）。详见 [`src/scr_viz/README.md`](../src/scr_viz/README.md)。
+- 墙面实体由 Gazebo 的 `gazebo_ros_factory` 生成与删除，服务名为 `/spawn_entity`、`/delete_entity`（根命名空间，没有 `/gazebo` 前缀）。
+- 演示相机的图像话题为 `/<name>/<name>/image_raw`（`gazebo_ros_camera` 发布在“插件命名空间 / 相机名”下），默认相机名 `demo_camera`，即 `/demo_camera/demo_camera/image_raw`；`demo_record` 默认订阅它，`--no-spawn --topic` 可改用已有相机。
+- 视角预设：`oblique`（斜后方俯视墙面与机械臂，机器人在横移范围两端时刀具与标记都不被立柱遮挡）、`overview`（7.5 m 高的近似俯视，覆盖起点与 room3 南墙，看导航全程）、`front`、`side`、`top`，或用 `--eye X Y Z --target X Y Z` 指定。同时开多台相机时用 `--name` 区分。
+
+二者都已在运行中的 Gazebo 里验证（6 个墙面实体与两台相机，执行不受影响），见 [demo 报告](experiments/demo/README.md)。详见 [`src/scr_viz/README.md`](../src/scr_viz/README.md)。
+
+### 8.3 演示录制与数据包回放
+
+完整的多站开槽演示（[`slot_demo.gif`](experiments/demo/slot_demo.gif)）由三步生成：执行并录制、合成动画、在 RViz 中回放。在 4 GB 内存的机器上，Gazebo + Nav2 + 任务层 + 两台演示相机 + rosbag2 录制可以同时运行，但再开 RViz 内存不够；此时不要让 RViz 与仿真同时运行，而是录制数据包，事后回放到 RViz。
+
+```bash
+# 1. 执行一份规划：无界面仿真 + 任务层 + 墙面实体 + 两台演示相机 + 数据包 + 真值记录（约 6 min 墙钟）
+python3 docs/experiments/plan_validation/run_validation.py \
+    docs/experiments/plan_validation/plans/plan_joint.yaml /tmp/demo_run --seed 1 \
+    --fixtures src/scr_viz/config/wall_task_room3_south_demo.yaml \
+    --camera ~/scr_media/demo_frames --presets overview oblique \
+    --bag ~/scr_bags/demo_run
+# 2. 合成 GIF / MP4 与截图：上为演示相机（导航阶段 overview，到墙前后 oblique），下为墙面立面图
+python3 docs/experiments/demo/make_slot_demo.py /tmp/demo_run ~/scr_media/demo_frames \
+    --task src/scr_viz/config/wall_task_room3_south_demo.yaml --plan /tmp/demo_run/slot_plan.yaml \
+    --gif /tmp/slot_demo.gif --mp4 /tmp/slot_demo.mp4 --stills /tmp/demo_stills
+# 3. 回放数据包到 RViz：plan_viz 从回放的 /gazebo/link_states 推算刀尖轨迹，按仿真时间截图
+python3 docs/experiments/demo/replay_rviz.py ~/scr_bags/demo_run \
+    --task src/scr_viz/config/wall_task_room3_south_demo.yaml --plan /tmp/demo_run/slot_plan.yaml \
+    --out /tmp/rviz --at 60 170 --rate 2
+```
+
+- `run_validation.py`：仿真与规划之外的设置全部取默认值，`--seed` 为编码器打滑种子；`--fixtures` 在执行前生成墙面实体；`--camera <帧目录> --presets ...` 每个预设开一台演示相机，帧存到 `<帧目录>/<预设>/`（`--rate` 每仿真秒帧数，默认 2）；`--bag` 同时录制数据包。仿真隔离在 `ROS_DOMAIN_ID = 48`，结束时清理本次启动的全部进程与 Fast DDS 共享内存。Nav2 组件偶尔加载超时时，启动看门狗（`--startup-timeout`，默认 240 s）判为启动失败并整次重跑（`--retries`，默认 2 次），记录写入 `startup_failures.txt`。
+- `make_slot_demo.py`：读取结果目录中的 `tool_trace.csv[.gz]`、`summary.yaml` 与相机帧，按阶段以不同倍速抽帧（`--speed-nav` / `--speed-align` / `--speed-cut`，默认 10 / 4 / 10 倍），需要 ffmpeg。
+- `replay_rviz.py`：用包内的 `/clock` 回放，`plan_viz` 与 RViz 都用仿真时间；`--at` 为相对包内第一条 `/clock` 的仿真秒数，到达时抓取 RViz 窗口存为 `<目录>/rviz_<t>.png`，结束时另存 `rviz_end.png`。需要桌面会话（`DISPLAY`，默认 `:0`）与 `xwd`、ImageMagick `convert`；Wayland 下 RViz 走 XWayland，可以直接抓取。
+
+不用脚本时手动回放（包内已录 `/clock`，不需要 `--clock`）：
+
+```bash
+ros2 launch scr_viz plan_viz.launch.py task_file:=<任务.yaml> plan_file:=<plan.yaml> use_sim_time:=true   # 含 RViz
+ros2 bag play ~/scr_bags/demo_run
+```
 
 ---
 
@@ -601,6 +648,7 @@ colcon test --packages-select scr_planner     # 只测单个包
 | 可视化与演示 | 部分 | [demo](experiments/demo/README.md) |
 | 行为树编排、Nav2 MPPI / Smac、定位融合、底盘 ros2_control | 是 | [system_modernization](experiments/system_modernization/README.md) |
 | 多站沿墙精度：标记地图、横移比例估计、按行程重新对位 | 是 | [along_wall_accuracy](experiments/along_wall_accuracy/README.md) |
+| 时间模型 `align_v3` 标定；联合规划与规则路线的 Gazebo 执行 | 标定部分否 | [plan_validation](experiments/plan_validation/README.md) |
 
 注意各报告所用的仿真配置：系统层现代化之前的实验（精对位、多站执行、时间模型）在早期配置（`base_control:=plugin`，`/odom` 为真值，NavFn + DWB）下取得，复现时按 [2.4](#24-底盘里程计与定位) 设置启动参数；沿墙精度实验之前的多站数据还要用早期的站间语义（单标记、站间只用里程计，[6.4](#64-定位标记地图与横移比例估计)）。各报告的“复现”一节给出了对应的命令。
 

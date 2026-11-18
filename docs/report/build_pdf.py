@@ -18,6 +18,36 @@ import sys
 import tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+REPO = os.path.abspath(os.path.join(HERE, '..', '..'))
+
+
+def _blob_base():
+    """仓库 origin 的 GitHub 网页地址（.../blob/main/）；取不到时返回 None."""
+    try:
+        url = subprocess.run(['git', '-C', REPO, 'remote', 'get-url', 'origin'],
+                             capture_output=True, text=True, check=True).stdout.strip()
+    except (OSError, subprocess.CalledProcessError):
+        return None
+    m = re.match(r'^(?:git@github\.com:|https://github\.com/)([^/]+/[^/]+?)(?:\.git)?/?$', url)
+    return f'https://github.com/{m.group(1)}/blob/main/' if m else None
+
+
+BLOB = _blob_base()
+
+
+def link(text, target):
+    """
+    PDF 中的链接：仓库内的相对路径改为 GitHub 上 main 分支的地址，不把本机的绝对路径
+    （Chrome 按 file:// 解析相对链接）写进 PDF；取不到远程地址时只保留文字.
+    """
+    if re.match(r'^(https?|mailto):', target) or target.startswith('#'):
+        return f'<a href="{target}">{text}</a>'
+    path, _, anchor = target.partition('#')
+    rel = os.path.relpath(os.path.normpath(os.path.join(HERE, path)), REPO).replace(os.sep, '/')
+    if BLOB is None or rel.startswith('..'):
+        return f'<span class="link">{text}</span>'
+    return f'<a href="{BLOB}{rel}{"#" + anchor if anchor else ""}">{text}</a>'
+
 
 CSS = """
 @page { size: A4; margin: 18mm 17mm 18mm 17mm; }
@@ -32,7 +62,7 @@ h2 { font-size: 13.5pt; margin: 16pt 0 6pt; border-bottom: 1px solid #bbb; paddi
 h3 { font-size: 11.2pt; margin: 11pt 0 4pt; break-after: avoid; }
 h4 { font-size: 10.4pt; margin: 9pt 0 3pt; break-after: avoid; }
 p { margin: 4pt 0; }
-a { color: #1a4f9c; text-decoration: none; }
+a, .link { color: #1a4f9c; text-decoration: none; }
 code { font-family: 'Noto Sans Mono CJK SC', 'DejaVu Sans Mono', monospace; font-size: 8.8pt;
        background: #f2f1ee; padding: 0 2px; border-radius: 2px; }
 pre { background: #f5f4f1; border-left: 3px solid #c9c7c0; padding: 5pt 8pt; margin: 5pt 0;
@@ -72,7 +102,7 @@ def inline(s):
     s = s.replace('\\*', '\x01').replace('\\_', '\x02')
     s = html.escape(s, quote=False)
     s = re.sub(r'!\[([^\]]*)\]\(([^)]+)\)', r'<img alt="\1" src="\2">', s)
-    s = re.sub(r'\[([^\]]+)\]\(([^)]+)\)', r'<a href="\2">\1</a>', s)
+    s = re.sub(r'\[([^\]]+)\]\(([^)]+)\)', lambda m: link(m.group(1), m.group(2)), s)
     s = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', s)
     s = re.sub(r'(?<![\w*])\*(?!\s)(.+?)(?<!\s)\*(?![\w*])', r'<em>\1</em>', s)
     s = s.replace('\x01', '*').replace('\x02', '_')

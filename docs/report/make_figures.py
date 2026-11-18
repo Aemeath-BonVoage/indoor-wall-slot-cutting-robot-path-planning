@@ -239,19 +239,19 @@ def fig_summary(out):
     ax.set_title('(b) 多站执行：每次运行的到站横向误差，均值 ± 站间标准差', loc='left', fontsize=10)
     ax.grid(axis='x', visible=False)
 
-    # (c) 时间模型：每站预测 vs 实测（精对位第二版的 33 个停靠站）
+    # (c) 时间模型：当前默认执行路径下的样本外停靠站（plan_validation 的 5 次验证运行）
     ax = axs[1, 0]
-    models = {'align_v1': (4.40, 0.0945, 2.034), 'align_v2': (2.83, 0.0984, 2.049)}
-    st = []
-    for d in ('fine_align_dp', 'fine_align_dp_repeat', 'fine_align_dp_nofold'):
-        st += load(os.path.join(EXP, 'slot_execution', 'runs', d, 'stations.csv'))
+    models = {'align_v2': (2.83, 0.0984, 2.049), 'align_v3': (4.70, 0.0971, 2.030)}
+    st = [r for r in load(os.path.join(EXP, 'plan_validation', 'stations_all.csv'))
+          if r['run'] != 'demo_joint']        # 演示运行另加了墙面实体与相机，单独列出
     y = np.array([float(r['station_s']) for r in st])
     dist = np.array([float(r['move_dist_m']) for r in st])
     n = np.array([float(r['points']) for r in st])
     lo, hi = 8, 42
     ax.plot([lo, hi], [lo, hi], color=INK2, lw=0.8, ls=':')
-    for (name, (ts, v, tp)), c, lab in zip(models.items(), (C_V1, C_V2),
-                                           ('align_v1（第一版标定）', 'align_v2（重标定）')):
+    for (name, (ts, v, tp)), c, lab in zip(models.items(), ('#9a9992', C_V2),
+                                           ('align_v2（此前路径的标定）',
+                                            'align_v3（当前路径重标定）')):
         p = ts + dist / v + n * tp
         rmse = np.sqrt(np.mean((p - y) ** 2))
         ax.scatter(y, p, s=22, color=c, alpha=0.8, label=f'{lab}：RMSE {rmse:.2f} s', lw=0)
@@ -259,31 +259,35 @@ def fig_summary(out):
     ax.set_ylim(lo, hi)
     ax.set_xlabel('Gazebo 实测每站耗时 (s)')
     ax.set_ylabel('模型预测 (s)')
-    ax.set_title('(c) 时间模型：精对位第二版下 33 个停靠站（3 次运行）', loc='left', fontsize=10)
+    ax.set_title(f'(c) 时间模型：当前默认路径下 {len(y)} 个样本外停靠站（5 次运行）', loc='left',
+                 fontsize=10)
     ax.legend(frameon=False, fontsize=8.5, loc='upper left')
     ax.set_aspect('equal')
 
-    # (d) 任务级规划：配对墙上的平均预测时间（两种时间模型）
+    # (d) 任务级规划：配对墙上的平均预测时间（三种时间模型）
     ax = axs[1, 1]
     meth = [('per_slot', '逐槽划分\n（基线）'), ('current', '先选线后 DP\n（现有）'),
             ('joint', '联合规划'), ('lower_bound', '下界')]
     sets = [('align_v1', os.path.join(EXP, 'task_planning', 'summary.csv'), C_V1),
-            ('align_v2', os.path.join(EXP, 'task_planning', 'align_v2', 'summary.csv'), C_V2)]
+            ('align_v2', os.path.join(EXP, 'task_planning', 'align_v2', 'summary.csv'), '#b9b8b2'),
+            ('align_v3', os.path.join(EXP, 'task_planning', 'align_v3', 'summary.csv'), C_V2)]
     x = np.arange(len(meth))
+    w = 0.27
     for j, (name, path, c) in enumerate(sets):
         if not os.path.exists(path):
             continue
         S = {r['method']: r for r in load(path)}
         vals = [float(S[m]['t_mean']) for m, _ in meth]
-        ax.bar(x + (j - 0.5) * 0.36, vals, 0.34, color=c,
+        ax.bar(x + (j - 1) * w, vals, w - 0.02, color=c,
                label=f'{name}（n = {S["joint"]["n"]}）')
-        for xi, v in zip(x + (j - 0.5) * 0.36, vals):
-            ax.text(xi, v + 2, f'{v:.0f}', ha='center', fontsize=7.5, color=INK2)
+        for xi, v in zip(x + (j - 1) * w, vals):
+            ax.text(xi, v + 2, f'{v:.0f}', ha='center', fontsize=7, color=INK2)
     ax.set_xticks(x)
     ax.set_xticklabels([m[1] for m in meth], fontsize=8.5)
     ax.set_ylabel('配对墙上的平均预测执行时间 (s)')
+    ax.set_ylim(0, 215)
     ax.set_title('(d) 400 面随机墙（离线预测，非 Gazebo 实测）', loc='left', fontsize=10)
-    ax.legend(frameon=False, fontsize=8.5, loc='upper right')
+    ax.legend(frameon=False, fontsize=8.5, loc='upper right', ncol=3)
     ax.grid(axis='x', visible=False)
 
     fig.tight_layout()

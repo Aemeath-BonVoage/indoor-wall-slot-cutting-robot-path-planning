@@ -34,9 +34,9 @@
 # 离线规划（不需要 ROS）：槽线、停靠站（按执行顺序）、每站机械臂点、预测时间
 python3 src/scr_planner/scripts/plan_wall_slots.py src/scr_planner/config/wall_task_room3_south.yaml /tmp/plan.yaml \
     [--routes=rule|joint] [--partition=dp|greedy|per_slot] [--order=sweep|slot_by_slot] \
-    [--time-model=align_v2|align_v1]
+    [--time-model=align_v3|align_v2|align_v1]
 # --routes=joint：槽线与停靠站联合规划（每面墙规划耗时中位约 0.4 s，最长约 5.5 s），输出格式不变
-# --time-model：预测时间所用的预设，默认 align_v2；也可在任务文件 options.time_model 中指定
+# --time-model：预测时间所用的预设，默认 align_v3；也可在任务文件 options.time_model 中指定
 
 # 执行（行为树执行器 /execute_slot_plan，需先 ros2 launch scr_bringup sim_nav.launch.py）；--dry-run-gap 为空切
 ros2 run scr_arm_controller navigation_cutting_task /tmp/plan.yaml --dry-run-gap=0.01
@@ -62,22 +62,24 @@ ros2 run scr_planner wall_slot_planner_node.py --ros-args \
 
 | 预设 | 标定数据 | 方法 | `t_settle` | `v_strafe` | `t_point` |
 |---|---|---|---|---|---|
-| `align_v2`（默认，`TimeModel()`） | 精对位第二版，3 次运行 33 站 | 分阶段估计 | 2.83 s | 0.0984 m/s | 2.049 s |
+| `align_v3`（默认，`TimeModel()`） | 当前默认执行路径（行为树 + 标记地图 + 横移比例估计 + 横移前回观测位姿），4 次运行 44 站 | 分阶段，切割阶段回归（`phases-reg`） | 4.70 s | 0.0971 m/s | 2.030 s |
+| `align_v2` | 行为树改造之前、精对位第二版，3 次运行 33 站 | 分阶段估计（`phases`） | 2.83 s | 0.0984 m/s | 2.049 s |
 | `align_v1` | 第一版精对位，4 次运行 54 站 | 整体最小二乘 | 4.40 s | 0.0945 m/s | 2.034 s |
 
 `plan_wall_slots.py`、`task_planning_benchmark.py`、`task_planning_report.py` 接受 `--time-model=<预设>`。标定：
 
 ```bash
 python3 src/scr_planner/scripts/calibrate_time_model.py <run_dir> [<run_dir> ...] \
-    [--method=joint|phases] [--compare=align_v1,align_v2] [--loo]
+    [--method=joint|phases|phases-reg] [--compare=align_v1,align_v2,align_v3] [--loo]
 ```
 
 - `--method=joint`（默认）：对每站总耗时 `station_s` 做整体最小二乘，三个参数同时拟合；
 - `--method=phases`：分阶段估计——横移阶段 `move_s = a + d / v_strafe` 回归，`t_point = Σ cut_s / Σ points`，固定开销取均值，`t_settle = a + 固定开销`；少数站上的偶发停顿只影响 `t_point` 的均值，而不会被归到横移距离上；
+- `--method=phases-reg`：同上，但切割阶段也回归 `cut_s = c_cut + 点数 × t_point`，截距计入 `t_settle`。横移前机械臂回到观测位姿后，每站切割阶段多出约 1.0 s 与点数无关的“观测位姿 → 第一个切割点”运动，比值估计会把它摊进 `t_point`（2.152 s，每站 RMSE 0.55 s），回归后为 2.030 s、0.22 s；
 - `--compare`：在同一批数据上评估已有预设的每站 RMSE、平均偏差与各站耗时之和的误差；
 - `--loo`：逐次运行留一交叉验证。
 
-两个预设的数据都来自早期配置（`/odom` 为真值）。执行路径或仿真配置改变后应用新的执行记录重新标定；当前默认的精对位参数在横移前回到观测位姿，每站约多 2 s，两个预设都尚未包含这一项。标定过程与比较见 [技术报告](../../docs/report/README.md#64-执行时间模型的标定) 6.4 节。
+`align_v1`、`align_v2` 的数据来自早期配置（`/odom` 为真值），在当前默认路径上 `align_v2` 每次运行低估 18–21 s，只用于复现此前的报告；`align_v3` 的数据来自沿墙精度实验中默认配置的 4 次运行，在 5 次未参与标定的运行（含联合规划与规则路线）上各站之和的误差为 −1.7 … +0.7 s。执行路径或仿真配置改变后应用新的执行记录重新标定。标定、样本外检验与联合规划的 Gazebo 执行见 [plan_validation](../../docs/experiments/plan_validation/README.md)，标定方法的演变见 [技术报告](../../docs/report/README.md#64-执行时间模型的标定) 6.4 节。
 
 其他脚本：`wall_benchmark.py`（规划器与施工规范的随机墙面对比）、`station_order_benchmark.py`（停靠站划分与顺序的离线对比）、`task_planning_benchmark.py` / `task_planning_report.py`（联合规划的批量基准与统计，见 [报告](../../docs/experiments/task_planning/README.md)）、`plot_execution.py` / `plot_station_order.py`（作图）。
 
