@@ -4,9 +4,9 @@
 
   python3 src/scr_planner/scripts/task_planning_report.py [data_dir] [out_dir] [--time-model=NAME]
 
-data_dir 默认 docs/experiments/task_planning/align_v2/data，out_dir 默认为 data_dir 的上一级。
+data_dir 默认 docs/experiments/task_planning/align_v3/data，out_dir 默认为 data_dir 的上一级。
 --time-model 只用于重新规划示例墙（fig_example.png），须与生成 data_dir 时所用的预设一致：
-align_v2/data 用 align_v2（默认），data/ 用 align_v1。
+align_v3/data 用 align_v3（默认），align_v2/data 用 align_v2，data/ 用 align_v1。
 
 统计口径
   配对样本：per_slot、current、joint 三者都得到可行方案的墙（current 可行时 joint 必可行）。
@@ -141,9 +141,9 @@ def main():
     args = [a for a in sys.argv[1:] if not a.startswith('--')]
     kw = dict(a[2:].split('=', 1) for a in sys.argv[1:] if a.startswith('--'))
     data = args[0] if args else os.path.join(
-        REPO, 'docs', 'experiments', 'task_planning', 'align_v2', 'data')
+        REPO, 'docs', 'experiments', 'task_planning', 'align_v3', 'data')
     out = args[1] if len(args) > 1 else os.path.dirname(os.path.abspath(data))
-    time_model = kw.get('time-model', 'align_v2')
+    time_model = kw.get('time-model', 'align_v3')
     rows = load(os.path.join(data, 'results.csv'))
     S = by_seed(rows)
     n_walls = len(S)
@@ -366,7 +366,7 @@ def plot_results(S, P, nlb, gaps, out):
     print('\n已保存', os.path.join(out, 'fig_results.png'))
 
 
-def plot_example(S, nlb, out, time_model='align_v2'):
+def plot_example(S, nlb, out, time_model='align_v3'):
     """节省最多的一面 2–3 条槽的非承重墙：现有方法与联合规划的槽线和停靠站对比."""
     import random
 

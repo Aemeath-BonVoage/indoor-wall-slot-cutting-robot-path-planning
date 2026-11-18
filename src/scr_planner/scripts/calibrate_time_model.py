@@ -3,7 +3,7 @@
 """用 Gazebo 执行记录标定时间模型：每站耗时 = t_settle + 横移距离 / v_strafe + 点数 × t_point.
 
   python3 src/scr_planner/scripts/calibrate_time_model.py <run_dir> [<run_dir> ...]
-      [--method=joint|phases] [--compare=align_v1,align_v2] [--loo]
+      [--method=joint|phases|phases-reg] [--compare=align_v1,align_v2,align_v3] [--loo]
 
 每个 run_dir 含 execute_slot_plan.py 输出的 stations.csv（每站一行：move_dist_m、points、
 station_s = 到站 move_s + 切割 cut_s + 其余固定开销）。
@@ -15,6 +15,10 @@ station_s = 到站 move_s + 切割 cut_s + 其余固定开销）。
     固定开销  c = mean(station_s − move_s − cut_s)；t_settle = a + c。
     切割阶段偶有约 2–3 s 的停顿，落在少数站上。整体最小二乘会把它归到点数或横移距离上
     （横移距离只有 0.05–0.23 m 三档，杠杆点很少），而分阶段估计只让它影响 t_point 的均值。
+--method=phases-reg：同 phases，但切割阶段也用回归 cut_s = c_cut + n × t_point，截距 c_cut
+    计入每站固定开销（t_settle = a + c + c_cut）。横移前机械臂回到观测位姿后（精对位默认
+    observe_between_stations），每站切割阶段多出一段与点数无关的“观测位姿 → 第一个切割点”
+    运动；比值估计会把它摊进 t_point，使“每少一个点省多少时间”偏大。
 --compare：在同一批数据上评估已有预设（slot_plan.TIME_MODELS）的每站 RMSE、平均偏差与
     每次运行各站耗时之和的误差。
 --loo：逐次运行留一交叉验证（用其余运行拟合，预测留出运行），给出样本外每站 RMSE。
@@ -60,7 +64,15 @@ def fit_phases(a):
     return a0 + overhead, (1.0 / k if k > 1e-9 else float('inf')), t_point
 
 
-FIT = {'joint': fit_joint, 'phases': fit_phases}
+def fit_phases_reg(a):
+    (a0, k), *_ = np.linalg.lstsq(np.c_[np.ones_like(a['d']), a['d']], a['move'], rcond=None)
+    overhead = float(np.mean(a['y'] - a['move'] - a['cut']))
+    (c_cut, t_point), *_ = np.linalg.lstsq(np.c_[np.ones_like(a['n']), a['n']], a['cut'],
+                                           rcond=None)
+    return a0 + overhead + c_cut, (1.0 / k if k > 1e-9 else float('inf')), float(t_point)
+
+
+FIT = {'joint': fit_joint, 'phases': fit_phases, 'phases-reg': fit_phases_reg}
 
 
 def predict(p, a):

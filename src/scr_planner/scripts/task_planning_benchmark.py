@@ -20,10 +20,11 @@
   python3 src/scr_planner/scripts/task_planning_benchmark.py --sensitivity --scenes 120
   python3 src/scr_planner/scripts/task_planning_benchmark.py --time-model align_v1 --out <dir>
 
---time-model：时间模型预设（slot_plan.TIME_MODELS），默认 align_v2（当前执行路径的标定）；
-  data/ 下的原始结果用 align_v1（第一版精对位下的标定）生成，align_v2/data/ 用 align_v2。
+--time-model：时间模型预设（slot_plan.TIME_MODELS），默认 align_v3（当前默认执行路径的标定）；
+  data/ 下的原始结果用 align_v1（第一版精对位下的标定）生成，align_v2/data/ 用 align_v2，
+  align_v3/data/ 用 align_v3。
 
-输出（默认 docs/experiments/task_planning/align_v2/data/；align_v1 为 data/）：
+输出（默认 docs/experiments/task_planning/<预设>/data/；align_v1 为 data/）：
   results.csv（每面墙 × 每种方法一行）、lee.csv（每条槽一行）、sensitivity.csv
 """
 import argparse
@@ -226,7 +227,7 @@ def main():
     ap.add_argument('--seed0', type=int, default=1000)
     ap.add_argument('--jobs', type=int, default=2)
     ap.add_argument('--sensitivity', action='store_true')
-    ap.add_argument('--time-model', default='align_v2', choices=sorted(sp.TIME_MODELS))
+    ap.add_argument('--time-model', default='align_v3', choices=sorted(sp.TIME_MODELS))
     ap.add_argument('--out', default=None)
     args = ap.parse_args()
     tm = sp.TimeModel.preset(args.time_model)

@@ -387,24 +387,31 @@ def test_unrestricted_plan_reports_unreachable_part(planner):
 def test_time_model_presets():
     v1 = sp.TimeModel.preset('align_v1')
     assert (v1.t_settle, v1.v_strafe, v1.t_point) == (4.40, 0.0945, 2.034)
-    assert sp.TimeModel() == sp.TimeModel.preset('align_v2')
+    v2 = sp.TimeModel.preset('align_v2')
+    assert (v2.t_settle, v2.v_strafe, v2.t_point) == (2.83, 0.0984, 2.049)
+    assert sp.TimeModel() == sp.TimeModel.preset('align_v3')
     with pytest.raises(ValueError):
         sp.TimeModel.preset('nonexistent')
 
 
-RUNS = os.path.join(SRC, '..', 'docs', 'experiments', 'slot_execution', 'runs')
+EXPERIMENTS = os.path.join(SRC, '..', 'docs', 'experiments')
+RUNS = os.path.join(EXPERIMENTS, 'slot_execution', 'runs')
+ALONG_WALL_RUNS = os.path.join(EXPERIMENTS, 'along_wall_accuracy', 'runs')
 
 
-@pytest.mark.skipif(not os.path.isdir(RUNS), reason='experiment data not in this tree')
+@pytest.mark.skipif(not (os.path.isdir(RUNS) and os.path.isdir(ALONG_WALL_RUNS)),
+                    reason='experiment data not in this tree')
 def test_time_model_presets_reproduce_calibration():
-    """两个预设分别由各自的标定数据与方法复现（calibrate_time_model.py）."""
+    """每个预设由各自的标定数据与方法复现（calibrate_time_model.py）."""
     sys.path.insert(0, os.path.join(PKG, 'scripts'))
     import calibrate_time_model as cal
-    for name, runs, method in (
-            ('align_v1', ('dp', 'dp_repeat', 'per_slot', 'per_slot_repeat'), 'joint'),
-            ('align_v2', ('fine_align_dp', 'fine_align_dp_repeat', 'fine_align_dp_nofold'),
-             'phases')):
-        a = cal.arrays(cal.load([os.path.join(RUNS, r) for r in runs]))
+    for name, base, runs, method in (
+            ('align_v1', RUNS, ('dp', 'dp_repeat', 'per_slot', 'per_slot_repeat'), 'joint'),
+            ('align_v2', RUNS, ('fine_align_dp', 'fine_align_dp_repeat', 'fine_align_dp_nofold'),
+             'phases'),
+            ('align_v3', ALONG_WALL_RUNS, ('default_s1', 'default_s2', 'scale_tags_0.6_s1',
+                                           'scale_tags_0.6_s2'), 'phases-reg')):
+        a = cal.arrays(cal.load([os.path.join(base, r) for r in runs]))
         t_settle, v, t_point = cal.FIT[method](a)
         tm = sp.TimeModel.preset(name)
         assert t_settle == pytest.approx(tm.t_settle, abs=0.005)
