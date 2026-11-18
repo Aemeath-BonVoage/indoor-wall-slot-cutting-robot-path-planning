@@ -1,4 +1,4 @@
-"""作图：由 trials_*.csv 与少量在线仿真生成 fig_*.png / fig_*.pdf（docs/figstyle 统一样式，英文）."""
+"""作图：由 trials_*.csv 与少量在线仿真生成 fig_*.png / fig_*.pdf（样式见 docs/figstyle）."""
 import math
 import os
 import sys

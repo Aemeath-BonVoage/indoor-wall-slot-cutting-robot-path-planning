@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Shared matplotlib style for every data figure in this repository (IEEE layout).
+"""Shared matplotlib style for every data figure in this repository.
 
 Usage from a figure script (any directory of the repository)::
 
@@ -13,7 +13,7 @@ Usage from a figure script (any directory of the repository)::
 
 Conventions
 -----------
-- Width: IEEE single column 3.5 in, double column 7.16 in; height chosen per figure.
+- Width: single column 3.5 in, double column 7.16 in; height chosen per figure.
 - Font: Liberation Serif (metric-compatible with Times New Roman), 8 pt base,
   7 pt ticks / legends, nothing below 7 pt; mathtext uses the same family.
 - Colour: Okabe-Ito colour-blind-safe palette with fixed semantic roles shared by
@@ -202,12 +202,12 @@ def width_in(width):
 
 
 def figure(width='single', height=2.4, **kw):
-    """Empty figure of IEEE width with constrained layout."""
+    """Empty figure of column width with constrained layout."""
     return plt.figure(figsize=(width_in(width), height), **kw)
 
 
 def subplots(nrows=1, ncols=1, width='single', height=2.4, **kw):
-    """``plt.subplots`` with an IEEE width and constrained layout."""
+    """``plt.subplots`` with a column width and constrained layout."""
     return plt.subplots(nrows, ncols, figsize=(width_in(width), height), **kw)
 
 

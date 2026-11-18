@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""停靠站划分 / 顺序优化的对比图（docs/figstyle 统一样式，英文）.
+"""停靠站划分 / 顺序优化的对比图（样式见 docs/figstyle）.
 
   python3 src/scr_planner/scripts/plot_station_order.py <naive_run> <opt_run> <results.csv> \
       <out.png> [--time-model=NAME]

@@ -6,7 +6,7 @@
 
 只读取仓库中已提交的 CSV（docs/experiments/**），不需要 ROS / Gazebo。
 输出：docs/report/fig_architecture.{png,pdf}、docs/report/fig_summary.{png,pdf}
-（docs/figstyle 统一样式，英文，IEEE 双栏宽度）
+（样式见 docs/figstyle，双栏宽度）
 """
 import csv
 import os

@@ -18,7 +18,7 @@
 
 --plot-only 读取 --out 下的 wall_results.csv / wall_summary.csv，按同一种子重新生成场景，
 只重新规划图中的三个示例场景（并核对其指标与 CSV 一致），输出 wall_comparison.png / .pdf
-（docs/figstyle 统一样式，英文）。
+（样式见 docs/figstyle）。
 """
 import argparse
 import csv

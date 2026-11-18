@@ -659,7 +659,7 @@ class PathVisualizer:
             'enhanced': '#3498DB',    # 蓝色
         }
     
-    # 图中的英文名称与语义角色（docs/figstyle）
+    # 图中的名称与语义角色（docs/figstyle）
     NAMES_EN = ['Standard A*', 'Improved A* (turn penalty)', 'Enhanced A* (axis-aligned)']
     ROLES = ['neutral', 'alt2', 'proposed']
 

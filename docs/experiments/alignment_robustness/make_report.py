@@ -2,7 +2,7 @@
 """
 汇总精对位对比实验：合并各次运行的 trials.csv，输出 summary.csv、robustness.png、
 traces.png 以及 README 用的 Markdown 表格；各次运行目录与 v1_baseline/ 下的 robustness.png
-由各自的 summary.csv 重绘。图使用 docs/figstyle 的统一样式（英文，PDF + PNG）.
+由各自的 summary.csv 重绘。图使用 docs/figstyle 的样式（PDF + PNG）.
 
   python3 docs/experiments/alignment_robustness/make_report.py
 """
@@ -28,7 +28,7 @@ sys.path.insert(0, os.path.join(HERE, '..', '..'))
 import figstyle as fs  # noqa: E402
 from scr_arm_controller.alignment_benchmark import COND_ORDER, PIPELINES  # noqa: E402
 
-# 图中的英文名称
+# 图中的名称
 COND_EN = {
     'nominal': 'Nominal', 'odom_drift_3cm': 'Odom. drift\n3 cm, 1°',
     'odom_drift_10cm': 'Odom. drift\n10 cm, 3°', 'drift_10cm_noguard': 'Drift 10 cm,\nno guard',

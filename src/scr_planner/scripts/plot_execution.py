@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""画出一次多站开槽执行：规划槽线 vs Gazebo 真值刀尖轨迹（docs/figstyle 统一样式，英文）.
+"""画出一次多站开槽执行：规划槽线 vs Gazebo 真值刀尖轨迹（样式见 docs/figstyle）.
 
   python3 src/scr_planner/scripts/plot_execution.py <task.yaml> <run_dir> <out.png>
 

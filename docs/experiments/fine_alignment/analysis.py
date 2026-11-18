@@ -13,7 +13,7 @@ k_lin = 20）、激光 10 Hz、相机 30 Hz、测量延迟 50 ms；噪声水平�
 
   python3 docs/experiments/fine_alignment/analysis.py [--trials 200] [--out docs/experiments/fine_alignment]
 
-图使用 docs/figstyle 的统一样式（英文，PDF + PNG）。
+图使用 docs/figstyle 的样式（PDF + PNG）。
 """
 import argparse
 import csv

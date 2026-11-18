@@ -10,7 +10,7 @@
   base_summary.csv                                             底盘被控对象（力驱动 vs 轮子摩擦驱动）
   slot_summary.csv                                             多站执行（各配置）
 
-图使用 docs/figstyle 的统一样式（英文，PDF + PNG）。
+图使用 docs/figstyle 的样式（PDF + PNG）。
 """
 import csv
 import glob

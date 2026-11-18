@@ -14,7 +14,7 @@
   fig_estimate_error.png        估计的沿墙位置误差（估计 − 真值）随时间的变化
   tag_bias.csv                  标记测量误差（视线 / 垂直视线方向）随方位角的分布
 
-图使用 docs/figstyle 的统一样式（英文，PDF + PNG）：颜色表示方法组（基线 / 多标记 / 重新对位 /
+图使用 docs/figstyle 的样式（PDF + PNG）：颜色表示方法组（基线 / 多标记 / 重新对位 /
 比例修正 / 默认），标记形状区分组内配置，实线 / 虚线区分打滑种子。
 """
 import csv
@@ -54,7 +54,7 @@ LABELS = {
 ORDER = list(LABELS)
 VISIBLE = (-0.39, 0.44)   # 由 tag_window() 按数据更新
 
-# 图中的英文名称
+# 图中的名称
 LABELS_EN = {
     'single_off': 'One marker, odometry only between stations (baseline)',
     'single_on_noobs': 'One marker, marker updates while strafing, no observe pose',

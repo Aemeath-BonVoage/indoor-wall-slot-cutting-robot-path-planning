@@ -27,11 +27,11 @@ except ImportError:
     print("错误: 找不到 improved_astar.py，请确保两个脚本在同一目录下。")
     sys.exit(1)
 
-# 图使用仓库统一样式（docs/figstyle，英文，PDF + PNG）
+# 作图样式见 docs/figstyle（PDF + PNG）
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'docs'))
 import figstyle as fs  # noqa: E402
 
-# 障碍物的英文图注
+# 障碍物的图注
 LABEL_EN = {'强电配电箱': 'Power panel', '电源插座1': 'Outlet 1', '电源插座2': 'Outlet 2',
             '空调插座': 'A/C outlet', '承重钢筋横梁': 'Structural beam', '窗户区域': 'Window'}
 ALGO_EN = ['Standard A*', 'Improved A*\n(turn penalty)', 'Enhanced A*\n(axis-aligned)']

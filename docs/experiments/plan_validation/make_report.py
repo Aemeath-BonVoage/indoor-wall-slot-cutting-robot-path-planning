@@ -11,7 +11,7 @@
              runs/rule_s*、runs/joint_s*（room3 南墙示例任务，align_v3 下的两份规划）
              runs/demo_joint（演示录制：联合规划 + 墙面外观实体 + 演示相机）
 输出：calibration.csv、runs_summary.csv、stations_all.csv、fig_time_model.png、
-     fig_joint_vs_rule.png（docs/figstyle 统一样式，英文，PDF + PNG）
+     fig_joint_vs_rule.png（样式见 docs/figstyle，PDF + PNG）
 """
 import csv
 import glob

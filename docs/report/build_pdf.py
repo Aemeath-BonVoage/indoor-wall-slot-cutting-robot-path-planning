@@ -111,7 +111,7 @@ def png_dpi_size(path):
 
 
 def phys_size(src):
-    """统一样式的数据图（300 dpi）按实际物理尺寸排版，图中字号与论文版式一致."""
+    """数据图（300 dpi）按实际物理尺寸排版，使图中字号与正文比例一致."""
     info = png_dpi_size(os.path.join(HERE, src))
     if not info or abs(info[2] - 300) > 1:
         return ''

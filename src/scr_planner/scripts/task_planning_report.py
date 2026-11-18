@@ -17,7 +17,7 @@ align_v3/data 用 align_v3（默认），align_v2/data 用 align_v2，data/ 用 
   与下界的差距 (T - LB) / LB；T - LB ≤ 0.01 s 记为“已证明最优”。
 
 输出：summary.csv、paired_tests.csv、gap.csv、lee_summary.csv、sensitivity_summary.csv、
-      fig_results.png、fig_example.png（及同名 PDF，docs/figstyle 统一样式，英文），以及打印到
+      fig_results.png、fig_example.png（及同名 PDF，样式见 docs/figstyle），以及打印到
       终端的汇总（报告中的数字来自这里）。
 """
 import csv
@@ -41,7 +41,7 @@ NAMES = {'per_slot': '逐槽划分（基线）', 'current': '先选线后 DP（�
          'current_v0': '现有（修正前评估）', 'lattice_indep': '站感知·各槽独立',
          'lattice_seq': '站感知·共享窗口', 'lattice_cd': '站感知·共享+坐标下降',
          'lower_bound': '下界'}
-# 图中的英文名称与语义角色（docs/figstyle）：逐槽划分为中性参照，先选线后 DP（规则路线）为基线，
+# 图中的名称与语义角色（docs/figstyle）：逐槽划分为中性参照，先选线后 DP（规则路线）为基线，
 # 联合规划为本项目方法
 NAMES_EN = {'per_slot': 'Per-slot partition (naive)', 'current': 'Rule-based routes + DP',
             'joint': 'Joint planning', 'lower_bound': 'Lower bound'}
