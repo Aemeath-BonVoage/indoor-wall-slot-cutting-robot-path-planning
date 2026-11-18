@@ -174,7 +174,7 @@ public:
   static BT::PortsList providedPorts();
 };
 
-// 恢复分支入口处计数（本站 / 全程）
+// 恢复路径入口处计数（本站 / 全程）
 class CountRecovery : public BT::SyncActionNode
 {
 public:

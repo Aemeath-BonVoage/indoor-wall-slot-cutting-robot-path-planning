@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 // 行为树结构测试：用同名、同端口的模拟技能节点代替 action 客户端，检查逐站执行、
-// 恢复分支（重新对位、切割重试、Nav2 段）与失败报告。不需要 ROS 通信。
+// 恢复路径（重新对位、切割重试、Nav2 段）与失败报告。不需要 ROS 通信。
 #include <gtest/gtest.h>
 
 #include <cstdlib>

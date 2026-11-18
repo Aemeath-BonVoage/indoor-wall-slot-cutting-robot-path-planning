@@ -17,7 +17,7 @@
 | `LoadSlotPlan` / `LoadCuttingTask` | 同步动作 | 读任务文件（`task_files.cpp`，规则与 Python 侧 `slot_execution.py` 相同） |
 | `ForEachStation` | 装饰 | 逐站执行子树，每站开始前写出该站参数（`station_u`、`points`、`nav_leg` 等） |
 | `RecordStation` | 同步动作 | 每站结束时追加 `StationRecord` |
-| `CountRecovery` | 同步动作 | 恢复分支计数（本站 / 全程） |
+| `CountRecovery` | 同步动作 | 恢复路径计数（本站 / 全程） |
 | `CheckFlag` | 条件 | 布尔端口为 true 时成功 |
 
 ## 用法
