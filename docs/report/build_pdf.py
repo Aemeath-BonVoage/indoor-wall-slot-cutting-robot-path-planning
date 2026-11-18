@@ -49,6 +49,7 @@ td code, th code { font-size: 7.8pt; }
 figure { margin: 8pt 0 4pt; text-align: center; break-inside: avoid; }
 figure img { max-width: 100%; max-height: 105mm; }
 figure img[src*="gazebo_world"] { max-height: 70mm; }
+figure img[src*="fig_architecture"] { max-height: 135mm; }
 .caption { font-size: 8.6pt; color: #444; text-align: center; margin: 2pt 6% 8pt; }
 hr { border: none; border-top: 1px solid #ccc; margin: 10pt 0; }
 ul, ol { margin: 3pt 0 3pt 0; padding-left: 20pt; }

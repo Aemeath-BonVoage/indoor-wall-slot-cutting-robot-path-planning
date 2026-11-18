@@ -41,18 +41,19 @@ def box(ax, x, y, w, h, title, lines=(), fc='#ffffff', ec=INK2, title_size=10):
     ax.add_patch(mpatches.FancyBboxPatch((x, y), w, h,
                                          boxstyle='round,pad=0.008,rounding_size=0.012',
                                          fc=fc, ec=ec, lw=1.0))
-    ax.text(x + w / 2, y + h - 0.018, title, ha='center', va='top', fontsize=title_size,
+    ax.text(x + w / 2, y + h - 0.016, title, ha='center', va='top', fontsize=title_size,
             color=INK, fontweight='bold')
     for i, s in enumerate(lines):
-        ax.text(x + w / 2, y + h - 0.052 - i * 0.03, s, ha='center', va='top', fontsize=8.2,
+        ax.text(x + w / 2, y + h - 0.046 - i * 0.026, s, ha='center', va='top', fontsize=8.2,
                 color=INK2)
 
 
-def group(ax, x, y, w, h, label, fc):
+def group(ax, x, y, w, h, label, fc, lx=None):
     ax.add_patch(mpatches.FancyBboxPatch((x, y), w, h,
                                          boxstyle='round,pad=0.006,rounding_size=0.015',
                                          fc=fc, ec='none'))
-    ax.text(x + 0.008, y + h - 0.01, label, ha='left', va='top', fontsize=9, color=INK2)
+    ax.text(x + 0.008 if lx is None else lx, y + h - 0.01, label, ha='left', va='top', fontsize=9,
+            color=INK2)
 
 
 def arrow(ax, p, q, text='', dashed=False, rad=0.0, color=INK2, tx=None):
@@ -65,79 +66,115 @@ def arrow(ax, p, q, text='', dashed=False, rad=0.0, color=INK2, tx=None):
                 bbox=dict(fc=SURFACE, ec='none', pad=0.6))
 
 
+def vline(ax, pts, color=INK2, dashed=False):
+    """折线（不带箭头），pts = [(x, y), ...]."""
+    xs, ys = zip(*pts)
+    ax.plot(xs, ys, color=color, lw=1.1, ls='--' if dashed else '-')
+
+
+def vlabel(ax, x, y, text):
+    ax.text(x, y, text, rotation=90, fontsize=7.6, color=INK2, ha='center', va='center',
+            bbox=dict(fc=SURFACE, ec='none', pad=0.6))
+
+
 def fig_architecture(out):
-    fig = plt.figure(figsize=(12.5, 7.6))
+    # 方框带 0.008 的圆角外扩，相邻方框之间至少留 0.03
+    fig = plt.figure(figsize=(13, 9.4))
     ax = fig.add_axes([0, 0, 1, 1])
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)
     ax.axis('off')
 
-    # 离线规划
-    group(ax, 0.015, 0.70, 0.30, 0.285, '离线规划（不需要 ROS）  scr_planner', '#eef4fc')
-    box(ax, 0.03, 0.865, 0.27, 0.085, '墙面任务 YAML', ['墙体类型 / 障碍 / 已有点位 / 起止线盒'])
-    box(ax, 0.03, 0.715, 0.27, 0.13, 'plan_wall_slots',
-        ['C++ OrientedAStar：规范约束单槽最优', 'task_plan：站感知选线 + 下界证书',
-         'slot_plan：DP 划分 + 扫掠顺序 + 时间模型'])
-    arrow(ax, (0.165, 0.865), (0.165, 0.845))
+    # ---- 左列：离线规划、命令行 / 记录器、真值 ----
+    group(ax, 0.015, 0.62, 0.24, 0.365, '离线规划（不需要 ROS）  scr_planner', '#eef4fc')
+    box(ax, 0.03, 0.872, 0.21, 0.07, '墙面任务 YAML', ['墙体类型 / 障碍 / 起止线盒'])
+    box(ax, 0.03, 0.741, 0.21, 0.096, 'plan_wall_slots',
+        ['OrientedAStar：规范约束单槽最优', '联合规划 / DP 划分 / 时间模型'])
+    box(ax, 0.03, 0.636, 0.21, 0.07, '规划结果 YAML', ['槽线 / 停靠站 / 机械臂点 / 预测时间'],
+        fc='#fff8ec')
+    arrow(ax, (0.135, 0.864), (0.135, 0.845))
+    arrow(ax, (0.135, 0.733), (0.135, 0.714))
 
-    box(ax, 0.03, 0.555, 0.27, 0.11, '规划结果 YAML',
-        ['槽线（直角折线）/ 停靠站位姿', '每站机械臂切割点 / 预测时间'], fc='#fff8ec')
-    arrow(ax, (0.165, 0.715), (0.165, 0.665))
+    group(ax, 0.015, 0.315, 0.24, 0.285, '命令行 / 记录器', '#f3f2ee')
+    box(ax, 0.03, 0.46, 0.21, 0.096, 'navigation_cutting_task',
+        ['任务文件 → 任务 action', '打印反馈与每站记录'])
+    box(ax, 0.03, 0.33, 0.21, 0.096, 'execute_slot_plan.py',
+        ['同一 action 的客户端', '+ 真值：刀尖轨迹 / 到站误差'])
+    arrow(ax, (0.215, 0.628), (0.215, 0.564))
 
-    # 在线执行
-    group(ax, 0.35, 0.40, 0.635, 0.585, '在线执行  navigation_cutting_task（scr_arm_controller）',
-          '#f3f2ee')
-    box(ax, 0.37, 0.825, 0.17, 0.10, '1 导航', ['Nav2 送到标记前 1.2 m'])
-    box(ax, 0.565, 0.69, 0.40, 0.25, '2 精对位（到标记前 0.70 m）', [])
-    box(ax, 0.58, 0.815, 0.115, 0.09, 'AprilTag 检测', [], title_size=8.5)
-    ax.text(0.6375, 0.835, 'IPPE PnP + 协方差', ha='center', fontsize=7.4, color=INK2)
-    box(ax, 0.58, 0.705, 0.115, 0.09, '激光墙面拟合', [], title_size=8.5)
-    ax.text(0.6375, 0.725, 'TLS + 离群剔除', ha='center', fontsize=7.4, color=INK2)
-    box(ax, 0.72, 0.705, 0.10, 0.20, 'EKF', ['状态 (d, u, ψ)', '里程计预测', '延迟补偿', 'χ² 门限'],
+    group(ax, 0.015, 0.015, 0.24, 0.28, 'Gazebo 真值', '#f5f5f3')
+    box(ax, 0.03, 0.03, 0.21, 0.215, '只用于评估',
+        ['/ground_truth/odom', '/gazebo/model_states', '/gazebo/link_states',
+         '不进入任何控制或估计'], fc='#ffffff')
+    arrow(ax, (0.135, 0.253), (0.135, 0.322), dashed=True)
+
+    # 客户端 → 行为树执行器
+    vline(ax, [(0.248, 0.508), (0.272, 0.508), (0.272, 0.88)])
+    vline(ax, [(0.248, 0.378), (0.272, 0.378), (0.272, 0.508)])
+    arrow(ax, (0.272, 0.88), (0.297, 0.88))
+    vlabel(ax, 0.272, 0.69, '/execute_slot_plan · /execute_cutting_task')
+
+    # ---- 中列：任务层 ----
+    group(ax, 0.29, 0.45, 0.365, 0.535, '任务层：行为树编排 + 技能 action', '#fdf3ec')
+    box(ax, 0.305, 0.82, 0.335, 0.122, 'task_executor（scr_task，BehaviorTree.CPP v3）',
+        ['BtActionServer × 2（与 Nav2 bt_navigator 同构）', 'slot_plan.xml / cutting_task.xml',
+         '恢复：导航重试、回标记前重新对位、切割重试'], title_size=9.2)
+    arrow(ax, (0.4725, 0.812), (0.4725, 0.783), '技能 action', tx=(0.53, 0.797))
+    box(ax, 0.305, 0.465, 0.335, 0.31, 'task_skill_server（scr_arm_controller）',
+        ['FineAlign · MoveToStation · CutStation', 'HoldBase · ScanMarker · RetractArm'],
+        title_size=9.2)
+    subs = [('精对位', ['AprilTag + 激光', 'EKF (d, u, ψ)', '饱和控制律', '收敛判据']),
+            ('横移 / 保持', ['同一墙面 EKF', '沿墙位置外推', '定点保持 50 Hz']),
+            ('切割', ['残差补偿', '每刀单轴', '仿真中空切'])]
+    for i, (t, ls) in enumerate(subs):
+        box(ax, 0.326 + i * 0.107, 0.48, 0.079, 0.148, t, ls, title_size=8.8)
+
+    # ---- 右列：Nav2、定位 ----
+    group(ax, 0.70, 0.62, 0.285, 0.365, 'Nav2（scr_navigation）', '#eef7f2')
+    box(ax, 0.715, 0.872, 0.11, 0.07, 'bt_navigator', ['NavigateToPose'], title_size=9)
+    box(ax, 0.86, 0.872, 0.11, 0.07, 'amcl', ['map → odom'], title_size=9)
+    box(ax, 0.715, 0.741, 0.11, 0.096, 'controller', ['MPPI（Omni）', '1000 采样，20 Hz'],
         title_size=9)
-    box(ax, 0.84, 0.705, 0.11, 0.20, '饱和控制律', ['平方根整形', 'k = 2 /s', '收敛判据', '示教零位'],
+    box(ax, 0.86, 0.741, 0.11, 0.096, 'planner', ['Smac 2D'], title_size=9)
+    ax.text(0.915, 0.67, 'DWB 基线：\nnav2_params_dwb.yaml', ha='center', va='center',
+            fontsize=7.6, color=INK2)
+    arrow(ax, (0.648, 0.905), (0.707, 0.905), 'NavigateToPose', tx=(0.677, 0.928))
+
+    group(ax, 0.70, 0.315, 0.285, 0.285, '定位（robot_localization）', '#eef7f2', lx=0.795)
+    box(ax, 0.715, 0.36, 0.255, 0.16, 'EKF（平面模式）',
+        ['/wheel/odom 的 (vx, vy) + /imu 的 wz', '→ /odom 与 odom → base_link',
+         '只服务导航与 AMCL；技能的局部', '闭环直接用 /wheel/odom'], title_size=9)
+    arrow(ax, (0.77, 0.528), (0.77, 0.733), '/odom，TF', tx=(0.77, 0.635))
+
+    # Nav2 控制器 → 底盘控制器（沿中列与右列之间的空隙）
+    vline(ax, [(0.707, 0.79), (0.677, 0.79), (0.677, 0.22)])
+    arrow(ax, (0.677, 0.22), (0.653, 0.22))
+    vlabel(ax, 0.677, 0.40, '/cmd_vel（导航）')
+
+    # ---- 底部：ros2_control + Gazebo ----
+    group(ax, 0.29, 0.015, 0.695, 0.28, 'ros2_control + Gazebo Classic', '#f6f0fb', lx=0.708)
+    box(ax, 0.305, 0.03, 0.085, 0.225, '传感器', ['2D 激光 10 Hz', '相机 30 Hz'], title_size=9)
+    box(ax, 0.42, 0.185, 0.10, 0.07, 'arm_controller', ['关节轨迹控制器'], title_size=9)
+    box(ax, 0.42, 0.03, 0.10, 0.11, 'GazeboSystem', ['机械臂关节', 'position_pid 力控'],
         title_size=9)
-    arrow(ax, (0.695, 0.86), (0.72, 0.84))
-    arrow(ax, (0.695, 0.75), (0.72, 0.77))
-    arrow(ax, (0.82, 0.805), (0.84, 0.805))
-    arrow(ax, (0.54, 0.885), (0.565, 0.885))
+    box(ax, 0.545, 0.185, 0.10, 0.07, 'base_controller', ['cmd_vel ↔ 轮速 / 里程计'],
+        title_size=9)
+    box(ax, 0.545, 0.025, 0.10, 0.122, 'ScrMecanumBase', ['力驱动被控对象', '编码器误差模型',
+                                                         '模拟陀螺 /imu'], title_size=8.6)
+    box(ax, 0.715, 0.185, 0.255, 0.07, '早期配置  base_control:=plugin',
+        ['scr_planar_move 力控插件，/odom = 真值'], fc='#faf8fc', title_size=8.8)
+    box(ax, 0.715, 0.025, 0.255, 0.122, '其他选项',
+        ['plant:=wheels  轮子驱动（实验）', 'localization:=wheel  只用轮式里程计',
+         'odom_error:=false  理想编码器'], fc='#faf8fc', title_size=8.8)
 
-    box(ax, 0.37, 0.43, 0.595, 0.235, '3 逐站执行（墙面原点 = EKF 估计的标记位置）', [])
-    xs = [0.385, 0.53, 0.675, 0.82]
-    titles = [('横移到站', ['同一 EKF', '防碰撞守护']), ('定点保持', ['base_hold', 'P 5 / 6，50 Hz']),
-              ('残差补偿', ['按估计的横向 /', '离墙 / 朝向误差', '修正机械臂点']),
-              ('切割', ['每刀单轴', '仿真中空切'])]
-    for i, (x, (t, ls)) in enumerate(zip(xs, titles)):
-        box(ax, x, 0.455, 0.13, 0.155, t, ls, title_size=9)
-        if i:
-            arrow(ax, (xs[i - 1] + 0.13, 0.53), (x, 0.53))
-    arrow(ax, (0.765, 0.69), (0.765, 0.665))
-    arrow(ax, (0.30, 0.61), (0.37, 0.61), '读取规划文件')
-
-    # 导航与仿真
-    group(ax, 0.015, 0.03, 0.30, 0.50, '导航（scr_navigation）', '#eef7f2')
-    box(ax, 0.03, 0.36, 0.27, 0.12, 'Nav2', ['AMCL + NavFn + DWB', 'SLAM Toolbox 建图'])
-    box(ax, 0.03, 0.20, 0.27, 0.12, 'mecanum_controller', ['全向底盘运动学', '/cmd_vel → 轮速'])
-    # 执行 → Nav2 / 底盘：沿两组之间的空隙走折线，避免穿过方框
-    ax.plot([0.37, 0.325, 0.325], [0.86, 0.86, 0.43], color=INK2, lw=1.1)
-    arrow(ax, (0.325, 0.43), (0.30, 0.43))
-    ax.text(0.317, 0.73, '/navigate_to_pose', rotation=90, fontsize=7.6, color=INK2,
-            ha='center', va='center', bbox=dict(fc=SURFACE, ec='none', pad=0.6))
-    ax.plot([0.37, 0.34, 0.34], [0.47, 0.47, 0.27], color=INK2, lw=1.1)
-    arrow(ax, (0.34, 0.27), (0.30, 0.27))
-    ax.text(0.348, 0.37, '/cmd_vel', rotation=90, fontsize=7.6, color=INK2,
-            ha='center', va='center', bbox=dict(fc=SURFACE, ec='none', pad=0.6))
-    arrow(ax, (0.165, 0.36), (0.165, 0.32), '/cmd_vel', tx=(0.21, 0.34))
-
-    group(ax, 0.35, 0.03, 0.635, 0.33, 'Gazebo Classic 仿真（scr_description，仿真配置 v2）', '#f6f0fb')
-    box(ax, 0.37, 0.155, 0.17, 0.12, 'scr_planar_move', ['力控底盘插件', '速度 P 环'])
-    box(ax, 0.56, 0.155, 0.17, 0.12, '直角坐标机械臂', ['Z / Y / X / 刀片', 'position_pid 力控'])
-    box(ax, 0.75, 0.155, 0.20, 0.12, '传感器', ['2D 激光 10 Hz / 相机 30 Hz', '里程计 50 Hz'])
-    box(ax, 0.37, 0.045, 0.58, 0.075, '真值（/gazebo/model_states, link_states）',
-        ['只用于评估：execute_slot_plan 记录器、alignment_benchmark'], fc='#ffffff')
-    arrow(ax, (0.30, 0.215), (0.37, 0.215), '/cmd_vel_direct', tx=(0.335, 0.195))
-    arrow(ax, (0.645, 0.455), (0.645, 0.275), 'follow_joint_trajectory', tx=(0.645, 0.40))
-    arrow(ax, (0.85, 0.275), (0.85, 0.455), '/scan, 图像, /odom', dashed=True, tx=(0.885, 0.40))
+    # 技能服务器 ↔ 传感器 / 机械臂 / 底盘
+    arrow(ax, (0.3475, 0.263), (0.3475, 0.472), '/scan, 图像', dashed=True, tx=(0.3475, 0.40))
+    arrow(ax, (0.47, 0.457), (0.47, 0.263), 'FollowJoint-\nTrajectory', tx=(0.47, 0.33))
+    arrow(ax, (0.575, 0.457), (0.575, 0.263), '/cmd_vel', tx=(0.575, 0.41))
+    arrow(ax, (0.625, 0.263), (0.625, 0.457), '/wheel/odom', dashed=True, tx=(0.625, 0.33))
+    # 底盘 → EKF
+    arrow(ax, (0.93, 0.295), (0.93, 0.352), dashed=True)
+    ax.text(0.92, 0.322, '/wheel/odom, /imu', ha='right', va='center', fontsize=7.6, color=INK2)
 
     fig.savefig(out, dpi=170)
     plt.close(fig)
