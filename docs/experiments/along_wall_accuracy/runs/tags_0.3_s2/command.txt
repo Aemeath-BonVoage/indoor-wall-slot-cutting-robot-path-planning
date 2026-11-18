@@ -1,0 +1,2 @@
+ros2 launch scr_bringup sim_nav.launch.py gui:=false rviz:=false odom_seed:=2 alignment_params:=~/colcon_ws/docs/experiments/along_wall_accuracy/runs/tags_0.3_s2/alignment_params.yaml
+ros2 run scr_planner execute_slot_plan.py ~/colcon_ws/docs/experiments/slot_execution/runs/dp/slot_plan.yaml ~/colcon_ws/docs/experiments/along_wall_accuracy/runs/tags_0.3_s2 --dry-run-gap=0.01 --realign-distance=-1.0
