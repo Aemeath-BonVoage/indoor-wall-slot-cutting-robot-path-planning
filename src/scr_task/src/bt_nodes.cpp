@@ -58,6 +58,7 @@ void FineAlignAction::on_tick()
 NodeStatus FineAlignAction::on_success()
 {
   setOutput("origin_residual", result_.result->origin_residual);
+  setOutput("since_fix", 0.0);   // 对位以参考标记收敛：沿墙位置刚由标记确定
   return NodeStatus::SUCCESS;
 }
 
@@ -68,7 +69,8 @@ BT::PortsList FineAlignAction::providedPorts()
       InputPort<double>("standoff", "Target distance to the wall (m)"),
       InputPort<std::string>("mode", "visual | visual_v1 | odom (empty: node default)"),
       InputPort<double>("settle_time", "Wait before aligning (s)"),
-      OutputPort<double>("origin_residual", "Along-wall residual of the parking pose (m)")});
+      OutputPort<double>("origin_residual", "Along-wall residual of the parking pose (m)"),
+      OutputPort<double>("since_fix", "Along-wall odometry travel since the last tag fix (m)")});
 }
 
 MoveToStationAction::MoveToStationAction(
@@ -89,6 +91,7 @@ NodeStatus MoveToStationAction::on_success()
 {
   setOutput("converged", static_cast<bool>(result_.result->converged));
   setOutput("arrived_at", nowSeconds(config().blackboard));
+  setOutput("since_fix", result_.result->odom_since_fix);
   return NodeStatus::SUCCESS;
 }
 
@@ -102,7 +105,8 @@ BT::PortsList MoveToStationAction::providedPorts()
       InputPort<double>("max_speed", "Speed limit (m/s, 0: default)"),
       InputPort<double>("timeout", "Timeout (s, 0: default)"),
       OutputPort<bool>("converged", "Converged by the arrival criterion"),
-      OutputPort<double>("arrived_at", "Arrival time (s)")});
+      OutputPort<double>("arrived_at", "Arrival time (s)"),
+      OutputPort<double>("since_fix", "Along-wall odometry travel since the last tag fix (m)")});
 }
 
 CutStationAction::CutStationAction(const std::string & name, const BT::NodeConfiguration & conf)
@@ -391,7 +395,7 @@ BT::PortsList RecordStation::providedPorts()
     InputPort<double>("sensed_lateral"), InputPort<double>("sensed_standoff"),
     InputPort<double>("sensed_yaw"), InputPort<int>("clamped"),
     InputPort<double>("cut_length"), InputPort<double>("origin_residual"),
-    InputPort<int>("recoveries")};
+    InputPort<int>("recoveries"), InputPort<bool>("realigned"), InputPort<double>("since_fix")};
 }
 
 NodeStatus RecordStation::tick()
@@ -420,6 +424,8 @@ NodeStatus RecordStation::tick()
   r.cut_ok = true;
   r.origin_residual_mm = inputOr(*this, "origin_residual", 0.0) * 1000.0;
   r.recoveries = inputOr(*this, "recoveries", 0);
+  r.realigned = inputOr(*this, "realigned", false);
+  r.since_fix_m = inputOr(*this, "since_fix", 0.0);
   records->push_back(r);
   return NodeStatus::SUCCESS;
 }
@@ -451,8 +457,32 @@ NodeStatus CheckFlag::tick()
   return inputOr(*this, "value", false) ? NodeStatus::SUCCESS : NodeStatus::FAILURE;
 }
 
+bool realignDue(double since_fix, double move_dist, double threshold)
+{
+  return threshold > 0.0 && since_fix + std::abs(move_dist) > threshold;
+}
+
+BT::PortsList RealignDue::providedPorts()
+{
+  return {
+    InputPort<double>("since_fix", "Along-wall odometry travel since the last tag fix (m)"),
+    InputPort<double>("move_dist", "Strafe to the next station (m)"),
+    InputPort<double>("threshold", "Re-align after this travel without a tag fix (m, <= 0: off)"),
+    OutputPort<bool>("due", "Re-alignment was triggered")};
+}
+
+NodeStatus RealignDue::tick()
+{
+  const bool due = realignDue(
+    inputOr(*this, "since_fix", 0.0), inputOr(*this, "move_dist", 0.0),
+    inputOr(*this, "threshold", 0.0));
+  setOutput("due", due);
+  return due ? NodeStatus::SUCCESS : NodeStatus::FAILURE;
+}
+
 void registerFlowNodes(BT::BehaviorTreeFactory & factory)
 {
+  factory.registerNodeType<RealignDue>("RealignDue");
   factory.registerNodeType<LoadSlotPlan>("LoadSlotPlan");
   factory.registerNodeType<LoadCuttingTask>("LoadCuttingTask");
   factory.registerNodeType<ForEachStation>("ForEachStation");

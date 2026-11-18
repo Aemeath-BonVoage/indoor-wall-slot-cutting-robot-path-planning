@@ -1,0 +1,13 @@
+# 墙面定位标记地图（room.world 的 room3 南墙，tag36h11，黑框 0.10 m，中心离地 0.70 m）
+# u：相对参考标记（ID 0，墙面坐标原点）的沿墙位置，面向墙面向右为正（米）
+# sigma_position：手工粘贴后用卷尺测量的位置误差（1σ），作为测量噪声的一部分
+# 选择依据见 docs/experiments/along_wall_accuracy/README.md
+tag_map:
+  family: tag36h11
+  size: 0.10
+  reference_id: 0
+  sigma_position: 0.002
+  tags:
+    - {id: 0, u: 0.0, v: 0.70}
+    - {id: 2, u: 0.6, v: 0.70}
+    - {id: 4, u: 1.2, v: 0.70}

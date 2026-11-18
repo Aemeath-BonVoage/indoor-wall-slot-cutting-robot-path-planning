@@ -16,3 +16,5 @@ bool moved                   # 横移是否按判据收敛
 bool cut_ok
 float64 origin_residual_mm   # 精对位停车时的沿墙残差（墙面原点）
 int32 recoveries             # 本站触发的恢复次数（重试 / 重新对位）
+bool realigned               # 本站开始前是否按行程阈值回标记重新对位
+float64 since_fix_m          # 到站时自上次接受标记更新以来的沿墙里程计行程（米）

@@ -8,16 +8,27 @@
 
 标记短时丢失（遮挡、出视野）时只做里程计预测与激光更新，σ_u 随运动距离增长；
 控制环继续运行，σ_u 超过阈值或丢失时间过长时由调用方停车。
+
+多标记：标记地图（tag_map.TagMap）给出每个标记在墙面坐标中的位置，画面中的每个地图内
+标记都参与更新；odom_since_fix 记录自上次接受标记更新以来的沿墙里程计行程，供任务层
+判断是否需要回到标记重新对位。每个周期的估计发布在 /task_skills/wall_estimate。
 """
 import bisect
 import math
 from collections import deque
 
 import numpy as np
+from geometry_msgs.msg import Point
 from nav_msgs.msg import Odometry
 from rclpy.time import Time
 
+from scr_arm_controller.tag_map import TagMap
 from scr_arm_controller.wall_ekf import WallEKF
+
+try:
+    from scr_interfaces.msg import WallEstimate
+except ImportError:            # 只用纯算法部分（单元测试）时不需要消息包
+    WallEstimate = None
 
 
 def _yaw(q):
@@ -35,10 +46,16 @@ def relative_pose(a, b):
 class WallStateEstimator:
     """挂在节点上：订阅里程计（默认 /odom）建立位姿历史，step() 时预测并融合新测量."""
 
-    def __init__(self, node, servo, history=4.0, odom_topic='/odom'):
+    def __init__(self, node, servo, history=4.0, odom_topic='/odom', tag_map=None,
+                 estimate_scale=False, scale_init=0.0, scale_sigma=0.05,
+                 estimate_topic='/task_skills/wall_estimate'):
         self.node = node
         self.servo = servo
-        self.ekf = WallEKF()
+        self.ekf = WallEKF(estimate_scale=estimate_scale, scale_init=scale_init,
+                           scale_sigma=scale_sigma)
+        self.tag_map = tag_map if tag_map is not None else TagMap.single(servo.tag_id)
+        self.odom_since_fix = 0.0          # 自上次接受标记更新以来的沿墙里程计行程（米）
+        self.tag_ids_seen = set()          # 自上次 reset_tag_log() 以来接受过更新的标记
         self.odom_bias = (0.0, 0.0, 0.0)   # 实验用：与任务节点相同的里程计漂移注入
         self.history = history
         self._hist = deque()               # (t 秒, (x, y, yaw), twist (vx, vy, wz))
@@ -51,6 +68,8 @@ class WallStateEstimator:
         self.tag_reject_streak = 0
         self.reacquire_after = 15          # 连续拒收这么多帧标记后重新初始化 u
         node.create_subscription(Odometry, odom_topic, self._on_odom, 50)
+        self._pub = (node.create_publisher(WallEstimate, estimate_topic, 10)
+                     if WallEstimate is not None and estimate_topic else None)
 
     # ---------- 里程计历史 ----------
     def _on_odom(self, msg):
@@ -105,9 +124,9 @@ class WallStateEstimator:
 
     # ---------- 控制 ----------
     def reset(self):
-        """开始新一次对位：清空滤波器（标记位置重新由测量确定）."""
-        self.ekf.x = None
-        self.ekf.P = None
+        """开始新一次对位：清空滤波器（标记位置重新由测量确定；横移比例修正 s 保留）."""
+        self.ekf.clear()
+        self.odom_since_fix = 0.0
         self.ekf.stats = {'wall': [0, 0], 'tag': [0, 0]}
         self._last_pose = None
         self._last_wall = None
@@ -130,7 +149,12 @@ class WallStateEstimator:
             self.u_known = True
 
     def state(self):
-        return None if not self.ekf.initialized else self.ekf.x.copy()
+        """(d, u, ψ) 的估计；未初始化时为 None."""
+        return None if not self.ekf.initialized else self.ekf.x[:3].copy()
+
+    def reset_tag_log(self):
+        """开始统计新一段（例如一个停靠站）中接受过更新的标记."""
+        self.tag_ids_seen = set()
 
     # ---------- 主循环一步 ----------
     def _to_now(self, stamp, now_pose):
@@ -140,6 +164,7 @@ class WallStateEstimator:
         if pm is None:
             return None
         dx, dy, dyaw = relative_pose(now_pose, pm)     # t_m 位姿在当前机体系中
+        dy = self.ekf.correct_increment(dy)              # 横移比例修正（估计 s 时）
         c, s = math.cos(dyaw), math.sin(dyaw)
         return np.array([[c, -s], [s, c]]), np.array([dx, dy])
 
@@ -152,7 +177,9 @@ class WallStateEstimator:
         ekf = self.ekf
 
         if ekf.initialized and self._last_pose is not None:
+            u0 = ekf.x[1]
             ekf.predict(*relative_pose(self._last_pose, now_pose))
+            self.odom_since_fix += abs(ekf.x[1] - u0)
         self._last_pose = now_pose
 
         # 激光墙面
@@ -176,46 +203,87 @@ class WallStateEstimator:
             info['wall'] = why
 
         if not ekf.initialized or not self.use_tag:
+            self._publish(info)
             return self.state(), info
 
-        # 定位标记（AprilTag 或色块）
+        # 定位标记（AprilTag：地图内全部标记；色块：只有参考标记）
         if self.servo.detector == 'apriltag':
-            m, why = self.servo.tag_in_base(stamp_after=self._last_tag)
+            ms, why = self.servo.tags_in_base(stamp_after=self._last_tag)
         elif wall is not None:
             m, why = self.servo.blob_in_base(wall, stamp_after=self._last_tag)
+            ms = [] if m is None else [dict(m, id=self.tag_map.reference_id)]
         else:
-            m, why = None, '无墙面，色块无法求交'
-        if m is None:
-            info['tag'] = why
+            ms, why = [], '无墙面，色块无法求交'
+        ms = [m for m in ms if m['id'] in self.tag_map]
+        if not ms:
+            info['tag'] = why or '画面中没有地图内的标记'
+            self._publish(info)
             return self.state(), info
-        self._last_tag = m['stamp']
-        T = self._to_now(m['stamp'], now_pose)
+        self._last_tag = ms[0]['stamp']
+        T = self._to_now(ms[0]['stamp'], now_pose)
         if T is None:
             info['tag'] = '时间戳超出里程计历史'
+            self._publish(info)
             return self.state(), info
         R, t = T
-        p = R @ m['p'][:2] + t
-        cov = R @ m['cov'][:2, :2] @ R.T
+        obs = []
+        for m in ms:
+            obs.append((m['id'], R @ m['p'][:2] + t, R @ m['cov'][:2, :2] @ R.T))
         if not self.u_known:
-            # 首次看到标记：保留激光给出的 d、ψ，由标记位置反解 u
+            # 首次看到标记：保留激光给出的 d、ψ，由离画面中心最近的标记反解 u
+            i0, p0, _ = min(obs, key=lambda o: abs(o[1][1]))
             _, u, _, _ = WallEKF.init_from((ekf.x[0] + ekf.offset[0], -(ekf.x[2] + ekf.offset[2])),
-                                           p, offset=ekf.offset)
+                                           p0, offset=ekf.offset, u_tag=self.tag_map.u[i0])
             ekf.x[1] = u
             ekf.P[1, :] = 0.0
             ekf.P[:, 1] = 0.0
             ekf.P[1, 1] = 0.01 ** 2
             self.u_known = True
-        ok, nis = ekf.update_tag(p, cov)
-        if ok:
+        accepted, nis_max = [], 0.0
+        for i, p, cov in obs:
+            ok, nis = ekf.update_tag(p, cov, u_tag=self.tag_map.u[i],
+                                     sigma_map=self.tag_map.sigma(i))
+            nis_max = max(nis_max, nis)
+            if ok:
+                accepted.append(i)
+        info['tag_obs'] = [(i, p, i in accepted) for i, p, _ in obs]
+        info['tag_ids'] = accepted
+        if accepted:
             self.tag_reject_streak = 0
             self.last_tag_time = self.now()
+            self.odom_since_fix = 0.0
+            self.tag_ids_seen.update(accepted)
             info['tag'] = 'ok'
         else:
             self.tag_reject_streak += 1
-            info['tag'] = f'rejected (NIS {nis:.1f})'
+            info['tag'] = f'rejected (NIS {nis_max:.1f})'
             if self.tag_reject_streak >= self.reacquire_after:
                 # 持续不一致：认为滤波器的 u 已失效（例如被外力推动），由标记重新初始化
                 self.u_known = False
                 self.tag_reject_streak = 0
                 info['tag'] = 'reacquire'
+        self._publish(info)
         return self.state(), info
+
+    def _publish(self, info):
+        """发布本周期的估计（实验记录与数据包用）."""
+        if self._pub is None or not self.ekf.initialized:
+            return
+        ekf = self.ekf
+        msg = WallEstimate()
+        msg.header.stamp = self.node.get_clock().now().to_msg()
+        msg.header.frame_id = 'base_link'
+        sig = ekf.sigma()
+        msg.d, msg.u, msg.psi = (float(v) for v in ekf.x[:3])
+        msg.sigma_d, msg.sigma_u, msg.sigma_psi = (float(v) for v in sig)
+        msg.scale_estimated = ekf.estimate_scale
+        msg.lateral_scale, msg.sigma_scale = ekf.scale
+        msg.odom_since_fix = float(self.odom_since_fix)
+        msg.u_known = bool(self.u_known)
+        msg.wall_ok = info.get('wall') in ('ok', 'init')
+        msg.tag_state = str(info.get('tag'))
+        for i, p, ok in info.get('tag_obs', []):
+            msg.tag_ids.append(int(i))
+            msg.tag_positions.append(Point(x=float(p[0]), y=float(p[1]), z=0.0))
+            msg.tag_accepted.append(bool(ok))
+        self._pub.publish(msg)

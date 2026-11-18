@@ -6,11 +6,13 @@ find_package(rosidl_default_generators REQUIRED)
 find_package(builtin_interfaces REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(action_msgs REQUIRED)
+find_package(std_msgs REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/ArmPoint.msg"
   "msg/StationRecord.msg"
   "msg/TaskStatus.msg"
+  "msg/WallEstimate.msg"
   "action/FineAlign.action"
   "action/MoveToStation.action"
   "action/CutStation.action"
@@ -19,7 +21,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "action/RetractArm.action"
   "action/ExecuteCuttingTask.action"
   "action/ExecuteSlotPlan.action"
-  DEPENDENCIES builtin_interfaces geometry_msgs action_msgs
+  DEPENDENCIES builtin_interfaces geometry_msgs action_msgs std_msgs
 )
 
 ament_export_dependencies(rosidl_default_runtime)

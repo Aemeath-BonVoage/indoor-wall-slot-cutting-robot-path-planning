@@ -5,6 +5,7 @@
 // 恢复路径（重新对位、切割重试、Nav2 段）与失败报告。不需要 ROS 通信。
 #include <gtest/gtest.h>
 
+#include <cmath>
 #include <cstdlib>
 #include <map>
 #include <memory>
@@ -70,6 +71,10 @@ public:
     if (id_ == "MoveToStation") {
       setOutput("converged", true);
       setOutput("arrived_at", scr_task::nowSeconds(config().blackboard));
+      // 单个标记、离开标记后看不到它：到站时的无标记行程 = 到墙面原点的距离
+      double u = 0.0;
+      getInput("lateral_offset", u);
+      setOutput("since_fix", std::abs(u));
     } else if (id_ == "CutStation") {
       setOutput("cut_time", 1.0);
       setOutput("clamped", 0);
@@ -78,6 +83,7 @@ public:
       setOutput("sensed_yaw", 0.0);
     } else if (id_ == "FineAlign") {
       setOutput("origin_residual", 0.0002);
+      setOutput("since_fix", 0.0);
     }
     return NodeStatus::SUCCESS;
   }
@@ -130,8 +136,9 @@ protected:
     bb_->set<double>("nav_standoff", 1.2);
   }
 
-  NodeStatus runPlan(bool dry_run = true, double max_strafe = 1.5)
+  NodeStatus runPlan(bool dry_run = true, double max_strafe = 1.5, double realign = 0.0)
   {
+    bb_->set<double>("realign_distance", realign);
     bb_->set<std::string>(
       "plan_file", env("SCR_REPO_ROOT", "../..") +
       std::string("/docs/experiments/slot_execution/runs/dp/slot_plan.yaml"));
@@ -243,6 +250,43 @@ TEST_F(BehaviorTrees, FarStationsUseNav2Leg)
   for (const auto & r : *records_) {
     EXPECT_TRUE(r.nav_leg);
   }
+}
+
+TEST(RealignTrigger, ThresholdOnTravelPlusNextMove)
+{
+  EXPECT_FALSE(scr_task::realignDue(0.2, 0.05, 0.3));
+  EXPECT_TRUE(scr_task::realignDue(0.2, 0.12, 0.3));
+  EXPECT_TRUE(scr_task::realignDue(0.2, -0.12, 0.3));   // 横移方向不影响行程
+  EXPECT_FALSE(scr_task::realignDue(5.0, 1.0, 0.0));    // 阈值 ≤ 0：关闭
+  EXPECT_FALSE(scr_task::realignDue(5.0, 1.0, -1.0));
+}
+
+TEST_F(BehaviorTrees, RealignIsOffByDefault)
+{
+  ASSERT_EQ(runPlan(), NodeStatus::SUCCESS);
+  EXPECT_EQ(g.calls_by_name["StrafeToMarker"], 0);
+  for (const auto & r : *records_) {
+    EXPECT_FALSE(r.realigned);
+  }
+}
+
+TEST_F(BehaviorTrees, TravelWithoutTagFixTriggersRealignment)
+{
+  // 站相对标记 −0.23 … +0.905 m，相邻 0.055–0.12 m；阈值 0.3 m：
+  // S0–S4 的无标记行程 + 下一段横移 ≤ 0.3 m，从 S5（0.185 + 0.12 > 0.3）起每站都先回标记
+  ASSERT_EQ(runPlan(true, 1.5, 0.3), NodeStatus::SUCCESS);
+  ASSERT_EQ(records_->size(), 11u);
+  EXPECT_EQ(g.calls_by_name["StrafeToMarker"], 6);
+  EXPECT_EQ(g.calls["FineAlign"], 7);
+  EXPECT_EQ(g.calls["MoveToStation"], 11 + 6);
+  EXPECT_EQ(recoveries(), 0);                   // 计划内的重新对位不计为恢复
+  for (size_t i = 0; i < records_->size(); ++i) {
+    const auto & r = (*records_)[i];
+    EXPECT_EQ(r.realigned, i >= 5) << "S" << i;
+    EXPECT_NEAR(r.since_fix_m, std::abs(r.u_c - 1.505), 2e-3);
+  }
+  // 重新对位后横移的目标仍是该站（墙面原点不变）
+  EXPECT_NEAR(g.move_offsets.back(), 2.4100 - 1.505, 2e-3);
 }
 
 TEST_F(BehaviorTrees, InvalidPlanFailsBeforeMoving)

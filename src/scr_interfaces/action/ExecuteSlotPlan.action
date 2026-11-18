@@ -4,6 +4,7 @@ bool dry_run                 # 空切
 float64 dry_run_gap          # 空切时刀尖停在墙前的距离（米）
 bool compensate              # 到站残差补偿
 float64 max_strafe           # 站间横移超过该距离时先用 Nav2（米，0 = 默认 1.5）
+float64 realign_distance     # 无标记更新的沿墙行程超过该值时先回标记重新对位（米；0 = 执行器默认，<0 = 关闭）
 string behavior_tree         # 空串 = 默认行为树
 ---
 bool success

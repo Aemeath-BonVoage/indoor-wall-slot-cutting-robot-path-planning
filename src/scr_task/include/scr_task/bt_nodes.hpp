@@ -194,6 +194,20 @@ public:
   static BT::PortsList providedPorts();
 };
 
+// 按行程触发的重新对位：自上次接受标记更新以来的沿墙行程 since_fix 加上去下一站的
+// 横移 move_dist 超过 threshold（米，≤ 0 表示关闭）时 SUCCESS，并把判定结果写到 due。
+// 沿墙误差中与横移距离成正比的部分只靠里程计外推时不断累积，按行程而不是按站数触发。
+bool realignDue(double since_fix, double move_dist, double threshold);
+
+class RealignDue : public BT::ConditionNode
+{
+public:
+  RealignDue(const std::string & name, const BT::NodeConfiguration & conf)
+  : BT::ConditionNode(name, conf) {}
+  BT::NodeStatus tick() override;
+  static BT::PortsList providedPorts();
+};
+
 // 注册流程节点（技能节点由插件入口 BT_RegisterNodesFromPlugin 一并注册；
 // 单元测试只注册流程节点，技能节点用同名的模拟节点代替）
 void registerFlowNodes(BT::BehaviorTreeFactory & factory);

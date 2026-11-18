@@ -6,10 +6,15 @@
 精对位 → 逐站横移 / 定点保持 / 残差补偿 / 切割）。本脚本作为该 action 的客户端发送规划
 文件，同时只做 Gazebo 真值记录：刀尖轨迹、每站到位误差、底盘漂移；阶段与停靠站序号取自
 技能服务器的 /task_skills/status。结果与规划槽线比较，写出 stations.csv / tool_trace.csv /
-summary.yaml（字段与早期版本相同，另增 recoveries）。
+summary.yaml（字段与早期版本相同，另增 recoveries、realigned、since_fix_m），以及墙面相对
+状态估计的逐周期记录 ekf_trace.csv（/task_skills/wall_estimate 与同一时刻的真值）。
 
   ros2 run scr_planner execute_slot_plan.py <plan.yaml> [结果目录] [--dry-run-gap=0.01]
                                            [--no-compensation] [--max-strafe=1.5] [--bt=<xml>]
+                                           [--realign-distance=0.3]
+
+--realign-distance：无标记更新的沿墙行程超过该值（米）时先回参考标记重新对位；
+不给出时用执行器参数 realign_distance，负值关闭。
 
 不需要真值评估时直接用任务入口：
   ros2 run scr_arm_controller navigation_cutting_task <plan.yaml> --dry-run-gap=0.01
@@ -46,14 +51,18 @@ except ImportError:
 import slot_plan as sp  # noqa: E402
 import wall_rules as wr  # noqa: E402
 from scr_interfaces.action import ExecuteSlotPlan  # noqa: E402
-from scr_interfaces.msg import TaskStatus  # noqa: E402
+from scr_interfaces.msg import TaskStatus, WallEstimate  # noqa: E402
 from slot_ros import build_markers  # noqa: E402
 
 TOOL_LINK = 'scr_robot_gazebo::link4'
 BASE_LINK = 'scr_robot_gazebo::base_link'
 RECORD_FIELDS = ('station', 'u_c', 'points', 'move_dist_m', 'nav_leg', 'station_s', 'move_s',
                  'cut_s', 'sensed_lateral_mm', 'sensed_standoff_mm', 'sensed_yaw_deg', 'clamped',
-                 'cut_cm', 'moved', 'cut_ok', 'origin_residual_mm', 'recoveries')
+                 'cut_cm', 'moved', 'cut_ok', 'origin_residual_mm', 'recoveries', 'realigned',
+                 'since_fix_m')
+EKF_FIELDS = ('t', 'station', 'phase', 'd', 'u', 'psi', 'sigma_d', 'sigma_u', 'sigma_psi',
+              'lateral_scale', 'sigma_scale', 'odom_since_fix', 'u_known', 'tag_ids',
+              'tags_accepted', 'true_u', 'true_d', 'true_psi', 'tag_xy')
 
 
 def _yaw(q):
@@ -63,7 +72,7 @@ def _yaw(q):
 class SlotRecorder:
     """行为树执行的 action 客户端 + Gazebo 真值记录（只用于评估，不参与控制）."""
 
-    def __init__(self, wall, plan_dict):
+    def __init__(self, wall, plan_dict, marker_u):
         self.node = rclpy.create_node(
             'slot_plan_recorder',
             parameter_overrides=[rclpy.parameter.Parameter('use_sim_time', value=True)])
@@ -72,6 +81,8 @@ class SlotRecorder:
         self.robot = sp.RobotModel()
         self.trace = []             # (t, station, u, v, depth, arm_x, phase, base_u, base_d)
         self.truth = {}             # station → 到站真值误差
+        self.marker_u = marker_u    # 墙面原点（参考标记）在规划墙面坐标中的 u
+        self.ekf_trace = []
         self.station, self.phase = -1, 'idle'
         self._base = None
         self._t_goal = None
@@ -84,6 +95,8 @@ class SlotRecorder:
                                 durability=DurabilityPolicy.TRANSIENT_LOCAL)
         self.node.create_subscription(TaskStatus, '/task_skills/status', self._status_cb,
                                       status_qos)
+        self.node.create_subscription(WallEstimate, '/task_skills/wall_estimate',
+                                      self._estimate_cb, 50)
         self.client = ActionClient(self.node, ExecuteSlotPlan, '/execute_slot_plan')
         self.executor = MultiThreadedExecutor(num_threads=2)
         self.executor.add_node(self.node)
@@ -130,6 +143,27 @@ class SlotRecorder:
         self.truth[index] = err
         self.node.get_logger().info(
             f'S{index} 到站真值误差: ' + ', '.join(f'{k}={v:.2f}' for k, v in err.items()))
+
+    def _estimate_cb(self, msg):
+        """估计与同一时刻的真值（墙面相对状态，原点为参考标记）."""
+        if self._t_goal is None or self._base is None:
+            return
+        x, y, yaw = self._base
+        rel = np.array([x, y]) - self.wall.p0
+        # 正对墙面时底盘朝向 = 墙面法向的反方向（指向墙内）
+        n_in = -self.wall.n
+        psi = math.atan2(math.sin(yaw - math.atan2(n_in[1], n_in[0])),
+                         math.cos(yaw - math.atan2(n_in[1], n_in[0])))
+        with self._lock:
+            station, phase = self.station, self.phase
+        acc = [i for i, ok in zip(msg.tag_ids, msg.tag_accepted) if ok]
+        self.ekf_trace.append((
+            self.now(), station, phase, msg.d, msg.u, msg.psi, msg.sigma_d, msg.sigma_u,
+            msg.sigma_psi, msg.lateral_scale, msg.sigma_scale, msg.odom_since_fix,
+            int(msg.u_known), ' '.join(str(i) for i in msg.tag_ids),
+            ' '.join(str(i) for i in acc), float(rel @ self.wall.t) - self.marker_u,
+            float(rel @ self.wall.n), psi,
+            ' '.join(f'{i}:{q.x:.5f}:{q.y:.5f}' for i, q in zip(msg.tag_ids, msg.tag_positions))))
 
     def _links_cb(self, msg):
         if TOOL_LINK not in msg.name or BASE_LINK not in msg.name:
@@ -225,9 +259,24 @@ def _dist_poly(p, pts):
     return best
 
 
+def segment_labels(ekf_trace):
+    """
+    每个估计样本所属的停靠站：横移阶段（station = −1）记入之后到达的那一站.
+
+    技能服务器在横移开始时把停靠站置为 −1，到站后才给出站号，因此按时间倒序传递。
+    精对位（含按行程触发的重新对位）同样记入之后的那一站。
+    """
+    labels, nxt = [], -1
+    for e in reversed(ekf_trace):
+        if e[1] >= 0:
+            nxt = e[1]
+        labels.append(e[1] if e[1] >= 0 else nxt)
+    return labels[::-1]
+
+
 def record_to_row(r):
     row = {k: getattr(r, k) for k in RECORD_FIELDS}
-    for k in ('nav_leg', 'moved', 'cut_ok'):
+    for k in ('nav_leg', 'moved', 'cut_ok', 'realigned'):
         row[k] = int(row[k])
     return row
 
@@ -258,7 +307,10 @@ def main():
         yaml.safe_dump(plan_dict, f, allow_unicode=True, sort_keys=False)
 
     rclpy.init()
-    ex = SlotRecorder(wall, plan_dict)
+    marker_x = float(flags.get('marker-x', 8.42))
+    marker_y = float(flags.get('marker-y', -3.9245))
+    marker_u = float((np.array([marker_x, marker_y]) - wall.p0) @ wall.t)
+    ex = SlotRecorder(wall, plan_dict, marker_u)
     log = ex.node.get_logger()
     while ex.now() <= 0.0:          # 等仿真时钟
         time.sleep(0.1)
@@ -271,6 +323,7 @@ def main():
     goal.compensate = 'no-compensation' not in flags
     goal.max_strafe = float(flags.get('max-strafe', 0.0))
     goal.behavior_tree = flags['bt'] if isinstance(flags.get('bt'), str) else ''
+    goal.realign_distance = float(flags.get('realign-distance', 0.0))
     t_start = time.time()
     sim_start = ex.now()
     ok, result = ex.execute(goal)
@@ -281,12 +334,18 @@ def main():
         log.error('没有执行任何停靠站' + (f'：{result.error}' if result is not None else ''))
         shutdown(ex)
         sys.exit(3)
+    segments = segment_labels(ex.ekf_trace)
     for r in rows:
         r.update(ex.truth.get(r['station'], {}))
         # 每站底盘漂移（真值，到站之后相对到站时刻的最大位移）
         bs = [(t[7], t[8]) for t in ex.trace if t[1] == r['station']]
         r['base_drift_mm'] = (max(math.hypot(a - bs[0][0], d - bs[0][1]) for a, d in bs)
                               * 1000) if bs else float('nan')
+        # 本站（到站横移 + 残差测量）中接受过更新的标记
+        es = [e for e, s in zip(ex.ekf_trace, segments) if s == r['station']]
+        ids = sorted({int(i) for e in es for i in e[14].split()})
+        r['tags_used'] = ' '.join(str(i) for i in ids)
+        r['tag_updates'] = sum(1 for e in es if e[14])
 
     summary = evaluate(ex.trace, plan, robot, plan.slot_depth)
     summary.update(plan_partition=plan.partition, plan_order=plan.order,
@@ -305,6 +364,11 @@ def main():
             summary[f'station_{k}_mean_abs'] = float(np.mean(vals))
             summary[f'station_{k}_max_abs'] = float(np.max(vals))
     summary['stations_converged'] = int(sum(r['moved'] for r in rows))
+    summary['realignments'] = int(sum(r['realigned'] for r in rows))
+    if ex.ekf_trace:
+        last = ex.ekf_trace[-1]
+        summary['final_lateral_scale'] = float(last[9])
+        summary['final_sigma_scale'] = float(last[10])
     fields = list(rows[0].keys())
     for r in rows:
         fields += [k for k in r if k not in fields]
@@ -316,6 +380,10 @@ def main():
         w = csv.writer(f)
         w.writerow(['t', 'station', 'u', 'v', 'depth', 'arm_x', 'phase', 'base_u', 'base_d'])
         w.writerows(ex.trace)
+    with open(os.path.join(out_dir, 'ekf_trace.csv'), 'w', newline='') as f:
+        w = csv.writer(f)
+        w.writerow(EKF_FIELDS + ('segment',))
+        w.writerows(e + (s,) for e, s in zip(ex.ekf_trace, segments))
     with open(os.path.join(out_dir, 'summary.yaml'), 'w', encoding='utf-8') as f:
         yaml.safe_dump({k: (round(float(v), 4) if isinstance(v, (float, np.floating)) else
                             int(v) if isinstance(v, (np.integer, np.bool_)) else v)

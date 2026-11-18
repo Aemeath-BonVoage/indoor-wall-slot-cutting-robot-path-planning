@@ -1,0 +1,14 @@
+# 实验用标记地图（room.world 中 ID 0–5 的子集；u 相对参考标记 ID 0，面向墙面向右为正）
+# 间距 0.3 m：ID 5、0、1、2、3、4
+tag_map:
+  family: tag36h11
+  size: 0.1
+  reference_id: 0
+  sigma_position: 0.002
+  tags:
+  - {id: 5, u: -0.3, v: 0.7}
+  - {id: 0, u: 0.0, v: 0.7}
+  - {id: 1, u: 0.3, v: 0.7}
+  - {id: 2, u: 0.6, v: 0.7}
+  - {id: 3, u: 0.9, v: 0.7}
+  - {id: 4, u: 1.2, v: 0.7}

@@ -1,0 +1,396 @@
+[INFO] [task_executor-10]: process started with pid [19321]
+[task_executor-10] [INFO] [1794985969.484189484] [task_executor]: 
+[task_executor-10] 	task_executor lifecycle node launched. 
+[task_executor-10] 	Waiting on external lifecycle transitions to activate
+[task_executor-10] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[task_executor-10] [INFO] [1794985969.494193209] [task_executor_startup]: Waiting for Nav2 and the skill servers...
+[task_skill_server-9] [INFO] [1794985970.205724001] [task_skills]: 等待action服务器...
+[task_skill_server-9] [INFO] [1794985970.958088276] [task_skills]: 已连接到action服务器
+[task_skill_server-9] [INFO] [1794985970.958412220] [task_skills]: 笛卡尔空间工作范围（相对于base_link）:
+[task_skill_server-9] [INFO] [1794985970.958599018] [task_skills]:   X: [0.5168, 0.5818] m
+[task_skill_server-9] [INFO] [1794985970.958799114] [task_skills]:   Y: [-0.0601, 0.0799] m
+[task_skill_server-9] [INFO] [1794985970.959184015] [task_skills]:   Z: [0.1568, 0.7068] m
+[task_skill_server-9] [INFO] [1794985970.967219076] [task_skills]: 轨迹可视化器已初始化（Gazebo模式）
+[task_skill_server-9] [INFO] [1794985970.987802892] [task_skills]: 标记地图 ~/colcon_ws/docs/experiments/along_wall_accuracy/maps/tags_0.3.yaml：6 个标记，最大间距 0.30 m，位置误差 σ = 2.0 mm
+[task_skill_server-9] [INFO] [1794985970.999357626] [task_skills]: 切割任务技能库已初始化
+[task_skill_server-9] [INFO] [1794985971.015626848] [task_skills]: 技能服务器就绪：fine_align / move_to_station / cut_station / hold_base / scan_marker / retract_arm
+[task_executor-10] [INFO] [1794985986.079793114] [task_executor]: Task executor active: /execute_slot_plan (~/colcon_ws/install/scr_task/share/scr_task/behavior_trees/slot_plan.xml), /execute_cutting_task (~/colcon_ws/install/scr_task/share/scr_task/behavior_trees/cutting_task.xml)
+[task_executor-10] [INFO] [1794985986.081281814] [task_executor]: Executing slot plan ~/colcon_ws/docs/experiments/slot_execution/runs/dp/slot_plan.yaml (dry run on, compensation on, re-align after never)
+[task_skill_server-9] [INFO] [1794986013.473126899] [task_skills]: 
+[task_skill_server-9] [INFO] [1794986013.473414488] [task_skills]: 步骤2: 精确定位到黄色方块正前方
+[task_skill_server-9] [INFO] [1794986013.473603120] [task_skills]: ============================================================
+[task_skill_server-9] [INFO] [1794986013.473839466] [task_skills]: 方块位置: x=8.420, y=-3.925
+[task_skill_server-9] [INFO] [1794986013.474642176] [task_skills]: 目标距离: 0.70m
+[task_skill_server-9] [INFO] [1794986013.475834560] [task_skills]: 目标位置: x=8.420, y=-3.224, yaw=-1.571 (-90.0°)
+[task_skill_server-9] [INFO] [1794986013.476526650] [task_skills]: 对位模式: visual（apriltag + 激光墙面 → EKF），目标离墙 0.700 m，容差 法向 2.0 mm / 沿墙 2.0 mm / 朝向 0.30°，零位偏置 (+0.00 mm, +0.00 mm, +0.000°)
+[task_skill_server-9] [INFO] [1794986013.477565989] [task_skills]: 机械臂移至接近位姿 joint1=-0.15 m, joint3=+0.020 m（缩回）
+[task_skill_server-9] [INFO] [1794986013.479161436] [task_skills]: 发送目标: [-0.15, 0.0, 0.02, 0.0]
+[task_skill_server-9] [INFO] [1794986016.009260290] [task_skills]: [  0.0s] d=1.2930 m u=  -49.7 mm ψ=+10.65° σ_u=7.77 mm 标记: ok  墙面: init
+[task_skill_server-9] [INFO] [1794986020.228431101] [task_skills]: [  4.1s] d=0.7301 m u=   -3.4 mm ψ= -0.06° σ_u=0.54 mm 标记: ok  墙面: ok
+[task_skill_server-9] [INFO] [1794986022.716483843] [task_skills]: 墙面闭环收敛：误差 法向 +0.21 mm、沿墙 +0.13 mm、朝向 +0.010°，σ = (0.31 mm, 0.46 mm, 0.038°)，用时 6.5 s
+[task_skill_server-9] [INFO] [1794986022.717074847] [task_skills]: 测量更新：墙面 接受 61 / 拒收 3，标记 接受 213 / 拒收 0
+[task_skill_server-9] [INFO] [1794986023.219082636] [task_skills]: 真值误差: 位置=1.5mm (dx=1.5, dy=0.0), 角度=0.13°
+[task_skill_server-9] [INFO] [1794986023.221408665] [task_skills]: 墙面坐标原点 = 定位标记（停车位姿沿墙残差 +0.13 mm 已计入）
+[task_skill_server-9] [INFO] [1794986023.244669753] [task_skills]: 机械臂移至接近位姿 joint1=-0.15 m, joint3=+0.020 m（缩回）
+[task_skill_server-9] [INFO] [1794986023.245363235] [task_skills]: 发送目标: [-0.15, 0.0, 0.02, 0.0]
+[task_skill_server-9] [INFO] [1794986025.252205911] [task_skills]: [  0.0s] d=0.7002 m u=   +0.1 mm ψ= +0.01° σ_u=0.46 mm 标记: ok  墙面: ok
+[task_skill_server-9] [INFO] [1794986029.384354785] [task_skills]: 墙面闭环收敛：误差 法向 +0.03 mm、沿墙 +0.38 mm、朝向 +0.028°，σ = (0.32 mm, 0.55 mm, 0.040°)，用时 4.0 s
+[task_skill_server-9] [INFO] [1794986030.407754711] [task_skills]: S0 残余误差（传感器）: 横向 +0.6 mm, 离墙 -0.3 mm, 朝向 +0.03°，已补偿
+[task_skill_server-9] [INFO] [1794986030.408262126] [task_skills]: 目标位置: X=0.5200, Y=0.0701, Z=0.2425, R=1.5708
+[task_skill_server-9] [INFO] [1794986030.408664730] [task_skills]: 关节值: ['-0.2643', '-0.0702', '0.0168', '1.5700']
+[task_skill_server-9] [INFO] [1794986030.409049957] [task_skills]: 发送目标: [-0.26428999999999997, -0.0702061278256794, 0.01676999999999995, 1.57]
+[task_skill_server-9] [INFO] [1794986032.460779043] [task_skills]: 目标位置: X=0.5303, Y=0.0700, Z=0.2425, R=1.5708
+[task_skill_server-9] [INFO] [1794986032.461074754] [task_skills]: 关节值: ['-0.2643', '-0.0702', '0.0065', '1.5700']
+[task_skill_server-9] [INFO] [1794986032.461356612] [task_skills]: 发送目标: [-0.26428999999999997, -0.07019965830101076, 0.006504428791846761, 1.57]
+[task_skill_server-9] [INFO] [1794986034.512896649] [task_skills]: 目标位置: X=0.5303, Y=0.0150, Z=0.2425, R=1.5708
+[task_skill_server-9] [INFO] [1794986034.513219357] [task_skills]: 关节值: ['-0.2643', '-0.0152', '0.0065', '1.5700']
+[task_skill_server-9] [INFO] [1794986034.513531813] [task_skills]: 发送目标: [-0.26428999999999997, -0.01519965830101077, 0.006504428791846761, 1.57]
+[task_skill_server-9] [INFO] [1794986036.565609670] [task_skills]: 目标位置: X=0.5200, Y=0.0151, Z=0.2425, R=1.5708
+[task_skill_server-9] [INFO] [1794986036.565885773] [task_skills]: 关节值: ['-0.2643', '-0.0152', '0.0168', '1.5700']
+[task_skill_server-9] [INFO] [1794986036.566211766] [task_skills]: 发送目标: [-0.26428999999999997, -0.015206127825679419, 0.01676999999999995, 1.57]
+[task_skill_server-9] [INFO] [1794986038.637189935] [task_skills]: 定点保持期间底盘真值最大漂移: 0.15 mm, 0.157°
+[task_skill_server-9] [INFO] [1794986038.644468772] [task_skills]: 机械臂移至接近位姿 joint1=-0.15 m, joint3=+0.020 m（缩回）
+[task_skill_server-9] [INFO] [1794986038.644906818] [task_skills]: 发送目标: [-0.15, 0.0, 0.02, 0.0]
+[task_skill_server-9] [INFO] [1794986040.641922712] [task_skills]: [  0.0s] d=0.6995 m u= -229.4 mm ψ= +0.04° σ_u=0.54 mm 标记: ok  墙面: ok
+[task_skill_server-9] [INFO] [1794986043.005460043] [task_skills]: 墙面闭环收敛：误差 法向 -0.02 mm、沿墙 +0.01 mm、朝向 +0.000°，σ = (0.31 mm, 0.51 mm, 0.039°)，用时 2.2 s
+[task_skill_server-9] [INFO] [1794986043.986207784] [task_skills]: S1 残余误差（传感器）: 横向 +0.1 mm, 离墙 +0.1 mm, 朝向 +0.01°，已补偿
+[task_skill_server-9] [INFO] [1794986043.990798301] [task_skills]: 目标位置: X=0.5200, Y=0.0698, Z=0.2425, R=1.5708
+[task_skill_server-9] [INFO] [1794986043.991099267] [task_skills]: 关节值: ['-0.2643', '-0.0700', '0.0168', '1.5700']
+[task_skill_server-9] [INFO] [1794986043.991434330] [task_skills]: 发送目标: [-0.26428999999999997, -0.06996483079432018, 0.01676999999999995, 1.57]
+[task_skill_server-9] [INFO] [1794986046.045509436] [task_skills]: 目标位置: X=0.5307, Y=0.0698, Z=0.2425, R=1.5708
+[task_skill_server-9] [INFO] [1794986046.045842169] [task_skills]: 关节值: ['-0.2643', '-0.0700', '0.0061', '1.5700']
+[task_skill_server-9] [INFO] [1794986046.046207597] [task_skills]: 发送目标: [-0.26428999999999997, -0.06996290132914787, 0.006055538405419836, 1.57]
+[task_skill_server-9] [INFO] [1794986048.098921416] [task_skills]: 目标位置: X=0.5307, Y=-0.0502, Z=0.2425, R=1.5708
+[task_skill_server-9] [INFO] [1794986048.099195659] [task_skills]: 关节值: ['-0.2643', '0.0500', '0.0061', '1.5700']
+[task_skill_server-9] [INFO] [1794986048.099511388] [task_skills]: 发送目标: [-0.26428999999999997, 0.05003709867085212, 0.006055538405419836, 1.57]
+[task_skill_server-9] [INFO] [1794986050.153847473] [task_skills]: 目标位置: X=0.5200, Y=-0.0502, Z=0.2425, R=1.5708
+[task_skill_server-9] [INFO] [1794986050.154130609] [task_skills]: 关节值: ['-0.2643', '0.0500', '0.0168', '1.5700']
+[task_skill_server-9] [INFO] [1794986050.154429625] [task_skills]: 发送目标: [-0.26428999999999997, 0.05003516920567981, 0.01676999999999995, 1.57]
+[task_skill_server-9] [INFO] [1794986052.264021776] [task_skills]: 定点保持期间底盘真值最大漂移: 0.16 mm, 0.156°
+[task_executor-10] [WARN] [1794986052.264930467] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_skill_server-9] [INFO] [1794986052.270942303] [task_skills]: 机械臂移至接近位姿 joint1=-0.15 m, joint3=+0.020 m（缩回）
+[task_skill_server-9] [INFO] [1794986052.271516105] [task_skills]: 发送目标: [-0.15, 0.0, 0.02, 0.0]
+[task_skill_server-9] [INFO] [1794986054.331191887] [task_skills]: [  0.0s] d=0.7000 m u= -175.0 mm ψ= +0.01° σ_u=0.52 mm 标记: ok  墙面: ok
+[task_skill_server-9] [INFO] [1794986057.315883786] [task_skills]: 墙面闭环收敛：误差 法向 +0.20 mm、沿墙 -0.16 mm、朝向 -0.011°，σ = (0.30 mm, 0.47 mm, 0.038°)，用时 2.9 s
+[task_skill_server-9] [INFO] [1794986058.337598622] [task_skills]: S2 残余误差（传感器）: 横向 -0.4 mm, 离墙 +0.4 mm, 朝向 -0.03°，已补偿
+[task_skill_server-9] [INFO] [1794986058.338466033] [task_skills]: 目标位置: X=0.5200, Y=0.0698, Z=0.2425, R=1.5708
+[task_skill_server-9] [INFO] [1794986058.339637941] [task_skills]: 关节值: ['-0.2643', '-0.0699', '0.0168', '1.5700']
+[task_skill_server-9] [INFO] [1794986058.341366843] [task_skills]: 发送目标: [-0.26428999999999997, -0.06994296261803304, 0.01676999999999995, 1.57]
+[task_skill_server-9] [INFO] [1794986060.393330660] [task_skills]: 目标位置: X=0.5310, Y=0.0698, Z=0.2425, R=1.5708
+[task_skill_server-9] [INFO] [1794986060.393935756] [task_skills]: 关节值: ['-0.2643', '-0.0699', '0.0057', '1.5700']
+[task_skill_server-9] [INFO] [1794986060.394497522] [task_skills]: 发送目标: [-0.26428999999999997, -0.06994793545599083, 0.005723195506247891, 1.57]
+[task_skill_server-9] [INFO] [1794986062.447513504] [task_skills]: 目标位置: X=0.5310, Y=-0.0502, Z=0.2425, R=1.5708
+[task_skill_server-9] [INFO] [1794986062.447861592] [task_skills]: 关节值: ['-0.2643', '0.0501', '0.0057', '1.5700']
+[task_skill_server-9] [INFO] [1794986062.448199097] [task_skills]: 发送目标: [-0.26428999999999997, 0.050052064544009164, 0.005723195506247891, 1.57]
+[task_skill_server-9] [INFO] [1794986064.499727936] [task_skills]: 目标位置: X=0.5200, Y=-0.0502, Z=0.2425, R=1.5708
+[task_skill_server-9] [INFO] [1794986064.500028608] [task_skills]: 关节值: ['-0.2643', '0.0501', '0.0168', '1.5700']
+[task_skill_server-9] [INFO] [1794986064.501260184] [task_skills]: 发送目标: [-0.26428999999999997, 0.05005703738196695, 0.01676999999999995, 1.57]
+[task_skill_server-9] [INFO] [1794986066.601208474] [task_skills]: 定点保持期间底盘真值最大漂移: 0.18 mm, 0.156°
+[task_executor-10] [WARN] [1794986066.602284338] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_skill_server-9] [INFO] [1794986066.606469526] [task_skills]: 机械臂移至接近位姿 joint1=-0.15 m, joint3=+0.020 m（缩回）
+[task_skill_server-9] [INFO] [1794986066.606834391] [task_skills]: 发送目标: [-0.15, 0.0, 0.02, 0.0]
+[task_skill_server-9] [INFO] [1794986068.593178971] [task_skills]: [  0.0s] d=0.7004 m u=  -55.6 mm ψ= -0.04° σ_u=0.46 mm 标记: ok  墙面: ok
+[task_skill_server-9] [INFO] [1794986071.576804143] [task_skills]: 墙面闭环收敛：误差 法向 +0.05 mm、沿墙 -0.53 mm、朝向 -0.042°，σ = (0.30 mm, 0.46 mm, 0.038°)，用时 2.9 s
+[task_skill_server-9] [INFO] [1794986072.593272141] [task_skills]: S3 残余误差（传感器）: 横向 -0.6 mm, 离墙 -0.1 mm, 朝向 -0.04°，已补偿
+[task_skill_server-9] [INFO] [1794986072.598469584] [task_skills]: 目标位置: X=0.5200, Y=0.0698, Z=0.2425, R=1.5708
+[task_skill_server-9] [INFO] [1794986072.599677063] [task_skills]: 关节值: ['-0.2643', '-0.0699', '0.0168', '1.5700']
+[task_skill_server-9] [INFO] [1794986072.600059194] [task_skills]: 发送目标: [-0.26428999999999997, -0.06992014024743272, 0.01676999999999995, 1.57]
+[task_skill_server-9] [INFO] [1794986074.652458279] [task_skills]: 目标位置: X=0.5305, Y=0.0698, Z=0.2425, R=1.5708
+[task_skill_server-9] [INFO] [1794986074.652910885] [task_skills]: 关节值: ['-0.2643', '-0.0699', '0.0063', '1.5700']
+[task_skill_server-9] [INFO] [1794986074.653261450] [task_skills]: 发送目标: [-0.26428999999999997, -0.06992783675286132, 0.006303951566176913, 1.57]
+[task_skill_server-9] [INFO] [1794986076.709499468] [task_skills]: 目标位置: X=0.5305, Y=-0.0152, Z=0.2425, R=1.5708
+[task_skill_server-9] [INFO] [1794986076.711399064] [task_skills]: 关节值: ['-0.2643', '0.0151', '0.0063', '1.5700']
+[task_skill_server-9] [INFO] [1794986076.711801442] [task_skills]: 发送目标: [-0.26428999999999997, 0.015072163247138675, 0.006303951566176913, 1.57]
+[task_skill_server-9] [INFO] [1794986078.765043362] [task_skills]: 目标位置: X=0.5200, Y=-0.0152, Z=0.2425, R=1.5708
+[task_skill_server-9] [INFO] [1794986078.765626921] [task_skills]: 关节值: ['-0.2643', '0.0151', '0.0168', '1.5700']
+[task_skill_server-9] [INFO] [1794986078.770223961] [task_skills]: 发送目标: [-0.26428999999999997, 0.015079859752567279, 0.01676999999999995, 1.57]
+[task_skill_server-9] [INFO] [1794986080.822559754] [task_skills]: 目标位置: X=0.5200, Y=-0.0152, Z=0.2425, R=0.0000
+[task_skill_server-9] [INFO] [1794986080.822828894] [task_skills]: 关节值: ['-0.2643', '0.0151', '0.0168', '0.0000']
+[task_skill_server-9] [INFO] [1794986080.823185144] [task_skills]: 发送目标: [-0.26428999999999997, 0.015079859752567279, 0.01676999999999995, 0.0]
+[task_skill_server-9] [INFO] [1794986082.876654696] [task_skills]: 目标位置: X=0.5305, Y=-0.0152, Z=0.2425, R=0.0000
+[task_skill_server-9] [INFO] [1794986082.876997577] [task_skills]: 关节值: ['-0.2643', '0.0151', '0.0063', '0.0000']
+[task_skill_server-9] [INFO] [1794986082.877336739] [task_skills]: 发送目标: [-0.26428999999999997, 0.015072163247138675, 0.006303951566176913, 0.0]
+[task_skill_server-9] [INFO] [1794986084.930235736] [task_skills]: 目标位置: X=0.5305, Y=-0.0152, Z=0.4825, R=0.0000
+[task_skill_server-9] [INFO] [1794986084.930499570] [task_skills]: 关节值: ['-0.0243', '0.0151', '0.0063', '0.0000']
+[task_skill_server-9] [INFO] [1794986084.930839834] [task_skills]: 发送目标: [-0.02428999999999998, 0.015072163247138675, 0.006303951566176913, 0.0]
+[task_skill_server-9] [INFO] [1794986086.983316953] [task_skills]: 目标位置: X=0.5200, Y=-0.0152, Z=0.4825, R=0.0000
+[task_skill_server-9] [INFO] [1794986086.983609373] [task_skills]: 关节值: ['-0.0243', '0.0151', '0.0168', '0.0000']
+[task_skill_server-9] [INFO] [1794986086.983943220] [task_skills]: 发送目标: [-0.02428999999999998, 0.015079859752567279, 0.01676999999999995, 0.0]
+[task_skill_server-9] [INFO] [1794986089.037227508] [task_skills]: 目标位置: X=0.5200, Y=-0.0152, Z=0.4825, R=1.5708
+[task_skill_server-9] [INFO] [1794986089.037492218] [task_skills]: 关节值: ['-0.0243', '0.0151', '0.0168', '1.5700']
+[task_skill_server-9] [INFO] [1794986089.037778564] [task_skills]: 发送目标: [-0.02428999999999998, 0.015079859752567279, 0.01676999999999995, 1.57]
+[task_skill_server-9] [INFO] [1794986091.090218708] [task_skills]: 目标位置: X=0.5305, Y=-0.0152, Z=0.4825, R=1.5708
+[task_skill_server-9] [INFO] [1794986091.090463611] [task_skills]: 关节值: ['-0.0243', '0.0151', '0.0063', '1.5700']
+[task_skill_server-9] [INFO] [1794986091.090754669] [task_skills]: 发送目标: [-0.02428999999999998, 0.015072163247138675, 0.006303951566176913, 1.57]
+[task_skill_server-9] [INFO] [1794986093.142921888] [task_skills]: 目标位置: X=0.5305, Y=-0.0502, Z=0.4825, R=1.5708
+[task_skill_server-9] [INFO] [1794986093.143216987] [task_skills]: 关节值: ['-0.0243', '0.0501', '0.0063', '1.5700']
+[task_skill_server-9] [INFO] [1794986093.143765978] [task_skills]: 发送目标: [-0.02428999999999998, 0.05007216324713868, 0.006303951566176913, 1.57]
+[task_skill_server-9] [INFO] [1794986095.198618617] [task_skills]: 目标位置: X=0.5200, Y=-0.0502, Z=0.4825, R=1.5708
+[task_skill_server-9] [INFO] [1794986095.198893239] [task_skills]: 关节值: ['-0.0243', '0.0501', '0.0168', '1.5700']
+[task_skill_server-9] [INFO] [1794986095.199481246] [task_skills]: 发送目标: [-0.02428999999999998, 0.050079859752567284, 0.01676999999999995, 1.57]
+[task_skill_server-9] [INFO] [1794986097.292985768] [task_skills]: 定点保持期间底盘真值最大漂移: 0.16 mm, 0.156°
+[task_executor-10] [WARN] [1794986097.294720159] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_skill_server-9] [INFO] [1794986097.300144093] [task_skills]: 机械臂移至接近位姿 joint1=-0.15 m, joint3=+0.020 m（缩回）
+[task_skill_server-9] [INFO] [1794986097.301408489] [task_skills]: 发送目标: [-0.15, 0.0, 0.02, 0.0]
+[task_skill_server-9] [INFO] [1794986099.280677330] [task_skills]: [  0.0s] d=0.6999 m u=  +64.1 mm ψ= -0.05° σ_u=0.46 mm 标记: ok  墙面: ok
+[task_skill_server-9] [INFO] [1794986102.181993473] [task_skills]: 墙面闭环收敛：误差 法向 +0.09 mm、沿墙 -0.37 mm、朝向 -0.027°，σ = (0.32 mm, 0.52 mm, 0.040°)，用时 2.8 s
+[task_skill_server-9] [INFO] [1794986103.241758323] [task_skills]: S4 残余误差（传感器）: 横向 -0.8 mm, 离墙 -0.2 mm, 朝向 -0.05°，已补偿
+[task_skill_server-9] [INFO] [1794986103.242267194] [task_skills]: 目标位置: X=0.5200, Y=0.0697, Z=0.4825, R=1.5708
+[task_skill_server-9] [INFO] [1794986103.242585849] [task_skills]: 关节值: ['-0.0243', '-0.0698', '0.0168', '1.5700']
+[task_skill_server-9] [INFO] [1794986103.242932506] [task_skills]: 发送目标: [-0.02428999999999998, -0.06983458716978284, 0.01676999999999995, 1.57]
+[task_skill_server-9] [INFO] [1794986105.298134312] [task_skills]: 目标位置: X=0.5304, Y=0.0697, Z=0.4825, R=1.5708
+[task_skill_server-9] [INFO] [1794986105.298431067] [task_skills]: 关节值: ['-0.0243', '-0.0698', '0.0063', '1.5700']
+[task_skill_server-9] [INFO] [1794986105.299118903] [task_skills]: 发送目标: [-0.02428999999999998, -0.06984462029063505, 0.0063350747466965895, 1.57]
+[task_skill_server-9] [INFO] [1794986107.352756855] [task_skills]: 目标位置: X=0.5304, Y=-0.0503, Z=0.4825, R=1.5708
+[task_skill_server-9] [INFO] [1794986107.353044991] [task_skills]: 关节值: ['-0.0243', '0.0502', '0.0063', '1.5700']
+[task_skill_server-9] [INFO] [1794986107.353351997] [task_skills]: 发送目标: [-0.02428999999999998, 0.05015537970936495, 0.0063350747466965895, 1.57]
+[task_skill_server-9] [INFO] [1794986109.414085004] [task_skills]: 目标位置: X=0.5200, Y=-0.0503, Z=0.4825, R=1.5708
+[task_skill_server-9] [INFO] [1794986109.414450831] [task_skills]: 关节值: ['-0.0243', '0.0502', '0.0168', '1.5700']
+[task_skill_server-9] [INFO] [1794986109.415003672] [task_skills]: 发送目标: [-0.02428999999999998, 0.05016541283021715, 0.01676999999999995, 1.57]
+[task_skill_server-9] [INFO] [1794986111.522135453] [task_skills]: 定点保持期间底盘真值最大漂移: 0.20 mm, 0.156°
+[task_executor-10] [WARN] [1794986111.523243807] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_skill_server-9] [INFO] [1794986111.527757484] [task_skills]: 机械臂移至接近位姿 joint1=-0.15 m, joint3=+0.020 m（缩回）
+[task_skill_server-9] [INFO] [1794986111.532435527] [task_skills]: 发送目标: [-0.15, 0.0, 0.02, 0.0]
+[task_skill_server-9] [INFO] [1794986113.616579269] [task_skills]: [  0.0s] d=0.6998 m u= +184.1 mm ψ= -0.06° σ_u=0.51 mm 标记: ok  墙面: ok
+[task_skill_server-9] [INFO] [1794986116.624443119] [task_skills]: 墙面闭环收敛：误差 法向 +0.03 mm、沿墙 +0.05 mm、朝向 -0.001°，σ = (0.28 mm, 0.54 mm, 0.038°)，用时 2.9 s
+[task_skill_server-9] [INFO] [1794986117.667849623] [task_skills]: S5 残余误差（传感器）: 横向 -0.2 mm, 离墙 +0.0 mm, 朝向 -0.02°，已补偿
+[task_skill_server-9] [INFO] [1794986117.674759178] [task_skills]: 目标位置: X=0.5200, Y=0.0699, Z=0.4825, R=1.5708
+[task_skill_server-9] [INFO] [1794986117.675171411] [task_skills]: 关节值: ['-0.0243', '-0.0700', '0.0168', '1.5700']
+[task_skill_server-9] [INFO] [1794986117.675747907] [task_skills]: 发送目标: [-0.02428999999999998, -0.0700267565957034, 0.01676999999999995, 1.57]
+[task_skill_server-9] [INFO] [1794986119.828118274] [task_skills]: 目标位置: X=0.5306, Y=0.0699, Z=0.4825, R=1.5708
+[task_skill_server-9] [INFO] [1794986119.828384456] [task_skills]: 关节值: ['-0.0243', '-0.0700', '0.0062', '1.5700']
+[task_skill_server-9] [INFO] [1794986119.828728278] [task_skills]: 发送目标: [-0.02428999999999998, -0.07003105927685659, 0.006161030329227546, 1.57]
+[task_skill_server-9] [INFO] [1794986121.880605050] [task_skills]: 目标位置: X=0.5306, Y=-0.0501, Z=0.4825, R=1.5708
+[task_skill_server-9] [INFO] [1794986121.880926497] [task_skills]: 关节值: ['-0.0243', '0.0500', '0.0062', '1.5700']
+[task_skill_server-9] [INFO] [1794986121.881423924] [task_skills]: 发送目标: [-0.02428999999999998, 0.04996894072314342, 0.006161030329227546, 1.57]
+[task_skill_server-9] [INFO] [1794986123.934368474] [task_skills]: 目标位置: X=0.5200, Y=-0.0501, Z=0.4825, R=1.5708
+[task_skill_server-9] [INFO] [1794986123.934860371] [task_skills]: 关节值: ['-0.0243', '0.0500', '0.0168', '1.5700']
+[task_skill_server-9] [INFO] [1794986123.935221132] [task_skills]: 发送目标: [-0.02428999999999998, 0.0499732434042966, 0.01676999999999995, 1.57]
+[task_skill_server-9] [INFO] [1794986125.988704774] [task_skills]: 目标位置: X=0.5200, Y=-0.0501, Z=0.6225, R=1.5708
+[task_skill_server-9] [INFO] [1794986125.988997844] [task_skills]: 关节值: ['0.1157', '0.0500', '0.0168', '1.5700']
+[task_skill_server-9] [INFO] [1794986125.989295566] [task_skills]: 发送目标: [0.11571000000000009, 0.0499732434042966, 0.01676999999999995, 1.57]
+[task_skill_server-9] [INFO] [1794986128.055890349] [task_skills]: 目标位置: X=0.5306, Y=-0.0501, Z=0.6225, R=1.5708
+[task_skill_server-9] [INFO] [1794986128.072975629] [task_skills]: 关节值: ['0.1157', '0.0500', '0.0062', '1.5700']
+[task_skill_server-9] [INFO] [1794986128.073625545] [task_skills]: 发送目标: [0.11571000000000009, 0.04996894072314342, 0.006161030329227546, 1.57]
+[task_skill_server-9] [INFO] [1794986130.128467342] [task_skills]: 目标位置: X=0.5306, Y=0.0549, Z=0.6225, R=1.5708
+[task_skill_server-9] [INFO] [1794986130.128728636] [task_skills]: 关节值: ['0.1157', '-0.0550', '0.0062', '1.5700']
+[task_skill_server-9] [INFO] [1794986130.129025215] [task_skills]: 发送目标: [0.11571000000000009, -0.055031059276856586, 0.006161030329227546, 1.57]
+[task_skill_server-9] [INFO] [1794986132.182969898] [task_skills]: 目标位置: X=0.5200, Y=0.0549, Z=0.6225, R=1.5708
+[task_skill_server-9] [INFO] [1794986132.187970423] [task_skills]: 关节值: ['0.1157', '-0.0550', '0.0168', '1.5700']
+[task_skill_server-9] [INFO] [1794986132.188368060] [task_skills]: 发送目标: [0.11571000000000009, -0.055026756595703406, 0.01676999999999995, 1.57]
+[task_skill_server-9] [INFO] [1794986134.325504891] [task_skills]: 定点保持期间底盘真值最大漂移: 0.19 mm, 0.156°
+[task_executor-10] [WARN] [1794986134.327145070] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_skill_server-9] [INFO] [1794986134.333583551] [task_skills]: 机械臂移至接近位姿 joint1=-0.15 m, joint3=+0.020 m（缩回）
+[task_skill_server-9] [INFO] [1794986134.333915618] [task_skills]: 发送目标: [-0.15, 0.0, 0.02, 0.0]
+[task_skill_server-9] [INFO] [1794986136.323664239] [task_skills]: [  0.0s] d=0.7001 m u= +304.5 mm ψ= -0.03° σ_u=0.53 mm 标记: ok  墙面: ok
+[task_skill_server-9] [INFO] [1794986139.235941541] [task_skills]: 墙面闭环收敛：误差 法向 -0.02 mm、沿墙 -0.48 mm、朝向 -0.031°，σ = (0.29 mm, 0.57 mm, 0.036°)，用时 2.8 s
+[task_skill_server-9] [INFO] [1794986140.278679509] [task_skills]: S6 残余误差（传感器）: 横向 -0.8 mm, 离墙 +0.0 mm, 朝向 -0.05°，已补偿
+[task_skill_server-9] [INFO] [1794986140.280708591] [task_skills]: 目标位置: X=0.5200, Y=0.0696, Z=0.4825, R=1.5708
+[task_skill_server-9] [INFO] [1794986140.281008553] [task_skills]: 关节值: ['-0.0243', '-0.0698', '0.0168', '1.5700']
+[task_skill_server-9] [INFO] [1794986140.287114917] [task_skills]: 发送目标: [-0.02428999999999998, -0.06978548961894859, 0.01676999999999995, 1.57]
+[task_skill_server-9] [INFO] [1794986142.339742023] [task_skills]: 目标位置: X=0.5306, Y=0.0696, Z=0.4825, R=1.5708
+[task_skill_server-9] [INFO] [1794986142.340199960] [task_skills]: 关节值: ['-0.0243', '-0.0698', '0.0062', '1.5700']
+[task_skill_server-9] [INFO] [1794986142.341219036] [task_skills]: 发送目标: [-0.02428999999999998, -0.06979519868947334, 0.0061559862413066435, 1.57]
+[task_skill_server-9] [INFO] [1794986144.398837857] [task_skills]: 目标位置: X=0.5306, Y=-0.0504, Z=0.4825, R=1.5708
+[task_skill_server-9] [INFO] [1794986144.402953111] [task_skills]: 关节值: ['-0.0243', '0.0502', '0.0062', '1.5700']
+[task_skill_server-9] [INFO] [1794986144.403383321] [task_skills]: 发送目标: [-0.02428999999999998, 0.05020480131052666, 0.0061559862413066435, 1.57]
+[task_skill_server-9] [INFO] [1794986146.456126187] [task_skills]: 目标位置: X=0.5200, Y=-0.0504, Z=0.4825, R=1.5708
+[task_skill_server-9] [INFO] [1794986146.456558634] [task_skills]: 关节值: ['-0.0243', '0.0502', '0.0168', '1.5700']
+[task_skill_server-9] [INFO] [1794986146.456873576] [task_skills]: 发送目标: [-0.02428999999999998, 0.05021451038105141, 0.01676999999999995, 1.57]
+[task_skill_server-9] [INFO] [1794986148.509963190] [task_skills]: 目标位置: X=0.5200, Y=-0.0504, Z=0.6225, R=1.5708
+[task_skill_server-9] [INFO] [1794986148.510239752] [task_skills]: 关节值: ['0.1157', '0.0502', '0.0168', '1.5700']
+[task_skill_server-9] [INFO] [1794986148.510534197] [task_skills]: 发送目标: [0.11571000000000009, 0.05021451038105141, 0.01676999999999995, 1.57]
+[task_skill_server-9] [INFO] [1794986150.564535594] [task_skills]: 目标位置: X=0.5306, Y=-0.0504, Z=0.6225, R=1.5708
+[task_skill_server-9] [INFO] [1794986150.564853799] [task_skills]: 关节值: ['0.1157', '0.0502', '0.0062', '1.5700']
+[task_skill_server-9] [INFO] [1794986150.565600919] [task_skills]: 发送目标: [0.11571000000000009, 0.05020480131052666, 0.0061559862413066435, 1.57]
+[task_skill_server-9] [INFO] [1794986152.619632652] [task_skills]: 目标位置: X=0.5306, Y=0.0696, Z=0.6225, R=1.5708
+[task_skill_server-9] [INFO] [1794986152.619888830] [task_skills]: 关节值: ['0.1157', '-0.0698', '0.0062', '1.5700']
+[task_skill_server-9] [INFO] [1794986152.620502547] [task_skills]: 发送目标: [0.11571000000000009, -0.06979519868947334, 0.0061559862413066435, 1.57]
+[task_skill_server-9] [INFO] [1794986154.674608079] [task_skills]: 目标位置: X=0.5200, Y=0.0696, Z=0.6225, R=1.5708
+[task_skill_server-9] [INFO] [1794986154.675319683] [task_skills]: 关节值: ['0.1157', '-0.0698', '0.0168', '1.5700']
+[task_skill_server-9] [INFO] [1794986154.675730625] [task_skills]: 发送目标: [0.11571000000000009, -0.06978548961894859, 0.01676999999999995, 1.57]
+[task_skill_server-9] [INFO] [1794986156.791815216] [task_skills]: 定点保持期间底盘真值最大漂移: 0.18 mm, 0.155°
+[task_executor-10] [WARN] [1794986156.793663048] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_skill_server-9] [INFO] [1794986156.797774515] [task_skills]: 机械臂移至接近位姿 joint1=-0.15 m, joint3=+0.020 m（缩回）
+[task_skill_server-9] [INFO] [1794986156.799846157] [task_skills]: 发送目标: [-0.15, 0.0, 0.02, 0.0]
+[task_skill_server-9] [INFO] [1794986158.794520520] [task_skills]: [  0.0s] d=0.6999 m u= +424.2 mm ψ= -0.04° σ_u=0.55 mm 标记: ok  墙面: ok
+[task_skill_server-9] [INFO] [1794986161.876782017] [task_skills]: 墙面闭环收敛：误差 法向 +0.03 mm、沿墙 -0.20 mm、朝向 +0.010°，σ = (0.32 mm, 0.57 mm, 0.041°)，用时 2.9 s
+[task_executor-10] [WARN] [1794986161.903839129] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_skill_server-9] [INFO] [1794986162.884879339] [task_skills]: S7 残余误差（传感器）: 横向 -0.4 mm, 离墙 +0.4 mm, 朝向 -0.00°，已补偿
+[task_skill_server-9] [INFO] [1794986162.885298912] [task_skills]: 目标位置: X=0.5200, Y=0.0694, Z=0.4825, R=1.5708
+[task_skill_server-9] [INFO] [1794986162.886157681] [task_skills]: 关节值: ['-0.0243', '-0.0696', '0.0168', '1.5700']
+[task_skill_server-9] [INFO] [1794986162.886536887] [task_skills]: 发送目标: [-0.02428999999999998, -0.06958109462173344, 0.01676999999999995, 1.57]
+[task_skill_server-9] [INFO] [1794986164.937868841] [task_skills]: 目标位置: X=0.5310, Y=0.0694, Z=0.4825, R=1.5708
+[task_skill_server-9] [INFO] [1794986164.938255903] [task_skills]: 关节值: ['-0.0243', '-0.0696', '0.0057', '1.5700']
+[task_skill_server-9] [INFO] [1794986164.938590801] [task_skills]: 发送目标: [-0.02428999999999998, -0.06958126078811373, 0.005746194455303888, 1.57]
+[task_skill_server-9] [INFO] [1794986167.191138141] [task_skills]: 目标位置: X=0.5310, Y=-0.0356, Z=0.4825, R=1.5708
+[task_skill_server-9] [INFO] [1794986167.191618784] [task_skills]: 关节值: ['-0.0243', '0.0354', '0.0057', '1.5700']
+[task_skill_server-9] [INFO] [1794986167.192390101] [task_skills]: 发送目标: [-0.02428999999999998, 0.035418739211886256, 0.005746194455303888, 1.57]
+[task_skill_server-9] [INFO] [1794986169.296456154] [task_skills]: 目标位置: X=0.5200, Y=-0.0356, Z=0.4825, R=1.5708
+[task_skill_server-9] [INFO] [1794986169.297048519] [task_skills]: 关节值: ['-0.0243', '0.0354', '0.0168', '1.5700']
+[task_skill_server-9] [INFO] [1794986169.297389370] [task_skills]: 发送目标: [-0.02428999999999998, 0.03541890537826655, 0.01676999999999995, 1.57]
+[task_skill_server-9] [INFO] [1794986171.351330184] [task_skills]: 目标位置: X=0.5200, Y=-0.0356, Z=0.4825, R=0.0000
+[task_skill_server-9] [INFO] [1794986171.352151406] [task_skills]: 关节值: ['-0.0243', '0.0354', '0.0168', '0.0000']
+[task_skill_server-9] [INFO] [1794986171.353638909] [task_skills]: 发送目标: [-0.02428999999999998, 0.03541890537826655, 0.01676999999999995, 0.0]
+[task_skill_server-9] [INFO] [1794986173.409453073] [task_skills]: 目标位置: X=0.5310, Y=-0.0356, Z=0.4825, R=0.0000
+[task_skill_server-9] [INFO] [1794986173.409831776] [task_skills]: 关节值: ['-0.0243', '0.0354', '0.0057', '0.0000']
+[task_skill_server-9] [INFO] [1794986173.410183322] [task_skills]: 发送目标: [-0.02428999999999998, 0.035418739211886256, 0.005746194455303888, 0.0]
+[task_skill_server-9] [INFO] [1794986175.471692691] [task_skills]: 目标位置: X=0.5310, Y=-0.0356, Z=0.2425, R=0.0000
+[task_skill_server-9] [INFO] [1794986175.476977598] [task_skills]: 关节值: ['-0.2643', '0.0354', '0.0057', '0.0000']
+[task_skill_server-9] [INFO] [1794986175.477439231] [task_skills]: 发送目标: [-0.26428999999999997, 0.035418739211886256, 0.005746194455303888, 0.0]
+[task_skill_server-9] [INFO] [1794986177.584766417] [task_skills]: 目标位置: X=0.5200, Y=-0.0356, Z=0.2425, R=0.0000
+[task_skill_server-9] [INFO] [1794986177.585043469] [task_skills]: 关节值: ['-0.2643', '0.0354', '0.0168', '0.0000']
+[task_skill_server-9] [INFO] [1794986177.585365251] [task_skills]: 发送目标: [-0.26428999999999997, 0.03541890537826655, 0.01676999999999995, 0.0]
+[task_skill_server-9] [INFO] [1794986179.638101168] [task_skills]: 目标位置: X=0.5200, Y=-0.0356, Z=0.2425, R=1.5708
+[task_skill_server-9] [INFO] [1794986179.638389350] [task_skills]: 关节值: ['-0.2643', '0.0354', '0.0168', '1.5700']
+[task_skill_server-9] [INFO] [1794986179.638794714] [task_skills]: 发送目标: [-0.26428999999999997, 0.03541890537826655, 0.01676999999999995, 1.57]
+[task_skill_server-9] [INFO] [1794986181.692767351] [task_skills]: 目标位置: X=0.5310, Y=-0.0356, Z=0.2425, R=1.5708
+[task_skill_server-9] [INFO] [1794986181.693053925] [task_skills]: 关节值: ['-0.2643', '0.0354', '0.0057', '1.5700']
+[task_skill_server-9] [INFO] [1794986181.693585680] [task_skills]: 发送目标: [-0.26428999999999997, 0.035418739211886256, 0.005746194455303888, 1.57]
+[task_skill_server-9] [INFO] [1794986183.747163982] [task_skills]: 目标位置: X=0.5310, Y=-0.0506, Z=0.2425, R=1.5708
+[task_skill_server-9] [INFO] [1794986183.747814225] [task_skills]: 关节值: ['-0.2643', '0.0504', '0.0057', '1.5700']
+[task_skill_server-9] [INFO] [1794986183.748176627] [task_skills]: 发送目标: [-0.26428999999999997, 0.050418739211886256, 0.005746194455303888, 1.57]
+[task_skill_server-9] [INFO] [1794986185.800888861] [task_skills]: 目标位置: X=0.5200, Y=-0.0506, Z=0.2425, R=1.5708
+[task_skill_server-9] [INFO] [1794986185.801609570] [task_skills]: 关节值: ['-0.2643', '0.0504', '0.0168', '1.5700']
+[task_skill_server-9] [INFO] [1794986185.801931217] [task_skills]: 发送目标: [-0.26428999999999997, 0.05041890537826655, 0.01676999999999995, 1.57]
+[task_skill_server-9] [INFO] [1794986187.856587509] [task_skills]: 目标位置: X=0.5200, Y=-0.0506, Z=0.6225, R=1.5708
+[task_skill_server-9] [INFO] [1794986187.856849284] [task_skills]: 关节值: ['0.1157', '0.0504', '0.0168', '1.5700']
+[task_skill_server-9] [INFO] [1794986187.857320556] [task_skills]: 发送目标: [0.11571000000000009, 0.05041890537826655, 0.01676999999999995, 1.57]
+[task_skill_server-9] [INFO] [1794986189.916318744] [task_skills]: 目标位置: X=0.5310, Y=-0.0506, Z=0.6225, R=1.5708
+[task_skill_server-9] [INFO] [1794986189.916636529] [task_skills]: 关节值: ['0.1157', '0.0504', '0.0057', '1.5700']
+[task_skill_server-9] [INFO] [1794986189.917040929] [task_skills]: 发送目标: [0.11571000000000009, 0.050418739211886256, 0.005746194455303888, 1.57]
+[task_skill_server-9] [INFO] [1794986191.972590794] [task_skills]: 目标位置: X=0.5310, Y=0.0694, Z=0.6225, R=1.5708
+[task_skill_server-9] [INFO] [1794986191.972910151] [task_skills]: 关节值: ['0.1157', '-0.0696', '0.0057', '1.5700']
+[task_skill_server-9] [INFO] [1794986191.973212052] [task_skills]: 发送目标: [0.11571000000000009, -0.06958126078811373, 0.005746194455303888, 1.57]
+[task_skill_server-9] [INFO] [1794986194.026577148] [task_skills]: 目标位置: X=0.5200, Y=0.0694, Z=0.6225, R=1.5708
+[task_skill_server-9] [INFO] [1794986194.026845751] [task_skills]: 关节值: ['0.1157', '-0.0696', '0.0168', '1.5700']
+[task_skill_server-9] [INFO] [1794986194.027180814] [task_skills]: 发送目标: [0.11571000000000009, -0.06958109462173344, 0.01676999999999995, 1.57]
+[task_skill_server-9] [INFO] [1794986196.100333841] [task_skills]: 定点保持期间底盘真值最大漂移: 0.18 mm, 0.155°
+[task_skill_server-9] [INFO] [1794986196.107229914] [task_skills]: 机械臂移至接近位姿 joint1=-0.15 m, joint3=+0.020 m（缩回）
+[task_skill_server-9] [INFO] [1794986196.107646920] [task_skills]: 发送目标: [-0.15, 0.0, 0.02, 0.0]
+[task_skill_server-9] [INFO] [1794986198.076909879] [task_skills]: [  0.0s] d=0.7004 m u= +544.4 mm ψ= -0.00° σ_u=0.56 mm 标记: ok  墙面: ok
+[task_skill_server-9] [INFO] [1794986201.080227817] [task_skills]: 墙面闭环收敛：误差 法向 -0.10 mm、沿墙 -0.45 mm、朝向 -0.014°，σ = (0.31 mm, 0.57 mm, 0.041°)，用时 2.9 s
+[task_skill_server-9] [INFO] [1794986202.213829913] [task_skills]: S8 残余误差（传感器）: 横向 -0.9 mm, 离墙 +0.0 mm, 朝向 -0.03°，已补偿
+[task_skill_server-9] [INFO] [1794986202.215439960] [task_skills]: 目标位置: X=0.5200, Y=0.0693, Z=0.2425, R=1.5708
+[task_skill_server-9] [INFO] [1794986202.219302721] [task_skills]: 关节值: ['-0.2643', '-0.0695', '0.0168', '1.5700']
+[task_skill_server-9] [INFO] [1794986202.219963664] [task_skills]: 发送目标: [-0.26428999999999997, -0.0694769066480201, 0.01676999999999995, 1.57]
+[task_skill_server-9] [INFO] [1794986204.273629106] [task_skills]: 目标位置: X=0.5306, Y=0.0693, Z=0.2425, R=1.5708
+[task_skill_server-9] [INFO] [1794986204.273949274] [task_skills]: 关节值: ['-0.2643', '-0.0695', '0.0062', '1.5700']
+[task_skill_server-9] [INFO] [1794986204.274261041] [task_skills]: 发送目标: [-0.26428999999999997, -0.06948294355112784, 0.006158570858992407, 1.57]
+[task_skill_server-9] [INFO] [1794986206.330650128] [task_skills]: 目标位置: X=0.5306, Y=-0.0507, Z=0.2425, R=1.5708
+[task_skill_server-9] [INFO] [1794986206.331083834] [task_skills]: 关节值: ['-0.2643', '0.0505', '0.0062', '1.5700']
+[task_skill_server-9] [INFO] [1794986206.332096400] [task_skills]: 发送目标: [-0.26428999999999997, 0.05051705644887215, 0.006158570858992407, 1.57]
+[task_skill_server-9] [INFO] [1794986208.391231494] [task_skills]: 目标位置: X=0.5200, Y=-0.0507, Z=0.2425, R=1.5708
+[task_skill_server-9] [INFO] [1794986208.391556119] [task_skills]: 关节值: ['-0.2643', '0.0505', '0.0168', '1.5700']
+[task_skill_server-9] [INFO] [1794986208.391862695] [task_skills]: 发送目标: [-0.26428999999999997, 0.050523093351979895, 0.01676999999999995, 1.57]
+[task_skill_server-9] [INFO] [1794986210.445179987] [task_skills]: 目标位置: X=0.5200, Y=-0.0507, Z=0.3825, R=1.5708
+[task_skill_server-9] [INFO] [1794986210.445446093] [task_skills]: 关节值: ['-0.1243', '0.0505', '0.0168', '1.5700']
+[task_skill_server-9] [INFO] [1794986210.445802195] [task_skills]: 发送目标: [-0.12428999999999996, 0.050523093351979895, 0.01676999999999995, 1.57]
+[task_skill_server-9] [INFO] [1794986212.498966246] [task_skills]: 目标位置: X=0.5306, Y=-0.0507, Z=0.3825, R=1.5708
+[task_skill_server-9] [INFO] [1794986212.499203692] [task_skills]: 关节值: ['-0.1243', '0.0505', '0.0062', '1.5700']
+[task_skill_server-9] [INFO] [1794986212.499491412] [task_skills]: 发送目标: [-0.12428999999999996, 0.05051705644887215, 0.006158570858992407, 1.57]
+[task_skill_server-9] [INFO] [1794986214.555680375] [task_skills]: 目标位置: X=0.5306, Y=-0.0457, Z=0.3825, R=1.5708
+[task_skill_server-9] [INFO] [1794986214.555966865] [task_skills]: 关节值: ['-0.1243', '0.0455', '0.0062', '1.5700']
+[task_skill_server-9] [INFO] [1794986214.556267849] [task_skills]: 发送目标: [-0.12428999999999996, 0.045517056448872155, 0.006158570858992407, 1.57]
+[task_skill_server-9] [INFO] [1794986216.610454149] [task_skills]: 目标位置: X=0.5200, Y=-0.0457, Z=0.3825, R=1.5708
+[task_skill_server-9] [INFO] [1794986216.610693419] [task_skills]: 关节值: ['-0.1243', '0.0455', '0.0168', '1.5700']
+[task_skill_server-9] [INFO] [1794986216.611098198] [task_skills]: 发送目标: [-0.12428999999999996, 0.0455230933519799, 0.01676999999999995, 1.57]
+[task_skill_server-9] [INFO] [1794986218.664304773] [task_skills]: 目标位置: X=0.5200, Y=-0.0457, Z=0.3825, R=0.0000
+[task_skill_server-9] [INFO] [1794986218.664679434] [task_skills]: 关节值: ['-0.1243', '0.0455', '0.0168', '0.0000']
+[task_skill_server-9] [INFO] [1794986218.665093744] [task_skills]: 发送目标: [-0.12428999999999996, 0.0455230933519799, 0.01676999999999995, 0.0]
+[task_skill_server-9] [INFO] [1794986220.717313192] [task_skills]: 目标位置: X=0.5306, Y=-0.0457, Z=0.3825, R=0.0000
+[task_skill_server-9] [INFO] [1794986220.718328515] [task_skills]: 关节值: ['-0.1243', '0.0455', '0.0062', '0.0000']
+[task_skill_server-9] [INFO] [1794986220.718691384] [task_skills]: 发送目标: [-0.12428999999999996, 0.045517056448872155, 0.006158570858992407, 0.0]
+[task_skill_server-9] [INFO] [1794986222.772168482] [task_skills]: 目标位置: X=0.5306, Y=-0.0457, Z=0.6225, R=0.0000
+[task_skill_server-9] [INFO] [1794986222.772461161] [task_skills]: 关节值: ['0.1157', '0.0455', '0.0062', '0.0000']
+[task_skill_server-9] [INFO] [1794986222.772827793] [task_skills]: 发送目标: [0.11571000000000009, 0.045517056448872155, 0.006158570858992407, 0.0]
+[task_skill_server-9] [INFO] [1794986224.826099262] [task_skills]: 目标位置: X=0.5200, Y=-0.0457, Z=0.6225, R=0.0000
+[task_skill_server-9] [INFO] [1794986224.826369996] [task_skills]: 关节值: ['0.1157', '0.0455', '0.0168', '0.0000']
+[task_skill_server-9] [INFO] [1794986224.827601322] [task_skills]: 发送目标: [0.11571000000000009, 0.0455230933519799, 0.01676999999999995, 0.0]
+[task_skill_server-9] [INFO] [1794986226.931175174] [task_skills]: 目标位置: X=0.5200, Y=-0.0457, Z=0.6225, R=1.5708
+[task_skill_server-9] [INFO] [1794986226.931567031] [task_skills]: 关节值: ['0.1157', '0.0455', '0.0168', '1.5700']
+[task_skill_server-9] [INFO] [1794986226.931926208] [task_skills]: 发送目标: [0.11571000000000009, 0.0455230933519799, 0.01676999999999995, 1.57]
+[task_skill_server-9] [INFO] [1794986228.984055460] [task_skills]: 目标位置: X=0.5306, Y=-0.0457, Z=0.6225, R=1.5708
+[task_skill_server-9] [INFO] [1794986228.984336043] [task_skills]: 关节值: ['0.1157', '0.0455', '0.0062', '1.5700']
+[task_skill_server-9] [INFO] [1794986228.984693431] [task_skills]: 发送目标: [0.11571000000000009, 0.045517056448872155, 0.006158570858992407, 1.57]
+[task_skill_server-9] [INFO] [1794986231.039992578] [task_skills]: 目标位置: X=0.5306, Y=0.0693, Z=0.6225, R=1.5708
+[task_skill_server-9] [INFO] [1794986231.040468146] [task_skills]: 关节值: ['0.1157', '-0.0695', '0.0062', '1.5700']
+[task_skill_server-9] [INFO] [1794986231.046355479] [task_skills]: 发送目标: [0.11571000000000009, -0.06948294355112784, 0.006158570858992407, 1.57]
+[task_skill_server-9] [INFO] [1794986233.100463218] [task_skills]: 目标位置: X=0.5200, Y=0.0693, Z=0.6225, R=1.5708
+[task_skill_server-9] [INFO] [1794986233.103796434] [task_skills]: 关节值: ['0.1157', '-0.0695', '0.0168', '1.5700']
+[task_skill_server-9] [INFO] [1794986233.104193107] [task_skills]: 发送目标: [0.11571000000000009, -0.0694769066480201, 0.01676999999999995, 1.57]
+[task_skill_server-9] [INFO] [1794986235.219852836] [task_skills]: 定点保持期间底盘真值最大漂移: 0.17 mm, 0.162°
+[task_executor-10] [WARN] [1794986235.221312849] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_skill_server-9] [INFO] [1794986235.234213899] [task_skills]: 机械臂移至接近位姿 joint1=-0.15 m, joint3=+0.020 m（缩回）
+[task_skill_server-9] [INFO] [1794986235.236108336] [task_skills]: 发送目标: [-0.15, 0.0, 0.02, 0.0]
+[task_skill_server-9] [INFO] [1794986237.230154242] [task_skills]: [  0.0s] d=0.7001 m u= +664.0 mm ψ= -0.04° σ_u=0.56 mm 标记: ok  墙面: ok
+[task_skill_server-9] [INFO] [1794986240.251279772] [task_skills]: 墙面闭环收敛：误差 法向 -0.03 mm、沿墙 -0.30 mm、朝向 -0.002°，σ = (0.32 mm, 0.58 mm, 0.043°)，用时 2.9 s
+[task_skill_server-9] [INFO] [1794986241.282022075] [task_skills]: S9 残余误差（传感器）: 横向 -0.8 mm, 离墙 +0.0 mm, 朝向 -0.03°，已补偿
+[task_skill_server-9] [INFO] [1794986241.282571824] [task_skills]: 目标位置: X=0.5200, Y=0.0694, Z=0.2425, R=1.5708
+[task_skill_server-9] [INFO] [1794986241.288103968] [task_skills]: 关节值: ['-0.2643', '-0.0696', '0.0168', '1.5700']
+[task_skill_server-9] [INFO] [1794986241.288501979] [task_skills]: 发送目标: [-0.26428999999999997, -0.0695607396008534, 0.01676999999999995, 1.57]
+[task_skill_server-9] [INFO] [1794986243.342267410] [task_skills]: 目标位置: X=0.5306, Y=0.0694, Z=0.2425, R=1.5708
+[task_skill_server-9] [INFO] [1794986243.343078386] [task_skills]: 关节值: ['-0.2643', '-0.0696', '0.0061', '1.5700']
+[task_skill_server-9] [INFO] [1794986243.343494664] [task_skills]: 发送目标: [-0.26428999999999997, -0.06956559257607603, 0.006120409874275645, 1.57]
+[task_skill_server-9] [INFO] [1794986245.401305361] [task_skills]: 目标位置: X=0.5306, Y=-0.0156, Z=0.2425, R=1.5708
+[task_skill_server-9] [INFO] [1794986245.401623933] [task_skills]: 关节值: ['-0.2643', '0.0154', '0.0061', '1.5700']
+[task_skill_server-9] [INFO] [1794986245.401928241] [task_skills]: 发送目标: [-0.26428999999999997, 0.015434407423923957, 0.006120409874275645, 1.57]
+[task_skill_server-9] [INFO] [1794986247.460893746] [task_skills]: 目标位置: X=0.5200, Y=-0.0156, Z=0.2425, R=1.5708
+[task_skill_server-9] [INFO] [1794986247.461183118] [task_skills]: 关节值: ['-0.2643', '0.0154', '0.0168', '1.5700']
+[task_skill_server-9] [INFO] [1794986247.461857738] [task_skills]: 发送目标: [-0.26428999999999997, 0.015439260399146589, 0.01676999999999995, 1.57]
+[task_skill_server-9] [INFO] [1794986249.516943012] [task_skills]: 目标位置: X=0.5200, Y=-0.0506, Z=0.3825, R=1.5708
+[task_skill_server-9] [INFO] [1794986249.517193366] [task_skills]: 关节值: ['-0.1243', '0.0504', '0.0168', '1.5700']
+[task_skill_server-9] [INFO] [1794986249.518072971] [task_skills]: 发送目标: [-0.12428999999999996, 0.05043926039914659, 0.01676999999999995, 1.57]
+[task_skill_server-9] [INFO] [1794986251.571710686] [task_skills]: 目标位置: X=0.5306, Y=-0.0506, Z=0.3825, R=1.5708
+[task_skill_server-9] [INFO] [1794986251.571967535] [task_skills]: 关节值: ['-0.1243', '0.0504', '0.0061', '1.5700']
+[task_skill_server-9] [INFO] [1794986251.572276396] [task_skills]: 发送目标: [-0.12428999999999996, 0.05043440742392396, 0.006120409874275645, 1.57]
+[task_skill_server-9] [INFO] [1794986253.626435460] [task_skills]: 目标位置: X=0.5306, Y=0.0694, Z=0.3825, R=1.5708
+[task_skill_server-9] [INFO] [1794986253.628406121] [task_skills]: 关节值: ['-0.1243', '-0.0696', '0.0061', '1.5700']
+[task_skill_server-9] [INFO] [1794986253.628768919] [task_skills]: 发送目标: [-0.12428999999999996, -0.06956559257607603, 0.006120409874275645, 1.57]
+[task_skill_server-9] [INFO] [1794986255.682466417] [task_skills]: 目标位置: X=0.5200, Y=0.0694, Z=0.3825, R=1.5708
+[task_skill_server-9] [INFO] [1794986255.683656664] [task_skills]: 关节值: ['-0.1243', '-0.0696', '0.0168', '1.5700']
+[task_skill_server-9] [INFO] [1794986255.683997089] [task_skills]: 发送目标: [-0.12428999999999996, -0.0695607396008534, 0.01676999999999995, 1.57]
+[task_skill_server-9] [INFO] [1794986257.792299896] [task_skills]: 定点保持期间底盘真值最大漂移: 0.22 mm, 0.169°
+[task_executor-10] [WARN] [1794986257.793169316] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_skill_server-9] [INFO] [1794986257.799344911] [task_skills]: 机械臂移至接近位姿 joint1=-0.15 m, joint3=+0.020 m（缩回）
+[task_skill_server-9] [INFO] [1794986257.799698740] [task_skills]: 发送目标: [-0.15, 0.0, 0.02, 0.0]
+[task_skill_server-9] [INFO] [1794986259.850706691] [task_skills]: [  0.0s] d=0.7001 m u= +784.1 mm ψ= -0.03° σ_u=0.59 mm 标记: ok  墙面: ok
+[task_skill_server-9] [INFO] [1794986262.846757053] [task_skills]: 墙面闭环收敛：误差 法向 -0.19 mm、沿墙 -0.33 mm、朝向 -0.007°，σ = (0.31 mm, 0.58 mm, 0.042°)，用时 2.9 s
+[task_skill_server-9] [INFO] [1794986263.872033482] [task_skills]: S10 残余误差（传感器）: 横向 -0.1 mm, 离墙 -0.3 mm, 朝向 +0.03°，已补偿
+[task_skill_server-9] [INFO] [1794986263.876195179] [task_skills]: 目标位置: X=0.5200, Y=-0.0456, Z=0.6225, R=0.0000
+[task_skill_server-9] [INFO] [1794986263.877487948] [task_skills]: 关节值: ['0.1157', '0.0455', '0.0168', '0.0000']
+[task_skill_server-9] [INFO] [1794986263.877952357] [task_skills]: 发送目标: [0.11571000000000009, 0.04547794987609524, 0.01676999999999995, 0.0]
+[task_skill_server-9] [INFO] [1794986265.935771385] [task_skills]: 目标位置: X=0.5303, Y=-0.0456, Z=0.6225, R=0.0000
+[task_skill_server-9] [INFO] [1794986265.938647268] [task_skills]: 关节值: ['0.1157', '0.0455', '0.0065', '0.0000']
+[task_skill_server-9] [INFO] [1794986265.939034241] [task_skills]: 发送目标: [0.11571000000000009, 0.045483141500742265, 0.006473854671328549, 0.0]
+[task_skill_server-9] [INFO] [1794986267.992558208] [task_skills]: 目标位置: X=0.5303, Y=-0.0456, Z=0.3825, R=0.0000
+[task_skill_server-9] [INFO] [1794986267.992831096] [task_skills]: 关节值: ['-0.1243', '0.0455', '0.0065', '0.0000']
+[task_skill_server-9] [INFO] [1794986267.993238105] [task_skills]: 发送目标: [-0.12428999999999996, 0.045483141500742265, 0.006473854671328549, 0.0]
+[task_skill_server-9] [INFO] [1794986270.096138860] [task_skills]: 目标位置: X=0.5200, Y=-0.0456, Z=0.3825, R=0.0000
+[task_skill_server-9] [INFO] [1794986270.096398680] [task_skills]: 关节值: ['-0.1243', '0.0455', '0.0168', '0.0000']
+[task_skill_server-9] [INFO] [1794986270.096672206] [task_skills]: 发送目标: [-0.12428999999999996, 0.04547794987609524, 0.01676999999999995, 0.0]
+[task_skill_server-9] [INFO] [1794986272.158524447] [task_skills]: 目标位置: X=0.5200, Y=-0.0456, Z=0.3825, R=1.5708
+[task_skill_server-9] [INFO] [1794986272.159589855] [task_skills]: 关节值: ['-0.1243', '0.0455', '0.0168', '1.5700']
+[task_skill_server-9] [INFO] [1794986272.160965713] [task_skills]: 发送目标: [-0.12428999999999996, 0.04547794987609524, 0.01676999999999995, 1.57]
+[task_skill_server-9] [INFO] [1794986274.213857696] [task_skills]: 目标位置: X=0.5303, Y=-0.0456, Z=0.3825, R=1.5708
+[task_skill_server-9] [INFO] [1794986274.214136295] [task_skills]: 关节值: ['-0.1243', '0.0455', '0.0065', '1.5700']
+[task_skill_server-9] [INFO] [1794986274.214467890] [task_skills]: 发送目标: [-0.12428999999999996, 0.045483141500742265, 0.006473854671328549, 1.57]
+[task_skill_server-9] [INFO] [1794986276.273028720] [task_skills]: 目标位置: X=0.5303, Y=0.0694, Z=0.3825, R=1.5708
+[task_skill_server-9] [INFO] [1794986276.275324699] [task_skills]: 关节值: ['-0.1243', '-0.0695', '0.0065', '1.5700']
+[task_skill_server-9] [INFO] [1794986276.275770908] [task_skills]: 发送目标: [-0.12428999999999996, -0.06951685849925773, 0.006473854671328549, 1.57]
+[task_skill_server-9] [INFO] [1794986278.379336671] [task_skills]: 目标位置: X=0.5200, Y=0.0694, Z=0.3825, R=1.5708
+[task_skill_server-9] [INFO] [1794986278.380999755] [task_skills]: 关节值: ['-0.1243', '-0.0695', '0.0168', '1.5700']
+[task_skill_server-9] [INFO] [1794986278.381442574] [task_skills]: 发送目标: [-0.12428999999999996, -0.06952205012390475, 0.01676999999999995, 1.57]
+[task_skill_server-9] [INFO] [1794986280.515381105] [task_skills]: 定点保持期间底盘真值最大漂移: 0.16 mm, 0.140°
+[task_executor-10] [WARN] [1794986280.519489418] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_skill_server-9] [INFO] [1794986280.521896061] [task_skills]: 机械臂移至接近位姿 joint1=0.00 m, joint3=+0.020 m（缩回）
+[task_skill_server-9] [INFO] [1794986280.522616802] [task_skills]: 发送目标: [0.0, 0.0, 0.02, 0.0]
+[task_executor-10] [INFO] [1794986283.029960631] [task_executor]: Slot plan finished: success, 11 stations, 290.7 s
+[task_executor-10] [INFO] [1794986283.030130898] [task_executor]: Goal succeeded
+[task_executor-10] [INFO] [1794986284.999838035] [rclcpp]: signal_handler(signum=2)
+[task_executor-10] [INFO] [1794986284.999999731] [task_executor]: Running Nav2 LifecycleNode rcl preshutdown (task_executor)
+[INFO] [task_executor-10]: sending signal 'SIGINT' to process[task_executor-10]
+[task_executor-10] [INFO] [1794986285.104105732] [rclcpp]: signal_handler(signum=2)
+[task_executor-10] [INFO] [1794986285.133638871] [task_executor]: Destroying bond (task_executor) to lifecycle manager.
+[task_executor-10] [INFO] [1794986285.138548007] [task_executor]: Destroying
+[INFO] [task_executor-10]: process has finished cleanly [pid 19321]

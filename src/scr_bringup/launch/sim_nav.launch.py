@@ -69,7 +69,9 @@ def generate_launch_description():
         DeclareLaunchArgument('alignment_params',
                               default_value=os.path.join(arm_share, 'config',
                                                          'fine_alignment.yaml'),
-                              description='Fine-alignment parameters of the skill server'),
+                              description='Fine-alignment parameters of the skill server '
+                                          '(default: multi-tag map + online lateral odometry '
+                                          'scale, see docs/experiments/along_wall_accuracy)'),
     ]
 
     gazebo = IncludeLaunchDescription(

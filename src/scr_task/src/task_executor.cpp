@@ -39,6 +39,9 @@ TaskExecutor::TaskExecutor(const rclcpp::NodeOptions & options)
   declare_parameter("marker_x", 8.42);
   declare_parameter("marker_y", -3.9245);
   declare_parameter("nav_standoff", 1.2);
+  // 自上次接受标记更新以来的沿墙行程超过该值（米）时，去下一站前先回参考标记重新对位；
+  // ≤ 0 关闭（见 docs/experiments/along_wall_accuracy）
+  declare_parameter("realign_distance", 0.0);
 }
 
 std::vector<std::string> TaskExecutor::requiredActions()
@@ -55,6 +58,7 @@ CallbackReturn TaskExecutor::on_configure(const rclcpp_lifecycle::State &)
   marker_x_ = get_parameter("marker_x").as_double();
   marker_y_ = get_parameter("marker_y").as_double();
   nav_standoff_ = get_parameter("nav_standoff").as_double();
+  realign_distance_ = get_parameter("realign_distance").as_double();
   const auto libs = get_parameter("plugin_lib_names").as_string_array();
 
   plan_server_ = std::make_unique<nav2_behavior_tree::BtActionServer<ExecuteSlotPlan>>(
@@ -126,6 +130,8 @@ void TaskExecutor::setCommonBlackboard(const BT::Blackboard::Ptr & bb)
   bb->set<int>("recoveries", 0);
   bb->set<int>("station_recoveries", 0);
   bb->set<int>("station", -1);
+  bb->set<double>("since_fix", 0.0);
+  bb->set<bool>("realign_due", false);
   start_ = now();
 }
 
@@ -157,14 +163,19 @@ bool TaskExecutor::onPlanGoal(ExecuteSlotPlan::Goal::ConstSharedPtr goal)
   bb->set<double>("dry_run_gap", goal->dry_run_gap > 0.0 ? goal->dry_run_gap : 0.01);
   bb->set<bool>("compensate", goal->compensate);
   bb->set<double>("max_strafe", goal->max_strafe > 0.0 ? goal->max_strafe : 1.5);
+  const double realign =
+    goal->realign_distance == 0.0 ? realign_distance_ : goal->realign_distance;
+  bb->set<double>("realign_distance", realign);
   bb->set<int>("station_count", 0);
   records_ = std::make_shared<StationRecords>();
   published_ = 0;
   bb->set<StationRecordsPtr>(kRecordsKey, records_);
   plan_logger_ = std::make_unique<FailureLogger>(plan_server_->getTree().rootNode());
+  const std::string realign_text = realign > 0.0 ? std::to_string(realign) + " m" : "never";
   RCLCPP_INFO(
-    get_logger(), "Executing slot plan %s (dry run %s, compensation %s)",
-    goal->plan_file.c_str(), goal->dry_run ? "on" : "off", goal->compensate ? "on" : "off");
+    get_logger(), "Executing slot plan %s (dry run %s, compensation %s, re-align after %s)",
+    goal->plan_file.c_str(), goal->dry_run ? "on" : "off", goal->compensate ? "on" : "off",
+    realign_text.c_str());
   return true;
 }
 
