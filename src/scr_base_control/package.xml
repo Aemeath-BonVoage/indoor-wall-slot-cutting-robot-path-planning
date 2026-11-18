@@ -18,6 +18,7 @@
   <depend>geometry_msgs</depend>
   <depend>nav_msgs</depend>
   <depend>tf2_msgs</depend>
+  <depend>sensor_msgs</depend>
   <depend>gazebo_dev</depend>
   <depend>gazebo_ros</depend>
   <depend>gazebo_ros2_control</depend>

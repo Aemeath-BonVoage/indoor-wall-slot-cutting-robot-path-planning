@@ -15,6 +15,7 @@ find_package(realtime_tools REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(tf2_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
 find_package(gazebo_dev REQUIRED)
 find_package(gazebo_ros REQUIRED)
 find_package(gazebo_ros2_control REQUIRED)
@@ -31,7 +32,7 @@ pluginlib_export_plugin_description_file(controller_interface scr_base_control_p
 # 仿真硬件接口插件（gazebo_ros2_control 加载）
 add_library(scr_base_control_gazebo SHARED src/mecanum_base_system.cpp)
 ament_target_dependencies(scr_base_control_gazebo
-  gazebo_dev gazebo_ros gazebo_ros2_control hardware_interface pluginlib rclcpp)
+  gazebo_dev gazebo_ros gazebo_ros2_control hardware_interface pluginlib rclcpp sensor_msgs)
 pluginlib_export_plugin_description_file(gazebo_ros2_control scr_base_control_gazebo.xml)
 
 install(TARGETS scr_base_control scr_base_control_gazebo

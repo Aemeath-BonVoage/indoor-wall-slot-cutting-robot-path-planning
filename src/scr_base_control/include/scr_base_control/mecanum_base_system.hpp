@@ -24,7 +24,10 @@
 #include <string>
 #include <vector>
 
+#include <random>
+
 #include "gazebo_ros2_control/gazebo_system_interface.hpp"
+#include "sensor_msgs/msg/imu.hpp"
 #include "scr_base_control/encoder_error_model.hpp"
 #include "scr_base_control/mecanum_kinematics.hpp"
 
@@ -47,6 +50,9 @@ public:
 
 private:
   void computeMassProperties();
+  // 底盘实际速度（世界系 vx, vy 与 wz）：pose 模式下由相邻物理步的位姿差分并低通得到
+  void updateBodyVelocity();
+  void publishImu();
   void applyWheelContacts(const WheelSpeeds & wc);
 
   gazebo::physics::ModelPtr model_;
@@ -66,6 +72,22 @@ private:
   double mass_{1.0}, inertia_z_{1.0};
   double k_lin_{20.0}, k_ang_{20.0}, a_max_{5.0}, alpha_max_{10.0};
   double wheel_kp_{0.05};
+  // 速度来源：true = 位姿差分（含 ODE 约束修正造成、但不出现在连杆速度中的位姿变化），
+  // false = Gazebo 连杆速度（早期插件的做法）
+  bool pose_velocity_{true};
+  double vel_tau_{0.005};
+  bool have_prev_{false};
+  double prev_t_{0.0}, prev_x_{0.0}, prev_y_{0.0}, prev_yaw_{0.0};
+  double vxw_{0.0}, vyw_{0.0}, wz_{0.0};
+
+  // 陀螺：由同一个位姿差分角速度加噪声与零偏生成（Gazebo 的 IMU 传感器读连杆角速度，
+  // 与位姿变化不一致，见 updateBodyVelocity）
+  rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr imu_pub_;
+  std::string imu_frame_{"base_link"};
+  double imu_period_{0.01}, last_imu_t_{-1.0};
+  double gyro_noise_{0.001}, gyro_bias_{0.0};
+  std::mt19937 imu_rng_{2};
+  std::normal_distribution<double> imu_normal_{0.0, 1.0};
 };
 
 }  // namespace scr_base_control

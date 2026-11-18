@@ -23,6 +23,9 @@ def generate_launch_description():
             default_value=os.path.join(arm_share, 'config', 'fine_alignment.yaml'),
             description='Fine-alignment parameters (alignment.*) for the skill server'),
         DeclareLaunchArgument(
+            'odom_topic', default_value='/odom',
+            description='Odometry for the skills\' local loops (/wheel/odom when fusing an EKF)'),
+        DeclareLaunchArgument(
             'executor_params',
             default_value=os.path.join(task_share, 'config', 'task_executor.yaml'),
             description='Behaviour-tree executor parameters'),
@@ -30,7 +33,8 @@ def generate_launch_description():
     skills = Node(
         package='scr_arm_controller', executable='task_skill_server', name='task_skills',
         output='screen', parameters=[LaunchConfiguration('alignment_params'),
-                                     {'use_sim_time': True}])
+                                     {'use_sim_time': True,
+                                      'odom_topic': LaunchConfiguration('odom_topic')}])
     executor = Node(
         package='scr_task', executable='task_executor', output='screen',
         parameters=[LaunchConfiguration('executor_params')])

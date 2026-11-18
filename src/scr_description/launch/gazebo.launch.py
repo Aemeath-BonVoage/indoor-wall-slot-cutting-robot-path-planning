@@ -11,7 +11,8 @@
                         真值位姿（仿真配置 v2，保留用于复现早期结果）。
 
 定位（localization，仅 ros2_control）：
-  ekf（默认）  轮式里程计 /wheel/odom + IMU /imu → robot_localization → /odom 与 TF
+  ekf（默认）  轮式里程计 /wheel/odom + 陀螺 /imu（底盘硬件接口模拟）→ robot_localization
+               → /odom 与 TF
   wheel        控制器直接发布 /odom 与 TF（只用轮式里程计）
 
 真值始终发布在 /ground_truth/odom（gazebo_ros_p3d）与 /gazebo/model_states，只用于评估。

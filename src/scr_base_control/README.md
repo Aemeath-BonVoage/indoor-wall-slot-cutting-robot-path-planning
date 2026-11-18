@@ -41,6 +41,10 @@ Humble 的 `ros2_controllers` 没有麦克纳姆轮控制器（`mecanum_drive_co
 
 接触力在插件中计算，而不是用 ODE 的各向异性摩擦（`fdir1`）：Gazebo Classic 中 `fdir1` 只能在碰撞体自身坐标系中表达，轮子转动时摩擦方向跟着转，无法表达麦克纳姆辊子在底盘中的固定方向。`wheels` 的跟踪与里程计都不如 `force`（见 `docs/experiments/system_modernization`），默认仍用 `force`。
 
+**底盘实际速度的来源**（`velocity_source`，默认 `pose`）：由相邻物理步的 base_link 位姿差分并低通（5 ms）得到，而不是 Gazebo 的连杆速度。Gazebo 中底盘有一部分转动（零速度指令下约 0.08°/s）只出现在位姿里、不出现在连杆速度里，用连杆速度做速度闭环时这部分转动不受控制，编码器与陀螺也测不到。`link` 恢复早期插件的做法。
+
+**模拟陀螺**：硬件接口同时按 `imu_rate`（默认 100 Hz）在 `/imu` 发布 `sensor_msgs/Imu`，角速度取同一个位姿差分角速度，加白噪声 `gyro_noise`（0.001 rad/s）与零偏 `gyro_bias`（5 × 10⁻⁵ rad/s，随机符号）；不提供姿态与加速度（协方差 −1）。这是仿真专用的传感器模型，真机上由 IMU 驱动发布同一话题。
+
 编码器误差模型（`include/scr_base_control/encoder_error_model.hpp`，只用于 `force`）：
 
 ```
@@ -57,7 +61,7 @@ Humble 的 `ros2_controllers` 没有麦克纳姆轮控制器（`mecanum_drive_co
 ros2 launch scr_bringup sim_nav.launch.py                        # 力驱动底盘 + 编码器误差 + EKF（默认）
 ros2 launch scr_bringup sim_nav.launch.py localization:=wheel    # 只用轮式里程计
 ros2 launch scr_bringup sim_nav.launch.py odom_error:=false      # 理想轮式里程计
-ros2 launch scr_bringup sim_nav.launch.py plant:=wheels          # 轮子摩擦驱动底盘
+ros2 launch scr_bringup sim_nav.launch.py plant:=wheels          # 轮子驱动底盘（实验）
 ```
 
 底盘特性测试（跟踪比、里程计漂移、实时率与 CPU；只启动 Gazebo 与控制器）：

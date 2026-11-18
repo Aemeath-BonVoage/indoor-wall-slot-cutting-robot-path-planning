@@ -87,8 +87,13 @@ class CuttingSkills(Node):
         self.cmd_vel_pub = self.create_publisher(Twist, '/cmd_vel', 10)
 
         # 里程计订阅
+        # 局部闭环（精对位预测、横移外推、定点保持）用的里程计话题。融合定位（EKF）时
+        # 用轮式里程计 /wheel/odom：robot_localization 输出的 /odom 在 mm/s 级的慢速运动下
+        # 明显偏小（定点保持会被它带着漂移），而轮式里程计在短时内与真值一致
+        self.declare_parameter('odom_topic', '/odom')
+        self.odom_topic = self.get_parameter('odom_topic').value
         self.odom_sub = self.create_subscription(
-            Odometry, '/odom', self.odom_callback, 10
+            Odometry, self.odom_topic, self.odom_callback, 10
         )
         self.current_odom = None
 
@@ -127,7 +132,7 @@ class CuttingSkills(Node):
         self._guard_active = False
         # 扫描 / 切割期间底盘定点保持（机械臂反作用力会推动底盘）
         self.hold_base = True
-        self.base_hold = BaseHold(entity=self.GAZEBO_ENTITY)
+        self.base_hold = BaseHold(entity=self.GAZEBO_ENTITY, odom_topic=self.odom_topic)
 
         # 多站开槽规划执行（run_slot_plan）
         self.max_strafe = 1.5          # 站间横移超过该距离（米）时先退到离墙 nav_standoff 用 Nav2 过去
@@ -145,7 +150,7 @@ class CuttingSkills(Node):
         a = self.align_cfg
         self.servo = WallMarkerServo(self, detector=a['detector'], tag_family=a['tag_family'],
                                      tag_id=int(a['tag_id']), tag_size=float(a['tag_size']))
-        self.estimator = WallStateEstimator(self, self.servo)
+        self.estimator = WallStateEstimator(self, self.servo, odom_topic=self.odom_topic)
         self.apply_alignment_config()
         self.align_trace = []           # 最近一次对位的逐周期记录（实验用）
         self.fold_alignment_residual = bool(a['fold_residual'])

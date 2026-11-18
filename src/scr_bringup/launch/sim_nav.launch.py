@@ -9,7 +9,7 @@
   ros2 launch scr_bringup sim_nav.launch.py task:=false        # 不启动任务层（只做导航实验）
   ros2 launch scr_bringup sim_nav.launch.py localization:=wheel  # 只用轮式里程计（不融合 IMU）
   ros2 launch scr_bringup sim_nav.launch.py odom_error:=false     # 理想轮式里程计
-  ros2 launch scr_bringup sim_nav.launch.py plant:=wheels        # 轮子摩擦驱动底盘
+  ros2 launch scr_bringup sim_nav.launch.py plant:=wheels        # 轮子驱动底盘（实验）
   ros2 launch scr_bringup sim_nav.launch.py base_control:=plugin # 早期力控插件（/odom 为真值）
 
 任务层就绪后执行任务：
@@ -23,7 +23,7 @@ from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, TimerAction
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import LaunchConfiguration
+from launch.substitutions import LaunchConfiguration, PythonExpression
 
 
 def generate_launch_description():
@@ -105,7 +105,14 @@ def generate_launch_description():
     # Nav2 激活与技能服务器就绪后再加载行为树
     task = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(os.path.join(task_share, 'launch', 'task.launch.py')),
-        launch_arguments={'alignment_params': LaunchConfiguration('alignment_params')}.items(),
+        launch_arguments={
+            'alignment_params': LaunchConfiguration('alignment_params'),
+            # 技能的局部闭环：融合定位时用轮式里程计（见 scr_arm_controller/task_skills.py）
+            'odom_topic': PythonExpression([
+                "'/wheel/odom' if '", LaunchConfiguration('base_control'),
+                "' == 'ros2_control' and '", LaunchConfiguration('localization'),
+                "' == 'ekf' else '/odom'"]),
+        }.items(),
         condition=IfCondition(LaunchConfiguration('task')),
     )
     delayed_task = TimerAction(period=LaunchConfiguration('nav_delay'), actions=[task])
