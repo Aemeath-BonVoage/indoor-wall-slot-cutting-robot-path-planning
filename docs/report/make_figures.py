@@ -5,28 +5,23 @@
   python3 docs/report/make_figures.py
 
 只读取仓库中已提交的 CSV（docs/experiments/**），不需要 ROS / Gazebo。
-输出：docs/report/fig_architecture.png、docs/report/fig_summary.png
+输出：docs/report/fig_architecture.{png,pdf}、docs/report/fig_summary.{png,pdf}
+（docs/figstyle 统一样式，英文，IEEE 双栏宽度）
 """
 import csv
 import os
+import sys
 
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.patches as mpatches  # noqa: E402
-import matplotlib.pyplot as plt  # noqa: E402
-import numpy as np  # noqa: E402
+import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 EXP = os.path.join(HERE, '..', 'experiments')
-INK, INK2, GRID, SURFACE = '#0b0b0b', '#52514e', '#e4e3df', '#fcfcfb'
-C_V1, C_V2, C_V3 = '#2a78d6', '#eb6834', '#1baf7a'
-matplotlib.rcParams.update({
-    'font.sans-serif': ['Noto Sans CJK SC', 'Noto Sans CJK JP', 'DejaVu Sans'],
-    'axes.unicode_minus': False, 'axes.edgecolor': INK2, 'axes.labelcolor': INK,
-    'xtick.color': INK2, 'ytick.color': INK2, 'axes.grid': True, 'grid.color': GRID,
-    'grid.linewidth': 0.8, 'axes.spines.top': False, 'axes.spines.right': False,
-    'figure.facecolor': SURFACE, 'axes.facecolor': SURFACE, 'savefig.facecolor': SURFACE,
-    'font.size': 10})
+sys.path.insert(0, os.path.join(HERE, '..'))
+import figstyle as fs  # noqa: E402
+import matplotlib.patches as mpatches  # noqa: E402
+plt = fs.plt
+INK, INK2, SURFACE = fs.BLACK, '#404040', 'white'
+TXT = 7             # 方框正文字号（pt）；标题 7.5 pt
 
 
 def load(path):
@@ -37,207 +32,233 @@ def load(path):
 # ---------------------------------------------------------------------------
 # 系统架构图
 # ---------------------------------------------------------------------------
-def box(ax, x, y, w, h, title, lines=(), fc='#ffffff', ec=INK2, title_size=10):
+def box(ax, x, y, w, h, title, lines=(), fc='#ffffff', ec=INK2, title_size=7.5, dy=0.0235):
     ax.add_patch(mpatches.FancyBboxPatch((x, y), w, h,
-                                         boxstyle='round,pad=0.008,rounding_size=0.012',
-                                         fc=fc, ec=ec, lw=1.0))
-    ax.text(x + w / 2, y + h - 0.016, title, ha='center', va='top', fontsize=title_size,
+                                         boxstyle='round,pad=0.004,rounding_size=0.008',
+                                         fc=fc, ec=ec, lw=0.6))
+    ax.text(x + w / 2, y + h - 0.012, title, ha='center', va='top', fontsize=title_size,
             color=INK, fontweight='bold')
     for i, s in enumerate(lines):
-        ax.text(x + w / 2, y + h - 0.046 - i * 0.026, s, ha='center', va='top', fontsize=8.2,
+        ax.text(x + w / 2, y + h - 0.041 - i * dy, s, ha='center', va='top', fontsize=TXT,
                 color=INK2)
 
 
 def group(ax, x, y, w, h, label, fc, lx=None):
     ax.add_patch(mpatches.FancyBboxPatch((x, y), w, h,
-                                         boxstyle='round,pad=0.006,rounding_size=0.015',
+                                         boxstyle='round,pad=0.004,rounding_size=0.01',
                                          fc=fc, ec='none'))
-    ax.text(x + 0.008 if lx is None else lx, y + h - 0.01, label, ha='left', va='top', fontsize=9,
-            color=INK2)
+    ax.text(x + 0.006 if lx is None else lx, y + h - 0.008, label, ha='left', va='top',
+            fontsize=TXT, color=INK, fontstyle='italic')
 
 
-def arrow(ax, p, q, text='', dashed=False, rad=0.0, color=INK2, tx=None):
-    ax.annotate('', xy=q, xytext=p, arrowprops=dict(
-        arrowstyle='-|>', color=color, lw=1.1, ls='--' if dashed else '-',
-        shrinkA=2, shrinkB=2, connectionstyle=f'arc3,rad={rad}'))
-    if text:
-        mx, my = tx if tx else ((p[0] + q[0]) / 2, (p[1] + q[1]) / 2)
-        ax.text(mx, my, text, fontsize=7.6, color=INK2, ha='center', va='center',
-                bbox=dict(fc=SURFACE, ec='none', pad=0.6))
+def _text_span(ax, t, pad=0.006):
+    """文字在数据坐标中的竖直范围（含留白），用于把连线在标签处断开."""
+    r = ax.figure.canvas.get_renderer()
+    bb = t.get_window_extent(r).transformed(ax.transData.inverted())
+    return bb.y0 - pad, bb.y1 + pad
+
+
+def arrow(ax, p, q, text='', dashed=False, color=INK2, tx=None):
+    """箭头 p → q；带标签的竖直箭头在标签处断开，标签不压线."""
+    ls = (0, (3, 1.5)) if dashed else '-'
+    head = dict(arrowstyle='-|>', color=color, lw=0.7, ls=ls, mutation_scale=6, shrinkA=1,
+                shrinkB=1)
+    if not text:
+        ax.annotate('', xy=q, xytext=p, arrowprops=head)
+        return
+    mx, my = tx if tx else ((p[0] + q[0]) / 2, (p[1] + q[1]) / 2)
+    t = ax.text(mx, my, text, fontsize=TXT, color=INK2, ha='center', va='center')
+    lo, hi = _text_span(ax, t)
+    up = q[1] > p[1]
+    a, b = (lo, hi) if up else (hi, lo)
+    ax.plot([p[0], p[0]], [p[1], a], color=color, lw=0.7, ls=ls)
+    ax.annotate('', xy=q, xytext=(q[0], b), arrowprops=dict(head, shrinkA=0))
 
 
 def vline(ax, pts, color=INK2, dashed=False):
     """折线（不带箭头），pts = [(x, y), ...]."""
     xs, ys = zip(*pts)
-    ax.plot(xs, ys, color=color, lw=1.1, ls='--' if dashed else '-')
+    ax.plot(xs, ys, color=color, lw=0.7, ls=(0, (3, 1.5)) if dashed else '-')
 
 
 def vlabel(ax, x, y, text):
-    ax.text(x, y, text, rotation=90, fontsize=7.6, color=INK2, ha='center', va='center',
-            bbox=dict(fc=SURFACE, ec='none', pad=0.6))
+    """竖排标签；返回其竖直范围，调用方据此把竖线断开."""
+    t = ax.text(x, y, text, rotation=90, fontsize=TXT, color=INK2, ha='center', va='center')
+    return _text_span(ax, t)
 
 
 def fig_architecture(out):
-    # 方框带 0.008 的圆角外扩，相邻方框之间至少留 0.03
-    fig = plt.figure(figsize=(13, 9.4))
+    # 坐标为图幅分数；方框带 0.004 的圆角外扩
+    fig = fs.figure(width='double', height=5.9, layout='none')
     ax = fig.add_axes([0, 0, 1, 1])
+    fig.canvas.draw()
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)
     ax.axis('off')
+    C_PLAN, C_CLI, C_GT = '#EAF2FA', '#F2F2F2', '#F5F5F5'
+    C_TASK, C_NAV, C_SIM, C_OUT = '#FBEFE6', '#E8F5EF', '#F6EFF7', '#FFF6E5'
 
     # ---- 左列：离线规划、命令行 / 记录器、真值 ----
-    group(ax, 0.015, 0.62, 0.24, 0.365, '离线规划（不需要 ROS）  scr_planner', '#eef4fc')
-    box(ax, 0.03, 0.872, 0.21, 0.07, '墙面任务 YAML', ['墙体类型 / 障碍 / 起止线盒'])
-    box(ax, 0.03, 0.741, 0.21, 0.096, 'plan_wall_slots',
-        ['OrientedAStar：规范约束单槽最优', '联合规划 / DP 划分 / 时间模型'])
-    box(ax, 0.03, 0.636, 0.21, 0.07, '规划结果 YAML', ['槽线 / 停靠站 / 机械臂点 / 预测时间'],
-        fc='#fff8ec')
-    arrow(ax, (0.135, 0.864), (0.135, 0.845))
-    arrow(ax, (0.135, 0.733), (0.135, 0.714))
+    group(ax, 0.008, 0.62, 0.255, 0.372, 'Offline planning (no ROS): scr_planner', C_PLAN)
+    box(ax, 0.02, 0.875, 0.231, 0.075, 'Wall task YAML', ['wall type / obstacles / boxes'])
+    box(ax, 0.02, 0.742, 0.231, 0.1, 'plan_wall_slots',
+        ['OrientedAStar: rule-constrained slots', 'joint planning, DP partition, time model'])
+    box(ax, 0.02, 0.632, 0.231, 0.075, 'Plan YAML', ['slots / stations / arm points / time'],
+        fc=C_OUT)
+    arrow(ax, (0.135, 0.871), (0.135, 0.846))
+    arrow(ax, (0.135, 0.738), (0.135, 0.711))
 
-    group(ax, 0.015, 0.315, 0.24, 0.285, '命令行 / 记录器', '#f3f2ee')
-    box(ax, 0.03, 0.46, 0.21, 0.096, 'navigation_cutting_task',
-        ['任务文件 → 任务 action', '打印反馈与每站记录'])
-    box(ax, 0.03, 0.33, 0.21, 0.096, 'execute_slot_plan.py',
-        ['同一 action 的客户端', '+ 真值：刀尖轨迹 / 到站误差'])
-    arrow(ax, (0.215, 0.628), (0.215, 0.564))
+    group(ax, 0.008, 0.315, 0.255, 0.29, 'Command line / recorder', C_CLI)
+    box(ax, 0.02, 0.465, 0.231, 0.1, 'navigation_cutting_task',
+        ['task file → task action', 'prints feedback and station log'])
+    box(ax, 0.02, 0.33, 0.231, 0.1, 'execute_slot_plan.py',
+        ['client of the same action', '+ ground truth: tool tip, arrival'])
+    arrow(ax, (0.235, 0.628), (0.235, 0.569))
 
-    group(ax, 0.015, 0.015, 0.24, 0.28, 'Gazebo 真值', '#f5f5f3')
-    box(ax, 0.03, 0.03, 0.21, 0.215, '只用于评估',
+    group(ax, 0.008, 0.012, 0.255, 0.285, 'Gazebo ground truth', C_GT)
+    box(ax, 0.02, 0.026, 0.231, 0.225, 'Evaluation only',
         ['/ground_truth/odom', '/gazebo/model_states', '/gazebo/link_states',
-         '不进入任何控制或估计'], fc='#ffffff')
-    arrow(ax, (0.135, 0.253), (0.135, 0.322), dashed=True)
+         'never used for control', 'or estimation'], dy=0.03)
+    arrow(ax, (0.135, 0.255), (0.135, 0.326), dashed=True)
 
     # 客户端 → 行为树执行器
-    vline(ax, [(0.248, 0.508), (0.272, 0.508), (0.272, 0.88)])
-    vline(ax, [(0.248, 0.378), (0.272, 0.378), (0.272, 0.508)])
-    arrow(ax, (0.272, 0.88), (0.297, 0.88))
-    vlabel(ax, 0.272, 0.69, '/execute_slot_plan · /execute_cutting_task')
+    lo, hi = vlabel(ax, 0.278, 0.70, '/execute_slot_plan, /execute_cutting_task')
+    vline(ax, [(0.255, 0.515), (0.278, 0.515), (0.278, lo)])
+    vline(ax, [(0.278, hi), (0.278, 0.88)])
+    vline(ax, [(0.255, 0.38), (0.278, 0.38), (0.278, 0.515)])
+    arrow(ax, (0.278, 0.88), (0.299, 0.88))
 
     # ---- 中列：任务层 ----
-    group(ax, 0.29, 0.45, 0.365, 0.535, '任务层：行为树编排 + 技能 action', '#fdf3ec')
-    box(ax, 0.305, 0.82, 0.335, 0.122, 'task_executor（scr_task，BehaviorTree.CPP v3）',
-        ['BtActionServer × 2（与 Nav2 bt_navigator 同构）', 'slot_plan.xml / cutting_task.xml',
-         '恢复：导航重试、回标记前重新对位、切割重试'], title_size=9.2)
-    arrow(ax, (0.4725, 0.812), (0.4725, 0.783), '技能 action', tx=(0.53, 0.797))
-    box(ax, 0.305, 0.465, 0.335, 0.31, 'task_skill_server（scr_arm_controller）',
-        ['FineAlign · MoveToStation · CutStation', 'HoldBase · ScanMarker · RetractArm'],
-        title_size=9.2)
-    subs = [('精对位', ['AprilTag + 激光', 'EKF (d, u, ψ, s)', '饱和控制律', '收敛判据']),
-            ('横移 / 保持', ['同一墙面 EKF', '多标记地图更新', '横移比例修正', '定点保持 50 Hz']),
-            ('切割', ['残差补偿', '每刀单轴', '仿真中空切'])]
+    group(ax, 0.29, 0.45, 0.372, 0.544, 'Task layer: behaviour tree + skill actions', C_TASK)
+    box(ax, 0.302, 0.81, 0.348, 0.135, 'task_executor (scr_task, BehaviorTree.CPP v3)',
+        ['2 × BtActionServer (as in Nav2 bt_navigator)', 'slot_plan.xml / cutting_task.xml',
+         'recovery: retry nav., re-align, re-cut'])
+    arrow(ax, (0.476, 0.806), (0.476, 0.777))
+    ax.text(0.488, 0.7915, 'skill actions', ha='left', va='center', fontsize=TXT, color=INK2)
+    box(ax, 0.302, 0.462, 0.348, 0.311, 'task_skill_server (scr_arm_controller)',
+        ['FineAlign · MoveToStation · CutStation', 'HoldBase · ScanMarker · RetractArm'])
+    subs = [('Fine alignment', ['AprilTag + LiDAR', 'EKF (d, u, ψ, s)', 'saturated law',
+                                'convergence test']),
+            ('Strafe / hold', ['same wall EKF', 'multi-marker map', 'scale correction',
+                               'hold at 50 Hz']),
+            ('Cutting', ['residual comp.', 'one axis per cut', 'dry cut in sim.'])]
     for i, (t, ls) in enumerate(subs):
-        box(ax, 0.326 + i * 0.107, 0.48, 0.079, 0.148, t, ls, title_size=8.8)
+        box(ax, 0.311 + i * 0.1125, 0.474, 0.103, 0.16, t, ls, title_size=7.5)
 
     # ---- 右列：Nav2、定位 ----
-    group(ax, 0.70, 0.62, 0.285, 0.365, 'Nav2（scr_navigation）', '#eef7f2')
-    box(ax, 0.715, 0.872, 0.11, 0.07, 'bt_navigator', ['NavigateToPose'], title_size=9)
-    box(ax, 0.86, 0.872, 0.11, 0.07, 'amcl', ['map → odom'], title_size=9)
-    box(ax, 0.715, 0.741, 0.11, 0.096, 'controller', ['MPPI（Omni）', '1000 采样，20 Hz'],
-        title_size=9)
-    box(ax, 0.86, 0.741, 0.11, 0.096, 'planner', ['Smac 2D'], title_size=9)
-    ax.text(0.915, 0.67, 'DWB 基线：\nnav2_params_dwb.yaml', ha='center', va='center',
-            fontsize=7.6, color=INK2)
-    arrow(ax, (0.648, 0.905), (0.707, 0.905), 'NavigateToPose', tx=(0.677, 0.928))
+    group(ax, 0.69, 0.62, 0.302, 0.372, 'Nav2 (scr_navigation)', C_NAV)
+    box(ax, 0.702, 0.875, 0.135, 0.075, 'bt_navigator', ['NavigateToPose'])
+    box(ax, 0.847, 0.875, 0.135, 0.075, 'amcl', ['map → odom'])
+    box(ax, 0.702, 0.742, 0.135, 0.1, 'controller', ['MPPI (omni)', '1000 samples, 20 Hz'])
+    box(ax, 0.847, 0.742, 0.135, 0.1, 'planner', ['Smac 2D'])
+    ax.text(0.915, 0.672, 'DWB baseline:\nnav2_params_dwb.yaml', ha='center', va='center',
+            fontsize=TXT, color=INK2)
+    arrow(ax, (0.654, 0.912), (0.698, 0.912))
 
-    group(ax, 0.70, 0.315, 0.285, 0.285, '定位（robot_localization）', '#eef7f2', lx=0.795)
-    box(ax, 0.715, 0.36, 0.255, 0.16, 'EKF（平面模式）',
-        ['/wheel/odom 的 (vx, vy) + /imu 的 wz', '→ /odom 与 odom → base_link',
-         '只服务导航与 AMCL；技能的局部', '闭环直接用 /wheel/odom'], title_size=9)
-    arrow(ax, (0.77, 0.528), (0.77, 0.733), '/odom，TF', tx=(0.77, 0.635))
+    group(ax, 0.69, 0.315, 0.302, 0.29, 'Localisation (robot_localization)', C_NAV, lx=0.79)
+    box(ax, 0.702, 0.33, 0.28, 0.235, 'EKF (planar mode)',
+        ['(vx, vy) of /wheel/odom + wz of /imu', '→ /odom and odom → base_link',
+         'serves Nav2 and AMCL only;', 'skills close their local loops',
+         'on /wheel/odom directly'], dy=0.03)
+    arrow(ax, (0.76, 0.569), (0.76, 0.738), '/odom, TF', tx=(0.76, 0.655))
 
     # Nav2 控制器 → 底盘控制器（沿中列与右列之间的空隙）
-    vline(ax, [(0.707, 0.79), (0.677, 0.79), (0.677, 0.22)])
-    arrow(ax, (0.677, 0.22), (0.653, 0.22))
-    vlabel(ax, 0.677, 0.40, '/cmd_vel（导航）')
+    lo, hi = vlabel(ax, 0.676, 0.39, '/cmd_vel (navigation)')
+    vline(ax, [(0.698, 0.79), (0.676, 0.79), (0.676, hi)])
+    vline(ax, [(0.676, lo), (0.676, 0.225)])
+    arrow(ax, (0.676, 0.225), (0.657, 0.225))
 
     # ---- 底部：ros2_control + Gazebo ----
-    group(ax, 0.29, 0.015, 0.695, 0.28, 'ros2_control + Gazebo Classic', '#f6f0fb', lx=0.708)
-    box(ax, 0.305, 0.03, 0.085, 0.225, '传感器', ['2D 激光 10 Hz', '相机 30 Hz'], title_size=9)
-    box(ax, 0.42, 0.185, 0.10, 0.07, 'arm_controller', ['关节轨迹控制器'], title_size=9)
-    box(ax, 0.42, 0.03, 0.10, 0.11, 'GazeboSystem', ['机械臂关节', 'position_pid 力控'],
-        title_size=9)
-    box(ax, 0.545, 0.185, 0.10, 0.07, 'base_controller', ['cmd_vel ↔ 轮速 / 里程计'],
-        title_size=9)
-    box(ax, 0.545, 0.025, 0.10, 0.122, 'ScrMecanumBase', ['力驱动被控对象', '编码器误差模型',
-                                                         '模拟陀螺 /imu'], title_size=8.6)
-    box(ax, 0.715, 0.185, 0.255, 0.07, '早期配置  base_control:=plugin',
-        ['scr_planar_move 力控插件，/odom = 真值'], fc='#faf8fc', title_size=8.8)
-    box(ax, 0.715, 0.025, 0.255, 0.122, '其他选项',
-        ['plant:=wheels  轮子驱动（实验）', 'localization:=wheel  只用轮式里程计',
-         'odom_error:=false  理想编码器'], fc='#faf8fc', title_size=8.8)
+    group(ax, 0.29, 0.012, 0.702, 0.285, 'ros2_control + Gazebo Classic', C_SIM, lx=0.70)
+    box(ax, 0.302, 0.026, 0.09, 0.235, 'Sensors', ['2D LiDAR', '10 Hz', 'camera', '30 Hz'],
+        dy=0.03)
+    box(ax, 0.405, 0.185, 0.12, 0.076, 'arm_controller', ['joint trajectory'])
+    box(ax, 0.405, 0.026, 0.12, 0.12, 'GazeboSystem', ['arm joints', 'position_pid'])
+    box(ax, 0.537, 0.185, 0.12, 0.076, 'base_controller', ['cmd_vel ↔ wheels'])
+    box(ax, 0.537, 0.026, 0.12, 0.12, 'ScrMecanumBase',
+        ['force-driven plant', 'encoder errors', 'gyro → /imu'])
+    box(ax, 0.702, 0.185, 0.28, 0.076, 'Earlier: base_control:=plugin',
+        ['scr_planar_move force plugin, /odom = truth'], fc='#FBF8FC')
+    box(ax, 0.702, 0.026, 0.28, 0.12, 'Other launch options',
+        ['plant:=wheels (wheel-driven, experimental)', 'localization:=wheel (wheel odom only)',
+         'odom_error:=false (ideal encoders)'], fc='#FBF8FC')
 
     # 技能服务器 ↔ 传感器 / 机械臂 / 底盘
-    arrow(ax, (0.3475, 0.263), (0.3475, 0.472), '/scan, 图像', dashed=True, tx=(0.3475, 0.40))
-    arrow(ax, (0.47, 0.457), (0.47, 0.263), 'FollowJoint-\nTrajectory', tx=(0.47, 0.33))
-    arrow(ax, (0.575, 0.457), (0.575, 0.263), '/cmd_vel', tx=(0.575, 0.41))
-    arrow(ax, (0.625, 0.263), (0.625, 0.457), '/wheel/odom', dashed=True, tx=(0.625, 0.33))
+    arrow(ax, (0.347, 0.265), (0.347, 0.47), '/scan,\nimage', dashed=True, tx=(0.347, 0.37))
+    arrow(ax, (0.445, 0.458), (0.445, 0.265), 'FollowJoint-\nTrajectory', tx=(0.445, 0.36))
+    arrow(ax, (0.565, 0.458), (0.565, 0.265), '/cmd_vel', tx=(0.565, 0.41))
+    arrow(ax, (0.63, 0.265), (0.63, 0.458), '/wheel/\nodom', dashed=True, tx=(0.63, 0.33))
     # 底盘 → EKF
-    arrow(ax, (0.93, 0.295), (0.93, 0.352), dashed=True)
-    ax.text(0.92, 0.322, '/wheel/odom, /imu', ha='right', va='center', fontsize=7.6, color=INK2)
+    arrow(ax, (0.94, 0.30), (0.94, 0.326), dashed=True)
+    ax.text(0.93, 0.312, '/wheel/odom, /imu', ha='right', va='center', fontsize=TXT,
+            color=INK2)
 
-    fig.savefig(out, dpi=170)
-    plt.close(fig)
+    fs.save(fig, out)
 
 
 # ---------------------------------------------------------------------------
 # 结果汇总图
 # ---------------------------------------------------------------------------
 def fig_summary(out):
-    fig, axs = plt.subplots(2, 2, figsize=(12, 8.4))
+    fig, axs = fs.subplots(2, 2, width='double', height=5.2)
 
     # (a) 精对位：第一版 vs 第二版，各条件位置误差
     rows = load(os.path.join(EXP, 'alignment_robustness', 'summary.csv'))
-    conds = [('nominal', '名义'), ('odom_drift_10cm', '里程计\n漂移 10 cm'),
-             ('light_cool', '冷白光'), ('occlusion_intermittent', '间歇遮挡'),
-             ('occlusion_static', '全程遮挡'), ('camera_yaw_1deg', '相机偏角\n1°')]
+    conds = [('nominal', 'Nominal'), ('odom_drift_10cm', 'Odom. drift\n10 cm'),
+             ('light_cool', 'Cool\nlight'), ('occlusion_intermittent', 'Intermittent\nocclusion'),
+             ('occlusion_static', 'Static\nocclusion'), ('camera_yaw_1deg', 'Camera\nyaw 1°')]
     S = {(r['condition'], r['pipeline']): r for r in rows}
     ax = axs[0, 0]
     x = np.arange(len(conds))
-    for j, (pipe, lab, c) in enumerate((('v1', '第一版', C_V1), ('v2', '第二版', C_V2),
-                                        ('v2_taught', '第二版 + 示教零位', C_V3))):
+    pipes = (('v1', 'v1 (colour blob + PBVS)', 'baseline'),
+             ('v2', 'v2 (AprilTag + LiDAR EKF)', 'proposed'),
+             ('v2_taught', 'v2 + taught zero offset', 'alt2'))
+    for j, (pipe, lab, role) in enumerate(pipes):
         for i, (cond, _) in enumerate(conds):
             r = S.get((cond, pipe))
             if r is None:
                 continue
-            xi = x[i] + (j - 1) * 0.27
+            present = [q for q, _, _ in pipes if (cond, q) in S]
+            xi = x[i] + (present.index(pipe) - (len(present) - 1) / 2) * 0.27
             if int(r['success']) == 0:
-                ax.bar(xi, 13, 0.25, color='none', ec=c, hatch='///', lw=0.8)
-                ax.text(xi, 13.3, '0/8', ha='center', fontsize=7, color=c)
+                ax.text(xi, 0.3, 'all 8 failed', rotation=90, ha='center', va='bottom',
+                        fontsize=7, color=fs.color(role))
                 continue
-            m, s = float(r['pos_mean_mm']), float(r['pos_std_mm'])
-            first = i == 0 or (pipe == 'v2_taught' and cond == 'nominal')
-            ax.bar(xi, m, 0.25, color=c, label=lab if first else None)
-            ax.errorbar(xi, m, s, color=INK2, lw=0.8, capsize=2)
+            m, sd = float(r['pos_mean_mm']), float(r['pos_std_mm'])
+            ax.bar(xi, m, 0.25, yerr=sd, error_kw=dict(lw=0.6, capsize=1.5), **fs.bar(role))
+        ax.bar(0, 0, 0, label=lab, **fs.bar(role))
     ax.set_xticks(x)
-    ax.set_xticklabels([c[1] for c in conds], fontsize=8.5)
-    ax.set_ylabel('到位时刻位置误差 (mm)')
+    ax.set_xticklabels([c[1] for c in conds], fontsize=7)
+    ax.set_ylabel(fs.label('Final position error', 'mm'))
     ax.set_ylim(0, 15)
-    ax.set_title('(a) 精对位：Gazebo 配对实验，n = 8 / 条件（斜线：8 次全部失败）', loc='left',
-                 fontsize=10)
-    h, lbl = ax.get_legend_handles_labels()
-    ax.legend(h, lbl, frameon=False, fontsize=8.5, loc='upper left')
-    ax.grid(axis='x', visible=False)
+    ax.legend(loc='upper left')
+    fs.panel_label(ax, 'a', 'Fine alignment in Gazebo (n = 8 per condition)')
 
     # (b) 多站执行：每次运行的到站横向误差（均值 ± 站间标准差）
     ax = axs[0, 1]
-    runs = [('dp', '第一版 1', C_V1), ('dp_repeat', '第一版 2', C_V1),
-            ('per_slot', '第一版 基线 1', C_V1), ('per_slot_repeat', '第一版 基线 2', C_V1),
-            ('dp_nav2_each_station', '第一版 逐站 Nav2', C_V1),
-            ('fine_align_dp', '第二版 1', C_V2), ('fine_align_dp_repeat', '第二版 2', C_V2),
-            ('fine_align_dp_nofold', '第二版 关闭原点修正', '#b9b8b2')]
-    for i, (d, lab, c) in enumerate(runs):
+    runs = [('dp', 'v1, run 1', 'baseline'), ('dp_repeat', 'v1, run 2', 'baseline'),
+            ('per_slot', 'v1, per-slot plan 1', 'baseline'),
+            ('per_slot_repeat', 'v1, per-slot plan 2', 'baseline'),
+            ('dp_nav2_each_station', 'v1, Nav2 per station', 'baseline'),
+            ('fine_align_dp', 'v2, run 1', 'proposed'),
+            ('fine_align_dp_repeat', 'v2, run 2', 'proposed'),
+            ('fine_align_dp_nofold', 'v2, origin fold-in off', 'neutral')]
+    for i, (d, lab, role) in enumerate(runs):
         st = load(os.path.join(EXP, 'slot_execution', 'runs', d, 'stations.csv'))
         lat = np.array([float(r['lateral_mm']) for r in st])
-        ax.errorbar(i, lat.mean(), lat.std(ddof=1), fmt='o', color=c, capsize=3, ms=6)
-        ax.text(i, lat.mean() + lat.std(ddof=1) + 0.12, f'{lat.mean():+.2f}', ha='center',
-                fontsize=7.5, color=INK2)
-    ax.axhline(0, color=INK2, lw=0.8)
-    ax.set_xticks(range(len(runs)))
-    ax.set_xticklabels([r[1] for r in runs], rotation=30, ha='right', fontsize=8)
-    ax.set_ylabel('到站横向误差（真值）(mm)')
-    ax.set_title('(b) 多站执行：每次运行的到站横向误差，均值 ± 站间标准差', loc='left', fontsize=10)
-    ax.grid(axis='x', visible=False)
+        ax.errorbar(lat.mean(), i, xerr=lat.std(ddof=1), fmt=fs.MARKER[role],
+                    color=fs.color(role), mfc='white' if role == 'baseline' else fs.color(role),
+                    ms=3.5, elinewidth=0.7, capsize=2)
+        ax.text(1.0, i, f'{lat.mean():+.2f}'.replace('-', '−'), ha='right', va='center',
+                fontsize=7, transform=ax.get_yaxis_transform())
+    ax.axvline(0, color=fs.GREY, lw=0.5)
+    ax.set_yticks(range(len(runs)))
+    ax.set_yticklabels([r[1] for r in runs], fontsize=7)
+    ax.set_ylim(len(runs) - 0.5, -0.5)
+    xl = ax.get_xlim()
+    ax.set_xlim(xl[0], xl[1] + 0.25 * (xl[1] - xl[0]))     # 右侧留出均值一列
+    ax.set_xlabel(fs.label('Along-wall arrival error, mean ± std. over stations', 'mm'))
+    fs.panel_label(ax, 'b', 'Multi-station runs (value: mean)')
 
     # (c) 时间模型：当前默认执行路径下的样本外停靠站（plan_validation 的 5 次验证运行）
     ax = axs[1, 0]
@@ -248,54 +269,51 @@ def fig_summary(out):
     dist = np.array([float(r['move_dist_m']) for r in st])
     n = np.array([float(r['points']) for r in st])
     lo, hi = 8, 42
-    ax.plot([lo, hi], [lo, hi], color=INK2, lw=0.8, ls=':')
-    for (name, (ts, v, tp)), c, lab in zip(models.items(), ('#9a9992', C_V2),
-                                           ('align_v2（此前路径的标定）',
-                                            'align_v3（当前路径重标定）')):
+    ax.plot([lo, hi], [lo, hi], **fs.line('reference', lw=0.6))
+    for (name, (ts, v, tp)), role, lab in zip(models.items(), ('neutral', 'proposed'),
+                                              ('align_v2 (earlier execution path)',
+                                               'align_v3 (recalibrated)')):
         p = ts + dist / v + n * tp
         rmse = np.sqrt(np.mean((p - y) ** 2))
-        ax.scatter(y, p, s=22, color=c, alpha=0.8, label=f'{lab}：RMSE {rmse:.2f} s', lw=0)
+        ax.plot(y, p, ls='none', marker='o' if role == 'neutral' else '^', ms=3.2, mfc='none',
+                mec=fs.color(role), mew=0.7, label=f'{lab}: RMSE {rmse:.2f} s')
     ax.set_xlim(lo, hi)
     ax.set_ylim(lo, hi)
-    ax.set_xlabel('Gazebo 实测每站耗时 (s)')
-    ax.set_ylabel('模型预测 (s)')
-    ax.set_title(f'(c) 时间模型：当前默认路径下 {len(y)} 个样本外停靠站（5 次运行）', loc='left',
-                 fontsize=10)
-    ax.legend(frameon=False, fontsize=8.5, loc='upper left')
-    ax.set_aspect('equal')
+    ax.set_xlabel(fs.label('Measured time per station (Gazebo)', 's'))
+    ax.set_ylabel(fs.label('Predicted time per station', 's'))
+    ax.legend(loc='upper left')
+    ax.set_aspect('equal', adjustable='datalim')
+    fs.panel_label(ax, 'c', f'Time model: {len(y)} held-out stations (5 runs)')
 
     # (d) 任务级规划：配对墙上的平均预测时间（三种时间模型）
     ax = axs[1, 1]
-    meth = [('per_slot', '逐槽划分\n（基线）'), ('current', '先选线后 DP\n（现有）'),
-            ('joint', '联合规划'), ('lower_bound', '下界')]
-    sets = [('align_v1', os.path.join(EXP, 'task_planning', 'summary.csv'), C_V1),
-            ('align_v2', os.path.join(EXP, 'task_planning', 'align_v2', 'summary.csv'), '#b9b8b2'),
-            ('align_v3', os.path.join(EXP, 'task_planning', 'align_v3', 'summary.csv'), C_V2)]
+    meth = [('per_slot', 'Per-slot\n(naive)'), ('current', 'Rule-based\nroutes + DP'),
+            ('joint', 'Joint\nplanning'), ('lower_bound', 'Lower\nbound')]
+    sets = [('align_v1', os.path.join(EXP, 'task_planning', 'summary.csv'), 'baseline'),
+            ('align_v2', os.path.join(EXP, 'task_planning', 'align_v2', 'summary.csv'), 'neutral'),
+            ('align_v3', os.path.join(EXP, 'task_planning', 'align_v3', 'summary.csv'),
+             'proposed')]
     x = np.arange(len(meth))
     w = 0.27
-    for j, (name, path, c) in enumerate(sets):
+    for j, (name, path, role) in enumerate(sets):
         if not os.path.exists(path):
             continue
         S = {r['method']: r for r in load(path)}
         vals = [float(S[m]['t_mean']) for m, _ in meth]
-        ax.bar(x + (j - 1) * w, vals, w - 0.02, color=c,
-               label=f'{name}（n = {S["joint"]["n"]}）')
+        ax.bar(x + (j - 1) * w, vals, w - 0.02, label=f'{name} (n = {S["joint"]["n"]})',
+               **fs.bar(role))
         for xi, v in zip(x + (j - 1) * w, vals):
-            ax.text(xi, v + 2, f'{v:.0f}', ha='center', fontsize=7, color=INK2)
+            ax.text(xi, v + 2, f'{v:.0f}', ha='center', va='bottom', fontsize=7)
     ax.set_xticks(x)
-    ax.set_xticklabels([m[1] for m in meth], fontsize=8.5)
-    ax.set_ylabel('配对墙上的平均预测执行时间 (s)')
-    ax.set_ylim(0, 215)
-    ax.set_title('(d) 400 面随机墙（离线预测，非 Gazebo 实测）', loc='left', fontsize=10)
-    ax.legend(frameon=False, fontsize=8.5, loc='upper right', ncol=3)
-    ax.grid(axis='x', visible=False)
-
-    fig.tight_layout()
-    fig.savefig(out, dpi=150)
-    plt.close(fig)
+    ax.set_xticklabels([m[1] for m in meth], fontsize=7)
+    ax.set_ylabel(fs.label('Mean predicted execution time', 's'))
+    ax.set_ylim(0, 230)
+    ax.legend(loc='upper right', ncol=3, columnspacing=0.6, handlelength=1.4)
+    fs.panel_label(ax, 'd', '400 random walls (offline prediction)')
+    fs.save(fig, out)
 
 
 if __name__ == '__main__':
     fig_architecture(os.path.join(HERE, 'fig_architecture.png'))
     fig_summary(os.path.join(HERE, 'fig_summary.png'))
-    print('已保存 fig_architecture.png、fig_summary.png')
+    print('已保存 fig_architecture.{png,pdf}、fig_summary.{png,pdf}')
