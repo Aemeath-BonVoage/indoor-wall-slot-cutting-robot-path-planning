@@ -50,7 +50,7 @@ def link(text, target):
 
 
 CSS = """
-@page { size: A4; margin: 18mm 17mm 18mm 17mm; }
+@page { size: A4; margin: 18mm 14mm 18mm 14mm; }
 html { font-size: 10.2pt; }
 body { font-family: 'Noto Serif CJK SC', 'Noto Serif CJK JP', serif; color: #111;
        line-height: 1.62; text-align: justify; }
@@ -80,6 +80,7 @@ figure { margin: 8pt 0 4pt; text-align: center; break-inside: avoid; }
 figure img { max-width: 100%; max-height: 105mm; }
 figure img[src*="gazebo_world"] { max-height: 70mm; }
 figure img[src*="fig_architecture"] { max-height: 135mm; }
+figure img.phys { max-height: none; }
 .caption { font-size: 8.6pt; color: #444; text-align: center; margin: 2pt 6% 8pt; }
 hr { border: none; border-top: 1px solid #ccc; margin: 10pt 0; }
 ul, ol { margin: 3pt 0 3pt 0; padding-left: 20pt; }
@@ -89,6 +90,32 @@ li { margin: 1.5pt 0; }
 .en h1 { font-size: 13pt; margin-bottom: 4pt; }
 .en p, .en li { margin: 2.5pt 0; }
 """
+
+
+def png_dpi_size(path):
+    """PNG 的像素尺寸与 pHYs 分辨率（dpi）；读不到时返回 None."""
+    import struct
+    try:
+        with open(path, 'rb') as f:
+            data = f.read(1 << 16)
+    except OSError:
+        return None
+    if data[:8] != b'\x89PNG\r\n\x1a\n':
+        return None
+    w, h = struct.unpack('>II', data[16:24])
+    k = data.find(b'pHYs')
+    if k < 0:
+        return None
+    px, _, unit = struct.unpack('>IIB', data[k + 4:k + 13])
+    return (w, h, px * 0.0254) if unit == 1 else None
+
+
+def phys_size(src):
+    """统一样式的数据图（300 dpi）按实际物理尺寸排版，图中字号与论文版式一致."""
+    info = png_dpi_size(os.path.join(HERE, src))
+    if not info or abs(info[2] - 300) > 1:
+        return ''
+    return f' class="phys" style="width: {info[0] / info[2]:.2f}in"'
 
 
 def inline(s):
@@ -156,8 +183,8 @@ def render(md):
             if j < n and re.match(r'^\*[^*].*\*\s*$', lines[j]):
                 cap = f'<div class="caption">{inline(lines[j].strip()[1:-1])}</div>'
                 i = j
-            out.append(f'<figure><img alt="{html.escape(m.group(1))}" src="{m.group(2)}">'
-                       f'{cap}</figure>')
+            out.append(f'<figure><img alt="{html.escape(m.group(1))}" src="{m.group(2)}"'
+                       f'{phys_size(m.group(2))}>{cap}</figure>')
             i += 1
             continue
         if line.startswith('>'):
