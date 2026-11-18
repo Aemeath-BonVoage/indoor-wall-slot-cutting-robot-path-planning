@@ -86,6 +86,7 @@ private:
   rclcpp::Time start_;
   std::string slot_plan_bt_, cutting_task_bt_;
   double marker_x_{0.0}, marker_y_{0.0}, nav_standoff_{1.2};
+  double realign_distance_{0.0};
 };
 
 }  // namespace scr_task

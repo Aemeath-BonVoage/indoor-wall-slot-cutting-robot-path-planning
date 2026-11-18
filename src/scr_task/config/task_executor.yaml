@@ -12,3 +12,6 @@ task_executor:
     marker_x: 8.42
     marker_y: -3.9245
     nav_standoff: 1.2               # Nav2 目标离墙距离（米），留出代价地图膨胀余量
+    # 自上次接受标记更新以来的沿墙行程超过该值（米）时，去下一站前先回参考标记重新对位；
+    # 0 = 关闭。对比见 docs/experiments/along_wall_accuracy/README.md
+    realign_distance: 0.0

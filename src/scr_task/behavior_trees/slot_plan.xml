@@ -8,6 +8,9 @@
     再到站一次；
   - 切割：失败重试一次（重新测残差、重新执行本站全部点）。
   仍失败则整个任务失败，执行器在结果中报告失败的停靠站与节点。
+
+  按行程重新对位（realign_distance > 0 时）：去下一站前，若自上次接受标记更新以来的沿墙
+  里程计行程加上这一段横移超过阈值，先横移回参考标记前重新精对位，再去该站。
 -->
 <root main_tree_to_execute="SlotPlan">
   <BehaviorTree ID="SlotPlan">
@@ -36,12 +39,14 @@
   <!-- 精对位：失败时重新接近标记再对位一次 -->
   <BehaviorTree ID="AlignToMarker">
     <Fallback name="AlignWithRecovery">
-      <FineAlign standoff="{standoff}" settle_time="2.0" origin_residual="{origin_residual}"/>
+      <FineAlign standoff="{standoff}" settle_time="2.0" origin_residual="{origin_residual}"
+                 since_fix="{since_fix}"/>
       <Sequence name="ReapproachAndAlign">
         <CountRecovery station_count="{station_recoveries}" total_count="{recoveries}"/>
         <RetractArm lift="0.0"/>
         <NavigateToPose name="ReapproachMarker" goal="{marker_pose}"/>
-        <FineAlign standoff="{standoff}" settle_time="2.0" origin_residual="{origin_residual}"/>
+        <FineAlign standoff="{standoff}" settle_time="2.0" origin_residual="{origin_residual}"
+                   since_fix="{since_fix}"/>
       </Sequence>
     </Fallback>
   </BehaviorTree>
@@ -58,12 +63,29 @@
         <AlwaysSuccess/>
       </IfThenElse>
       <MoveToStation station="{station}" lateral_offset="{station_u}" standoff="{standoff}"
-                     converged="{converged}" arrived_at="{arrived_at}"/>
+                     converged="{converged}" arrived_at="{arrived_at}" since_fix="{since_fix}"/>
+    </Sequence>
+  </BehaviorTree>
+
+  <!-- 按行程重新对位：横移回参考标记前（失败也继续，精对位自带重新导航的恢复）→ 精对位 -->
+  <BehaviorTree ID="ScheduledRealign">
+    <Sequence name="ScheduledRealign">
+      <ForceSuccess>
+        <MoveToStation name="StrafeToMarker" station="-1" lateral_offset="0.0"
+                       standoff="{standoff}"/>
+      </ForceSuccess>
+      <SubTree ID="AlignToMarker" __shared_blackboard="true"/>
     </Sequence>
   </BehaviorTree>
 
   <BehaviorTree ID="ExecuteStation">
     <Sequence name="Station">
+      <IfThenElse name="RealignIfDue">
+        <RealignDue since_fix="{since_fix}" move_dist="{move_dist}"
+                    threshold="{realign_distance}" due="{realign_due}"/>
+        <SubTree ID="ScheduledRealign" __shared_blackboard="true"/>
+        <AlwaysSuccess/>
+      </IfThenElse>
       <Fallback name="ReachWithRecovery">
         <SubTree ID="ReachStation" __shared_blackboard="true"/>
         <Sequence name="RealignAndRetry">
@@ -90,7 +112,8 @@
                      arrived_at="{arrived_at}" cut_time="{cut_time}" converged="{converged}"
                      sensed_lateral="{sensed_lateral}" sensed_standoff="{sensed_standoff}"
                      sensed_yaw="{sensed_yaw}" clamped="{clamped}" cut_length="{cut_length}"
-                     origin_residual="{origin_residual}" recoveries="{station_recoveries}"/>
+                     origin_residual="{origin_residual}" recoveries="{station_recoveries}"
+                     realigned="{realign_due}" since_fix="{since_fix}"/>
     </Sequence>
   </BehaviorTree>
 </root>
