@@ -1,13 +1,16 @@
 # scr_arm_controller
 
-机械臂运动学与控制、墙面精对位（AprilTag + 激光 EKF + 饱和控制律）、底盘定点保持，以及项目的任务总流程 `navigation_cutting_task`（单站任务和多站开槽共用的执行路径）。
+机械臂运动学与控制、墙面精对位（AprilTag + 激光 EKF + 饱和控制律）、底盘定点保持，以及切割任务的技能服务器 `task_skill_server`：精对位、墙面坐标横移、定点保持、残差补偿与切割等步骤以 ROS 2 action 的形式提供，由 [`scr_task`](../scr_task/README.md) 的行为树编排。命令行入口 `navigation_cutting_task` 把任务文件发给行为树执行器。
 
 ## 模块
 
 | 模块 | 内容 | 依赖 ROS |
 |---|---|---|
 | `cartesian_cutting.py` | `CartesianCuttingController`：闭式正 / 逆运动学、可达性检查、笛卡尔 / 关节空间运动 | 是 |
-| `navigation_cutting_task.py` | 任务总流程：导航 → 精对位 → 扫描 → 定点保持下切割；读取多站开槽规划文件逐站执行；激光防碰撞守护；空切 | 是 |
+| `task_skills.py` | 技能库 `CuttingSkills`：精对位（三种模式）、墙面坐标横移 / 接近、到站残差测量、定点保持下的机械臂点执行、标记扫描、激光防碰撞守护、空切；可由多线程执行器驱动，也可被实验脚本顺序调用 | 是 |
+| `skill_server.py` | `task_skill_server`：把 `CuttingSkills` 的技能包装成 6 个 action 服务器，发布阶段话题 `/task_skills/status` | 是 |
+| `slot_execution.py` | 纯函数：识别与解析多站开槽规划文件、每站机械臂点、到站残差补偿、残差是否可补偿的判据 | 否 |
+| `navigation_cutting_task.py` | 命令行入口（action 客户端）：单站任务 → `/execute_cutting_task`，规划文件 → `/execute_slot_plan`；打印反馈与每站记录 | 是 |
 | `fiducial.py` | 纯算法：AprilTag（tag36h11）检测，边缘直线求交的亚像素角点，IPPE PnP 求标记中心与协方差 | 否 |
 | `wall_ekf.py` | 纯算法：墙面相对状态 (d, u, ψ) 的 EKF，里程计增量预测，激光与标记更新，χ² 门限 | 否 |
 | `wall_estimator_ros.py` | EKF 的 ROS 封装：按时间戳经里程计历史补偿测量延迟，标记丢失时外推 | 是 |
@@ -15,73 +18,101 @@
 | `teach_alignment_offset.py` | 示教零位标定：在真值参考位姿处求估计器的静态偏置，输出 ROS 参数文件 | 是 |
 | `visual_servo.py` | 纯算法（第一版精对位，保留为基线）：HSV 定位标记检测、激光墙面拟合（总体最小二乘 + 离群点剔除）、像素反投影、射线与墙面求交、PBVS 误差与全向底盘速度指令 | 否 |
 | `visual_servo_ros.py` | `WallMarkerServo`：订阅激光、图像、相机内参，查询 TF，输出滤波后的墙面与标记测量；包含主点修正 | 是 |
-| `base_hold.py` | `BaseHold`：独立节点与线程，50 Hz 里程计 P 控制保持底盘位姿，并用真值记录保持期间的最大漂移 | 是 |
+| `base_hold.py` | `BaseHold`：50 Hz 里程计 P 控制保持底盘位姿，并用真值记录保持期间的最大漂移 | 是 |
 | `ibvs.py` | IBVS 与 2.5D 混合视觉伺服（交互矩阵、`IbvsController`、`HybridController`），用于方法对比 | 否 |
-| `alignment_benchmark.py` | 对位鲁棒性实验：随机起点传送、里程计漂移与传感器噪声注入、真值评分 | 是 |
+| `alignment_benchmark.py` | 对位鲁棒性实验：随机起点传送、里程计漂移与传感器噪声注入、真值评分（直接调用 `CuttingSkills`，不经过任务层） | 是 |
 | `custom_cutting.py`、`square_demo.py` | YAML 点序列执行、关节空间演示 | 是 |
 | `marker_scanner.py`、`trajectory_visualizer.py` | 早期的独立标记扫描节点；切割结束后在 Gazebo 中画出切割框 | 是 |
 | `joint_direction_check.py` | 检查各关节在 `base_link` 中的实际运动方向（需仿真运行） | 是 |
 
-## 机械臂运动学
+## 技能服务器 `task_skill_server`
 
-| 关节 | 范围 | 作用 |
+| Action | 类型（`scr_interfaces/action`） | 作用 |
 |---|---|---|
-| `joint1` | −0.35 ~ 0.20 m | Z 升降，`z = z0 + joint1` |
-| `joint2` | −0.08 ~ 0.06 m | Y 横移，`y = y0 − joint2` |
-| `joint3` | −0.045 ~ 0.02 m | X 伸缩，`x = x0 − joint3` |
-| `joint4` | −90° ~ 90° | 刀片方向 |
+| `/task_skills/fine_align` | `FineAlign` | 精对位到定位标记正前方 `standoff` 处，确定墙面坐标原点；结果含到位时的估计误差与原点残差 |
+| `/task_skills/move_to_station` | `MoveToStation` | 墙面坐标闭环横移 / 接近到沿墙 `lateral_offset`、离墙 `standoff`；收敛或残差可由机械臂补偿（横向 20 mm、离墙 10 mm、朝向 1.5° 以内）时成功，结束后保持在到站位姿 |
+| `/task_skills/cut_station` | `CutStation` | 测到站残差 → 补偿机械臂点 → 逐点执行；`station = -1`（单站任务）时另做可达性检查、前后缩回与空切后移 |
+| `/task_skills/hold_base` | `HoldBase` | 定点保持，直到目标被取消 |
+| `/task_skills/scan_marker` | `ScanMarker` | 相机射线与激光墙面求交检测定位标记，必要时按高度扫描 |
+| `/task_skills/retract_arm` | `RetractArm` | 机械臂缩回到接近位姿 |
 
-所有关节为 0 时末端位于 (x0, y0, z0) = (0.537, 0.000, 0.507) m（`base_link` 坐标）。笛卡尔工作空间（TF 实测）：X 0.517–0.582 m，Y −0.060–0.080 m，Z 0.157–0.707 m。伸缩轴完全缩回（`joint3 = +0.02`）时刀尖离底盘中心 0.676 m，完全伸出时 0.741 m。
+六个技能在同一进程中：精对位确定的墙面原点保存在墙面相对 EKF 中，之后的横移沿用同一个估计；横移收敛时开始的定点保持一直持续到切割结束。运动类技能（除 `HoldBase` 外）互斥，同一时刻只接受一个目标。阶段变化发布在 `/task_skills/status`（`TaskStatus`：`align / move / arrived / hold / cut / arm / scan` 与停靠站序号），实验记录器据此标注真值轨迹。
+
+| 参数 | 默认 | 说明 |
+|---|---|---|
+| `odom_topic` | `/odom` | 局部闭环（精对位预测、横移外推、定点保持）使用的里程计。`sim_nav.launch.py` 在 `base_control:=ros2_control localization:=ekf` 时设为 `/wheel/odom`：`robot_localization` 的输出在 mm/s 级慢速运动下明显偏小，定点保持会被它带着漂移 |
+| `alignment.*` | `config/fine_alignment.yaml` | 精对位参数，见下节 |
+
+由 `scr_task/launch/task.launch.py` 启动（`sim_nav.launch.py` 默认包含）：
+
+```bash
+ros2 launch scr_task task.launch.py alignment_params:=<yaml> odom_topic:=/wheel/odom
+```
 
 ## 精对位
 
-对位模式由任务 YAML 的 `precise_positioning.mode` 选择：`visual`（第二版，默认）、`visual_v1`（第一版色块 + PBVS，作对比基线）、`odom`（里程计 + 已知标记坐标）。第二版参数在 [`config/fine_alignment.yaml`](config/fine_alignment.yaml)（节点参数 `alignment.*`）：检测器 `apriltag | blob`、标记尺寸与 ID、收敛容差、控制增益与限幅、示教零位偏置。
+对位模式由任务的 `mode` 选择：`visual`（第二版，默认）、`visual_v1`（第一版色块 + PBVS，作对比基线）、`odom`（里程计 + 已知标记坐标）。第二版参数在 [`config/fine_alignment.yaml`](config/fine_alignment.yaml)（节点参数 `alignment.*`，节点名通配 `/**`）：
+
+| 参数 | 默认 | 说明 |
+|---|---|---|
+| `detector` | `apriltag` | `apriltag` 或 `blob`（第一版色块检测器） |
+| `tag_family` / `tag_id` / `tag_size` | `tag36h11` / 0 / 0.10 m | 定位标记 |
+| `offset_normal` / `offset_lateral` / `offset_yaw_deg` | 0 | 示教零位偏置（测量模型内扣除） |
+| `tolerance_normal` / `tolerance_lateral` / `tolerance_yaw_deg` / `settle_cycles` | 2 mm / 2 mm / 0.3° / 10 | 收敛判据（另要求底盘静止、σ < 2 mm） |
+| `k_lin` / `k_ang`、`decel_*`、`max_*`、`control_rate` | 2 /s、0.15 m/s² / 0.5 rad/s²、0.15 m/s / 0.3 rad/s、20 Hz | 平方根整形饱和律 |
+| `timeout` / `lost_timeout` / `sigma_hold` | 50 s / 10 s / 0.01 m | 超时、标记持续丢失、停车等待阈值 |
+| `fold_residual` | `true` | 多站执行以 EKF 估计的标记位置为墙面原点；`false` 以停车位姿为原点（第一版语义，消融用） |
+| `strafe_tag_updates` | `false` | 站间横移时若标记在视野内，继续用它更新沿墙位置 |
+
+参数属于技能服务器，启动时用 `alignment_params:=` 传入：
 
 ```bash
-# 示教零位（需先启动仿真，不需要 Nav2）；输出的参数文件在执行任务时加载
-ros2 run scr_arm_controller teach_alignment_offset --out fine_alignment_taught.yaml --seconds 30
-ros2 run scr_arm_controller navigation_cutting_task task_at_target.yaml \
-    --ros-args --params-file fine_alignment_taught.yaml
+# 示教零位（需先启动仿真，不需要 Nav2）；输出的参数文件在启动任务层时加载
+ros2 run scr_arm_controller teach_alignment_offset --out /tmp/fine_alignment_taught.yaml --seconds 30
+ros2 launch scr_bringup sim_nav.launch.py alignment_params:=/tmp/fine_alignment_taught.yaml
+ros2 run scr_arm_controller navigation_cutting_task task_at_target.yaml
 ```
+
+对 `navigation_cutting_task` 加 `--ros-args -p alignment.*` 不起作用：它只是客户端。
 
 设计、控制律稳定性分析与实验见 [精对位报告](../../docs/experiments/fine_alignment/README.md) 与 [对位鲁棒性对比](../../docs/experiments/alignment_robustness/README.md)。
 
 ## 接口
 
-`navigation_cutting_task` 使用的话题与 action：
+技能服务器使用的话题与 action：
 
 | 名称 | 方向 | 用途 |
 |---|---|---|
-| `/navigate_to_pose` | action 客户端 | Nav2 导航 |
 | `/cmd_vel` | 发布 | 精对位、横移、定点保持 |
 | `/arm_controller/follow_joint_trajectory` | action 客户端 | 机械臂运动 |
-| `/odom` | 订阅 | 横移参考、定点保持 |
+| `odom_topic`（`/odom` 或 `/wheel/odom`） | 订阅 | 墙面 EKF 预测、横移外推、定点保持 |
 | `/scan` | 订阅 | 墙面拟合、防碰撞守护 |
 | `/front_camera/image_raw`、`/front_camera/camera_info` | 订阅 | 定位标记检测 |
-| `/gazebo/model_states` | 订阅 | 真值，只用于评估，不参与控制 |
+| `/gazebo/model_states` | 订阅 | 真值，只用于评估（日志中的对位真值误差与保持漂移），不参与控制 |
 
-单站任务文件（`config/task_at_target.yaml`）的主要字段：
+导航（`NavigateToPose`）由行为树直接调用 Nav2，不经过技能服务器。
+
+单站任务文件（`config/task_at_target.yaml`）中行为树执行器读取的字段：
 
 | 字段 | 说明 |
 |---|---|
-| `navigation.{x, y, yaw}` | Nav2 目标 |
-| `precise_positioning.enabled / mode` | 是否精对位；`visual`（PBVS）或 `odom`（里程计 + 已知标记坐标，对照基线） |
+| `navigation.{x, y, yaw}` | Nav2 目标（map 坐标） |
+| `precise_positioning.enabled / mode` | 是否精对位；`visual`、`visual_v1` 或 `odom` |
 | `precise_positioning.distance_from_marker` | 对位后底盘中心离墙距离，默认任务为 0.70 m |
-| `precise_positioning.position_tolerance / angle_tolerance_deg` | 收敛容差，默认 1 cm / 1° |
-| `precise_positioning.observe_joint1` | 对位时滑台高度，避免机械臂遮挡相机 |
-| `base_hold` | 扫描 / 切割期间是否定点保持（`false` 时只测量漂移） |
 | `scanning.enabled` | 是否在对位后检测标记三维位置 |
-| `points`、`motion.{duration, return_home}` | 切割点（`base_link` 坐标，`rotation` 单位为度）与运动参数 |
+| `points`、`motion.{duration, return_home}` | 切割点（`base_link` 坐标，`rotation` 单位为度，至少 2 个）与运动参数 |
 | `motion.dry_run_gap` | 空切间隙（米）：切深处的点后移，刀尖停在墙前该距离 |
 
-多站开槽规划文件由 `scr_planner/scripts/plan_wall_slots.py` 生成，命令行选项 `--dry-run-gap`、`--max-strafe`（默认 1.5 m）、`--no-compensation`。
+示例文件中的 `position_tolerance`、`angle_tolerance_deg`、`observe_joint1`、`base_hold`、`scanning.z_*` 来自早期的顺序程序，当前执行路径不读取（对应值由技能服务器内置，扫描与切割期间始终定点保持）。
+
+多站开槽规划文件由 `scr_planner/scripts/plan_wall_slots.py` 生成，客户端选项 `--dry-run-gap=<m>`、`--max-strafe=<m>`（默认 1.5 m）、`--no-compensation`、`--bt=<tree.xml>`。
 
 ## 用法
 
-需先启动仿真（`ros2 launch scr_bringup sim_nav.launch.py`，只测机械臂时可用 `scr_description gazebo.launch.py`）。
+需先启动仿真与任务层（`ros2 launch scr_bringup sim_nav.launch.py`；只测机械臂时可用 `scr_description gazebo.launch.py`）。
 
 ```bash
-# 任务总流程：单站任务 / 多站开槽规划
+# 任务：单站任务 / 多站开槽规划（经行为树执行）
 ros2 run scr_arm_controller navigation_cutting_task task_at_target.yaml
 ros2 run scr_arm_controller navigation_cutting_task /tmp/plan.yaml --dry-run-gap=0.01
 
@@ -90,11 +121,11 @@ ros2 run scr_arm_controller square_demo
 ros2 run scr_arm_controller cartesian_cutting
 ros2 run scr_arm_controller custom_cutting wall_cutting.yaml
 
-# 对位鲁棒性实验（只需仿真，不需要 Nav2）
+# 对位鲁棒性实验（只需仿真，不需要 Nav2 与任务层）
 ros2 run scr_arm_controller alignment_benchmark --trials 8 --out /tmp/alignment
 ```
 
-相对路径的配置文件先在当前目录查找，再到本包安装目录的 `config/` 中查找。`config/` 中的示例：`task_at_target.yaml`（单站任务）、`wall_cutting.yaml`、`horizontal_cutting.yaml`、`retract_rotate_extend.yaml`、`complex_sequence.yaml`、`cutting_task.yaml`。
+相对路径的配置文件先在当前目录查找，再到本包安装目录的 `config/` 中查找。`config/` 中的示例：`task_at_target.yaml`（单站任务）、`fine_alignment.yaml`（精对位参数）、`wall_cutting.yaml`、`horizontal_cutting.yaml`、`retract_rotate_extend.yaml`、`complex_sequence.yaml`、`cutting_task.yaml`。
 
 完整说明见 [使用指南](../../docs/USER_GUIDE.md#6-单站任务导航--精对位--扫描--切割)。
 
@@ -106,9 +137,10 @@ colcon test --packages-select scr_arm_controller && colcon test-result --verbose
 ```
 
 - `test/test_visual_servo.py`：标记检测、墙面拟合、射线求交、PBVS 误差，以及闭环运动学收敛；
+- `test/test_fiducial.py`、`test/test_wall_ekf.py`、`test/test_docking_control.py`：AprilTag 检测与位姿、墙面 EKF、饱和控制律与收敛判据；
 - `test/test_ibvs.py`：用有限差分校验特征雅可比、各深度方式与混合方案的闭环收敛、弱可观方向、合成图像角点检测；
 - flake8、pep257、版权声明检查。
 
-多站执行的解析与补偿公式由 `scr_planner` 的 pytest 覆盖。
+规划文件的解析与补偿公式（`slot_execution.py`）由 `scr_planner` 的 pytest 覆盖；行为树执行器一侧的解析由 `scr_task` 的 `test_task_files` 对照同一份规划文件检查。
 
-相关实验：[对位鲁棒性](../../docs/experiments/alignment_robustness/README.md)、[视觉伺服方法对比](../../docs/experiments/ibvs_vs_pbvs/README.md)。
+相关实验：[对位鲁棒性](../../docs/experiments/alignment_robustness/README.md)、[视觉伺服方法对比](../../docs/experiments/ibvs_vs_pbvs/README.md)、[系统层现代化](../../docs/experiments/system_modernization/README.md)。
