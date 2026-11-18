@@ -184,12 +184,25 @@ CAMERA_PRESETS = {
     'side': ((9.6, -3.0, 1.0), (8.0, -3.8, 0.5)),
     # 高处俯视：看底盘沿墙横移
     'top': ((7.95, -2.6, 3.6), (7.95, -3.4, 0.0)),
+    # 整套住宅的俯视（近似正上方，画面上方为北、右方为东）：看导航全程，
+    # 地面视野约 15 m × 8.4 m，覆盖起点 (0, 0) 与 room3 南墙
+    'overview': ((4.3, -3.0, 11.0), (4.3, -2.0, 0.0)),
 }
+
+
+def camera_topic(name='demo_camera', namespace=None):
+    """
+    camera_sdf 生成的相机的图像话题.
+
+    gazebo_ros_camera 把图像发布在 <插件命名空间>/<camera_name>/image_raw，
+    命名空间默认为 /<name>，所以默认话题是 /<name>/<name>/image_raw。
+    """
+    return f'{namespace or "/" + name}/{name}/image_raw'
 
 
 def camera_sdf(name='demo_camera', eye=(0, 0, 1), target=(1, 0, 1), width=640, height=360,
                fps=10.0, hfov=1.2, namespace=None):
-    """固定视角相机模型 SDF（静态、无碰撞），图像话题 /<namespace>/image_raw."""
+    """固定视角相机模型 SDF（静态、无碰撞），图像话题见 camera_topic()."""
     ns = namespace or f'/{name}'
     pose = _fmt(tuple(eye) + look_at_rpy(eye, target))
     return f'''<?xml version="1.0"?>
@@ -215,8 +228,6 @@ def camera_sdf(name='demo_camera', eye=(0, 0, 1), target=(1, 0, 1), width=640, h
         <plugin name="{name}_plugin" filename="libgazebo_ros_camera.so">
           <ros>
             <namespace>{ns}</namespace>
-            <remapping>~/image_raw:=image_raw</remapping>
-            <remapping>~/camera_info:=camera_info</remapping>
           </ros>
           <camera_name>{name}</camera_name>
           <frame_name>{name}_link</frame_name>

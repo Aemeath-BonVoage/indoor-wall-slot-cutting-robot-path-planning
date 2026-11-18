@@ -7,7 +7,7 @@ Wayland 下无法截屏，用 Gazebo 自己渲染的相机图像代替录屏。
   ros2 run scr_viz demo_record --out DIR [--preset oblique|front|side|top]
       [--eye X Y Z --target X Y Z] [--rate 2] [--duration 300] [--max-frames N]
       [--width 640 --height 360 --cam-fps 10] [--video demo.mp4 --video-fps 12]
-      [--keep-camera] [--no-spawn --topic /xxx/image_raw] [--no-stamp]
+      [--keep-camera] [--no-spawn --topic /<name>/<name>/image_raw] [--no-stamp]
 
 - --rate：每仿真秒存几帧（按图像时间戳抽帧，仿真慢于实时也不影响节奏）；
 - --duration：最长录制的墙钟秒数；Ctrl-C 随时结束；
@@ -112,7 +112,7 @@ def main(argv=None):
         count['n'] += 1
 
     try:
-        topic = a.topic or f'/{a.name}/image_raw'
+        topic = a.topic or sdf_gen.camera_topic(a.name)
         if not a.no_spawn:
             xml = sdf_gen.camera_sdf(a.name, eye, target, a.width, a.height, a.cam_fps, a.hfov)
             with open(os.path.join(a.out, f'{a.name}.sdf'), 'w') as f:
