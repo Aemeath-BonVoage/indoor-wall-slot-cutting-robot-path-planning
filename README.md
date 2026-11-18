@@ -154,6 +154,7 @@ colcon test && colcon test-result --verbose
 ## 项目演进与文档
 
 - [技术报告](docs/report/README.md)（[PDF](docs/report/report.pdf)，[English abstract](docs/report/abstract_en.md)）：系统、方法与实验的完整汇总
+- [图集](docs/FIGURES.md)：全部数据图的缩略图、中文说明与要点，以及图中英文术语的中英对照
 - [项目演进](docs/EVOLUTION.md)：各阶段的目标、发现的问题、诊断过程与改进
 - [使用指南](docs/USER_GUIDE.md)：安装、启动、建图、导航、任务执行、可视化、故障排查
 - [路线图](docs/ROADMAP.md)：进行中与计划中的工作
