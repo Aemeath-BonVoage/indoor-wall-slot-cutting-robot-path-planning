@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<sdf version="1.6">
+  <model name="scr_apriltag_tag36h11_3">
+    <static>true</static>
+    <link name="link">
+      <visual name="visual">
+        <pose>0 0 0.00025 0 0 0</pose>
+        <geometry><box><size>0.125000 0.125000 0.0005</size></box></geometry>
+        <material>
+          <script>
+            <uri>model://scr_apriltag_tag36h11_3/materials/scripts</uri>
+            <uri>model://scr_apriltag_tag36h11_3/materials/textures</uri>
+            <name>ScrAprilTag/tag36h11_3</name>
+          </script>
+        </material>
+      </visual>
+    </link>
+  </model>
+</sdf>

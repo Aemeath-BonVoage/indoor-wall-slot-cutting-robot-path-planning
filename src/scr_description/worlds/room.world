@@ -414,5 +414,35 @@
       <pose>8.42 -3.925 0.70 1.5708 0 3.14159</pose>
     </include>
 
+    <!-- 沿墙的其他定位标记（多标记地图，ID 1–5）：与 ID 0 同一高度，沿墙间距 0.3 m。
+         面向墙面向右（−x）为墙面坐标 u 的正方向：ID k（k = 1–4）在 u = 0.3·k，ID 5 在
+         u = −0.3。地图（哪些标记参与定位）由 scr_arm_controller/config/tag_map.yaml 选择，
+         地图之外的标记被检测器忽略 -->
+    <include>
+      <uri>model://scr_apriltag_tag36h11_5</uri>
+      <name>wall_apriltag_5</name>
+      <pose>8.72 -3.925 0.70 1.5708 0 3.14159</pose>
+    </include>
+    <include>
+      <uri>model://scr_apriltag_tag36h11_1</uri>
+      <name>wall_apriltag_1</name>
+      <pose>8.12 -3.925 0.70 1.5708 0 3.14159</pose>
+    </include>
+    <include>
+      <uri>model://scr_apriltag_tag36h11_2</uri>
+      <name>wall_apriltag_2</name>
+      <pose>7.82 -3.925 0.70 1.5708 0 3.14159</pose>
+    </include>
+    <include>
+      <uri>model://scr_apriltag_tag36h11_3</uri>
+      <name>wall_apriltag_3</name>
+      <pose>7.52 -3.925 0.70 1.5708 0 3.14159</pose>
+    </include>
+    <include>
+      <uri>model://scr_apriltag_tag36h11_4</uri>
+      <name>wall_apriltag_4</name>
+      <pose>7.22 -3.925 0.70 1.5708 0 3.14159</pose>
+    </include>
+
   </world>
 </sdf>
