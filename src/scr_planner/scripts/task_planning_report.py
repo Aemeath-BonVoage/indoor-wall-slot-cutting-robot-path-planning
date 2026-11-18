@@ -17,7 +17,8 @@ align_v3/data 用 align_v3（默认），align_v2/data 用 align_v2，data/ 用 
   与下界的差距 (T - LB) / LB；T - LB ≤ 0.01 s 记为“已证明最优”。
 
 输出：summary.csv、paired_tests.csv、gap.csv、lee_summary.csv、sensitivity_summary.csv、
-      fig_results.png、fig_example.png，以及打印到终端的汇总（报告中的数字来自这里）。
+      fig_results.png、fig_example.png（及同名 PDF，docs/figstyle 统一样式，英文），以及打印到
+      终端的汇总（报告中的数字来自这里）。
 """
 import csv
 import os
@@ -27,7 +28,7 @@ from collections import defaultdict
 
 import numpy as np
 
-HERE = os.path.dirname(os.path.abspath(__file__))
+HERE = os.path.dirname(os.path.realpath(__file__))
 REPO = os.path.abspath(os.path.join(HERE, '..', '..', '..'))
 for d in (os.path.join(HERE, '..', 'python'),
           os.path.join(HERE, '..', '..', 'share', 'scr_planner', 'python')):
@@ -40,10 +41,13 @@ NAMES = {'per_slot': '逐槽划分（基线）', 'current': '先选线后 DP（�
          'current_v0': '现有（修正前评估）', 'lattice_indep': '站感知·各槽独立',
          'lattice_seq': '站感知·共享窗口', 'lattice_cd': '站感知·共享+坐标下降',
          'lower_bound': '下界'}
-# 默认分类色板（dataviz references/palette.md，按固定顺序分配，不随筛选变化）
-COLORS = {'per_slot': '#2a78d6', 'current': '#eb6834', 'joint': '#1baf7a',
-          'lattice_indep': '#eda100', 'lattice_seq': '#e87ba4', 'lattice_cd': '#6250d6'}
-INK, INK2, GRID, SURFACE = '#0b0b0b', '#52514e', '#e4e3df', '#fcfcfb'
+# 图中的英文名称与语义角色（docs/figstyle）：逐槽划分为中性参照，先选线后 DP（规则路线）为基线，
+# 联合规划为本项目方法
+NAMES_EN = {'per_slot': 'Per-slot partition (naive)', 'current': 'Rule-based routes + DP',
+            'joint': 'Joint planning', 'lower_bound': 'Lower bound'}
+ROLES = {'per_slot': 'neutral', 'current': 'baseline', 'joint': 'proposed'}
+OBST_EN = {'梁': 'Beam', '柱': 'Column', '门': 'Door', '窗': 'Window', '飘窗': 'Bay window',
+           '窄墙垛': 'Pier', '开关': 'Switch', '接线盒': 'Junction box', '弱电线槽': 'Data trunking'}
 TIE, CERT = 0.05, 0.01
 
 
@@ -123,18 +127,9 @@ def write_csv(path, rows):
 
 
 def setup_mpl():
-    import matplotlib
-    matplotlib.use('Agg')
-    matplotlib.rcParams.update({
-        'font.sans-serif': ['Noto Sans CJK SC', 'Noto Sans CJK JP', 'Noto Serif CJK SC',
-                            'DejaVu Sans'],
-        'axes.unicode_minus': False, 'axes.edgecolor': INK2, 'axes.labelcolor': INK,
-        'xtick.color': INK2, 'ytick.color': INK2, 'axes.grid': True, 'grid.color': GRID,
-        'grid.linewidth': 0.8, 'axes.spines.top': False, 'axes.spines.right': False,
-        'figure.facecolor': SURFACE, 'axes.facecolor': SURFACE, 'savefig.facecolor': SURFACE,
-        'font.size': 10})
-    import matplotlib.pyplot as plt
-    return plt
+    sys.path.insert(0, os.path.join(REPO, 'docs'))
+    import figstyle as fs
+    return fs
 
 
 def main():
@@ -291,8 +286,8 @@ def main():
 
 
 def plot_results(S, P, nlb, gaps, out):
-    plt = setup_mpl()
-    fig, axs = plt.subplots(2, 2, figsize=(12, 8.4))
+    fs = setup_mpl()
+    fig, axs = fs.subplots(2, 2, width='double', height=5.0)
 
     # (a) 按槽数的相对节省（非承重墙）
     ax = axs[0, 0]
@@ -303,29 +298,35 @@ def plot_results(S, P, nlb, gaps, out):
             v = np.array([(S[s][a]['t_exact'] - S[s][m]['t_exact']) / S[s][a]['t_exact'] * 100
                           for s in seeds])
             x = k + (j - 0.5) * 0.36
-            ax.scatter(x + rng.uniform(-0.09, 0.09, len(v)), v, s=9, color=COLORS[m], alpha=0.55,
-                       linewidths=0)
-            ax.plot([x - 0.13, x + 0.13], [v.mean()] * 2, color=INK, lw=2)
-    ax.set_xticks([1, 2, 3, 4], [f'{k} 条槽\n(n = {sum(S[s]["joint"]["slots"] == k for s in nlb)})'
+            ax.plot(x + rng.uniform(-0.09, 0.09, len(v)), v, ls='none',
+                    marker=fs.MARKER[ROLES[m]], ms=2.2, mew=0.5, mfc='none',
+                    mec=fs.color(ROLES[m]), alpha=0.6, rasterized=True)
+            ax.plot([x - 0.13, x + 0.13], [v.mean()] * 2, color=fs.BLACK, lw=1.4)
+    ax.set_xticks([1, 2, 3, 4], [f'{k} slot{"s" if k > 1 else ""}\n'
+                                 f'(n = {sum(S[s]["joint"]["slots"] == k for s in nlb)})'
                                  for k in (1, 2, 3, 4)])
-    ax.set_ylabel('预测执行时间节省 (%)')
-    ax.set_title('(a) 每面墙的节省（非承重墙，横线为均值）', loc='left', color=INK)
-    ax.scatter([], [], color=COLORS['current'], s=20, label='逐槽划分 → 先选线后 DP')
-    ax.scatter([], [], color=COLORS['joint'], s=20, label='先选线后 DP → 联合规划')
-    ax.legend(frameon=False, loc='upper left')
+    ax.set_ylabel(fs.label('Predicted execution-time saving', '%'))
+    ax.plot([], [], ls='none', marker=fs.MARKER['baseline'], mfc='none',
+            mec=fs.color('baseline'), label='Per-slot → rule-based routes + DP')
+    ax.plot([], [], ls='none', marker=fs.MARKER['proposed'], mfc='none',
+            mec=fs.color('proposed'), label='Rule-based routes + DP → joint planning')
+    ax.plot([], [], color=fs.BLACK, lw=1.4, label='Mean')
+    ax.legend(loc='upper left')
+    fs.panel_label(ax, 'a', 'Saving per wall (partition walls)')
 
     # (b) 与下界差距的经验分布
     ax = axs[0, 1]
     for m in METHODS:
         g = np.sort(gaps[(m, len(P))])
         ax.step(np.concatenate([[0], g]), np.arange(len(g) + 1) / len(g), where='post',
-                color=COLORS[m], lw=2, label=NAMES[m])
+                label=NAMES_EN[m], **fs.line(ROLES[m], lw=1.1))
     ax.set_xscale('symlog', linthresh=1)
+    fs.plain_ticks(ax, 'x')
     ax.set_xlim(0, max(gaps[('per_slot', len(P))].max() * 1.1, 10))
-    ax.set_xlabel('与下界的差距 (T − LB) / LB (%)')
-    ax.set_ylabel('墙面比例（累积）')
-    ax.set_title(f'(b) 离最优还差多少（配对样本 n = {len(P)}）', loc='left', color=INK)
-    ax.legend(frameon=False, loc='lower right')
+    ax.set_xlabel(fs.label('Gap to lower bound (T − LB) / LB', '%'))
+    ax.set_ylabel('Fraction of walls (cumulative)')
+    ax.legend(loc='lower right')
+    fs.panel_label(ax, 'b', f'Distance from optimum (paired walls, n = {len(P)})')
 
     # (c) 可行方案数（全部墙，按槽数）
     ax = axs[1, 0]
@@ -335,16 +336,15 @@ def plot_results(S, P, nlb, gaps, out):
         v = [sum(S[s]['joint']['slots'] == k and S[s][m]['feasible'] == 1 for s in S)
              for k in ks]
         x = np.array(ks) + (j - 0.5) * 0.34
-        ax.bar(x, v, width=0.3, color=COLORS[m], label=NAMES[m])
+        ax.bar(x, v, width=0.3, label=NAMES_EN[m], **fs.bar(ROLES[m]))
         for xi, vi in zip(x, v):
-            ax.text(xi, vi + 1.5, f'{vi}', ha='center', color=INK2, fontsize=9)
-    ax.scatter(ks, tot, marker='_', s=600, color=INK, label='墙数', zorder=3)
-    ax.set_xticks(ks, [f'{k} 条槽' for k in ks])
-    ax.set_ylabel('得到合规方案的墙数')
-    ax.set_title(f'(c) 可行性（全部 {len(S)} 面墙；只差槽顺序时联合规划可以重排）', loc='left',
-                 color=INK)
-    ax.legend(frameon=False, loc='upper right')
-    ax.grid(axis='x', visible=False)
+            ax.text(xi, vi + max(tot) * 0.02, f'{vi}', ha='center', va='bottom', fontsize=7)
+    ax.set_xticks(ks, [f'{k} slot{"s" if k > 1 else ""}\n(of {t} walls)'
+                       for k, t in zip(ks, tot)])
+    ax.set_ylabel('Walls with a compliant plan')
+    ax.set_ylim(0, max(tot) * 1.3)
+    ax.legend(loc='upper right')
+    fs.panel_label(ax, 'c', f'Feasibility (all {len(S)} walls)')
 
     # (d) 规划耗时
     ax = axs[1, 1]
@@ -353,17 +353,18 @@ def plot_results(S, P, nlb, gaps, out):
             v = [S[s][m]['plan_ms'] / 1000 for s in P if S[s]['joint']['slots'] == k]
             x = k + (j - 1) * 0.25
             q = np.percentile(v, [5, 50, 95])
-            ax.plot([x, x], [q[0], q[2]], color=COLORS[m], lw=2)
-            ax.scatter([x], [q[1]], color=COLORS[m], s=36, zorder=3,
-                       label=NAMES[m] if k == 1 else None)
+            ax.plot([x, x], [q[0], q[2]], color=fs.color(ROLES[m]), lw=1.2)
+            ax.plot([x], [q[1]], zorder=3, label=NAMES_EN[m] if k == 1 else None,
+                    **fs.marker(ROLES[m], ms=3.5))
     ax.set_yscale('log')
-    ax.set_xticks([1, 2, 3, 4], ['1 条槽', '2 条槽', '3 条槽', '4 条槽'])
-    ax.set_ylabel('规划耗时 (s)，点 = 中位数，竖线 = 5–95 分位')
-    ax.set_title('(d) 规划耗时（单线程，Python + C++ 搜索）', loc='left', color=INK)
-    ax.legend(frameon=False, loc='upper left')
-    fig.tight_layout()
-    fig.savefig(os.path.join(out, 'fig_results.png'), dpi=150)
-    print('\n已保存', os.path.join(out, 'fig_results.png'))
+    ax.set_ylim(2e-4, 300)
+    fs.plain_log(ax)
+    ax.set_xticks([1, 2, 3, 4], ['1 slot', '2 slots', '3 slots', '4 slots'])
+    ax.set_ylabel(fs.label('Planning time', 's'))
+    ax.legend(loc='upper left')
+    fs.note(ax, 'Marker: median; bar: 5th–95th percentile', x=0.98, y=0.02, va='bottom')
+    fs.panel_label(ax, 'd', 'Planning time (single thread, Python + C++ search)')
+    print('\n已保存', fs.save(fig, os.path.join(out, 'fig_results.png')))
 
 
 def plot_example(S, nlb, out, time_model='align_v3'):
@@ -375,7 +376,7 @@ def plot_example(S, nlb, out, time_model='align_v3'):
     import task_plan as tp
     import wall_gen as wg
     from scr_planner_py import OrientedAStar
-    plt = setup_mpl()
+    fs = setup_mpl()
     cand = [s for s in nlb if S[s]['joint']['slots'] in (2, 3)]
     seed = max(cand, key=lambda s: S[s]['current']['t_exact'] - S[s]['joint']['t_exact'])
     pl, robot = OrientedAStar(), sp.RobotModel()
@@ -388,45 +389,51 @@ def plot_example(S, nlb, out, time_model='align_v3'):
     us = [p[0] for s in cur.slots + joint.slots for p in s.cut_path]
     u0, u1 = min(us + [su]) - 0.35, max(us + [su]) + 0.35
     band = robot.reach_band
-    fig, axs = plt.subplots(2, 1, figsize=(12, 6.2), sharex=True)
-    slot_col = ('#2a78d6', '#eb6834', '#6250d6')
-    for ax, plan, title in ((axs[0], cur, '先选线后 DP（现有）'), (axs[1], joint, '联合规划')):
+    fig, axs = fs.subplots(2, 1, width='double', height=3.0, sharex=True)
+    slot_col = (fs.ORANGE, fs.PURPLE, fs.SKY)
+    for i, (ax, plan, m) in enumerate(((axs[0], cur, 'current'), (axs[1], joint, 'joint'))):
         for o in scene.obstacles:
             x, y, w, h = o.x / 100, o.y / 100, o.w / 100, o.h / 100
             if x + w < u0 or x > u1 or y > 1.0:
                 continue
-            ax.add_patch(mpatches.Rectangle((x, y), w, h, color='#b9b8b2', lw=0))
+            ax.add_patch(mpatches.Rectangle((x, y), w, h, color=fs.LIGHT, lw=0))
             if w >= 0.08 and y < 0.9:
-                ax.text(x + w / 2, min(y + h, 0.9) - 0.03, o.label, ha='center', va='top',
-                        fontsize=8, color=INK2)
+                name = OBST_EN.get(o.label, o.kind.replace('_', ' ').capitalize())
+                ax.text(x + w / 2, min(y + h, 0.9) - 0.03, name, ha='center', va='top',
+                        fontsize=7, color=fs.BLACK)
         for k, bs in enumerate(scene.task_boxes):
             for b in bs:
                 ax.add_patch(mpatches.Rectangle((b.x / 100, b.y / 100), b.w / 100, b.h / 100,
-                                                fill=False, ec=INK2, lw=1))
-        ax.axhspan(band[0], band[1], color='#eef4fc', zorder=0)
+                                                fill=False, ec=fs.GREY, lw=0.6))
+        ax.axhspan(band[0], band[1], color='#EEF4FA', lw=0, zorder=0)
         for st in plan.stations:
             ax.add_patch(mpatches.Rectangle((st.u_lo, band[0]), st.u_hi - st.u_lo,
-                                            band[1] - band[0], fill=False, ec='#86b6ef',
-                                            lw=0.8))
-            ax.plot([st.u_c], [band[0] - 0.035], marker='^', color=INK2, ms=5)
+                                            band[1] - band[0], fill=False,
+                                            ec=fs.color(ROLES[m]), lw=0.5))
+            ax.plot([st.u_c], [band[0] - 0.035], marker='^', color=fs.color(ROLES[m]), ms=3.5)
         for k, s in enumerate(plan.slots):
             p = np.array(s.cut_path)
-            ax.plot(p[:, 0], p[:, 1], color=slot_col[k % 3], lw=2.4, solid_capstyle='round',
-                    label=f'{s.label}（{"弱电" if s.circuit == "weak" else "强电"}）')
-        ax.axvline(su, color=INK2, ls=':', lw=1)
+            ax.plot(p[:, 0], p[:, 1], color=slot_col[k % 3], lw=1.6, solid_capstyle='round',
+                    label=f'Slot {k + 1} ({"low-voltage" if s.circuit == "weak" else "power"})')
+        ax.axvline(su, color=fs.GREY, ls=(0, (1, 1.5)), lw=0.8)
         pr = plan.prediction
-        ax.set_title(f'{title}：{pr["stations"]} 站，{pr["points"]} 个机械臂点，横移 '
-                     f'{pr["travel_m"]:.2f} m，预测 {pr["t_total"]:.1f} s', loc='left',
-                     color=INK)
+        fs.panel_label(ax, 'ab'[i], f'{NAMES_EN[m]}: {pr["stations"]} stations, '
+                       f'{pr["points"]} arm points, strafe {pr["travel_m"]:.2f} m, '
+                       f'predicted {pr["t_total"]:.1f} s')
         ax.set_ylim(band[0] - 0.08, 0.95)
         ax.set_xlim(u0, u1)
-        ax.set_ylabel('离地高度 v (m)')
+        ax.set_ylabel(fs.label('Height v', 'm'))
         ax.set_aspect('equal')
-        ax.grid(False)
-    axs[0].legend(frameon=False, loc='upper right', fontsize=8, ncol=3)
-    axs[1].set_xlabel('沿墙位置 u (m)（虚线：定位标记，三角：站位，蓝框：各站切割窗口）')
-    fig.tight_layout()
-    fig.savefig(os.path.join(out, 'fig_example.png'), dpi=150)
+    from matplotlib.lines import Line2D
+    from matplotlib.patches import Patch
+    h, lab = axs[0].get_legend_handles_labels()
+    h += [Line2D([], [], color=fs.GREY, ls=(0, (1, 1.5)), lw=0.8, label='Reference marker'),
+          Line2D([], [], color=fs.BLACK, ls='none', marker='^', ms=3.5, label='Station'),
+          Patch(fill=False, ec=fs.BLACK, lw=0.5, label='Cutting window per station'),
+          Patch(color=fs.LIGHT, label='Obstacle')]
+    fig.legend(handles=h, loc='outside lower center', ncol=4)
+    axs[1].set_xlabel(fs.label('Along-wall position u', 'm'))
+    fs.save(fig, os.path.join(out, 'fig_example.png'))
     print(f'示例墙：seed {seed}，{len(scene.tasks)} 条槽，现有 {cur.prediction} → 联合 '
           f'{joint.prediction}')
     print('已保存', os.path.join(out, 'fig_example.png'))

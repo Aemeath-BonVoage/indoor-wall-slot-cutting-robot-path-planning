@@ -14,6 +14,11 @@
 
 用法（仓库根目录，先 colcon build --packages-select scr_planner）:
   PYTHONUNBUFFERED=1 python3 src/scr_planner/scripts/wall_benchmark.py
+  python3 src/scr_planner/scripts/wall_benchmark.py --plot-only   # 只由已有 CSV 重画图
+
+--plot-only 读取 --out 下的 wall_results.csv / wall_summary.csv，按同一种子重新生成场景，
+只重新规划图中的三个示例场景（并核对其指标与 CSV 一致），输出 wall_comparison.png / .pdf
+（docs/figstyle 统一样式，英文）。
 """
 import argparse
 import csv
@@ -24,7 +29,7 @@ import time
 
 import numpy as np
 
-HERE = os.path.dirname(os.path.abspath(__file__))
+HERE = os.path.dirname(os.path.realpath(__file__))
 REPO = os.path.abspath(os.path.join(HERE, '..', '..', '..'))
 sys.path.insert(0, os.path.join(HERE, '..', 'python'))
 sys.path.insert(0, os.path.join(REPO, 'src', 'path_planning'))
@@ -69,17 +74,8 @@ def metrics(scene, cells):
                 compliant=int(sum(v.values()) == 0), **v)
 
 
-def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument('--partition', type=int, default=100, help='非承重墙场景数')
-    ap.add_argument('--load-bearing', type=int, default=40, help='承重墙场景数')
-    ap.add_argument('--seed', type=int, default=2026)
-    ap.add_argument('--out', default=os.path.join(REPO, 'docs', 'experiments', 'cpp_planner'))
-    ap.add_argument('--no-python', action='store_true', help='跳过第一版规划器（快速调试）')
-    args = ap.parse_args()
-
-    import improved_astar as ref  # noqa: E402  第一版规划器
-    cpp = OrientedAStar()
+def make_scenes(args, cpp):
+    """按种子生成场景；只避障都不可达的场景丢弃并计数."""
     rng = random.Random(args.seed)
     scenes, discarded = [], 0
     for lb, n in ((False, args.partition), (True, args.load_bearing)):
@@ -92,21 +88,80 @@ def main():
                 discarded += 1
                 continue
             scenes.append(s)
+    return scenes, discarded
+
+
+def plan_scene(ref, cpp, sc, use_python=True):
+    """一个场景上的三种方法：{method: (cells, time_ms, C++ 结果或 None)}."""
+    plain = sc.grid(top_preference=False)
+    ruled = sc.grid(top_preference=True)
+    out = {}
+    if use_python:
+        cells, t = run_python(ref, sc, plain)
+        out['py_enhanced'] = (cells, t, None)
+    r = cpp.plan(plain, sc.start, sc.goal, **sc.params(rules=False))
+    out['cpp_plain'] = (wr.densify(r['corners']) if r['ok'] else [], r['time_ms'], r)
+    r = cpp.plan(ruled, sc.start, sc.goal, **sc.params(rules=True))
+    out['cpp_rules'] = (wr.densify(r['corners']) if r['ok'] else [], r['time_ms'], r)
+    return out
+
+
+def _num(v):
+    try:
+        f = float(v)
+    except (TypeError, ValueError):
+        return v
+    return int(f) if f.is_integer() else f
+
+
+def plot_only(args, ref, cpp):
+    """由已提交的 CSV 重画图：只重新规划示例场景，并核对指标与 CSV 一致."""
+    with open(os.path.join(args.out, 'wall_results.csv'), encoding='utf-8') as f:
+        rows = [{k: (_num(v) if k not in ('wall', 'start', 'goal', 'task', 'method') else v)
+                 for k, v in r.items()} for r in csv.DictReader(f)]
+    with open(os.path.join(args.out, 'wall_summary.csv'), encoding='utf-8') as f:
+        summary = [{k: (_num(v) if k not in ('wall', 'method') else v) for k, v in r.items()}
+                   for r in csv.DictReader(f)]
+    scenes, _ = make_scenes(args, cpp)
+    by = {(r['scene'], r['method']): r for r in rows}
+    for i, sc in enumerate(scenes):         # 场景与 CSV 一致（起终点）
+        assert by[(i, 'cpp_rules')]['start'] == str(sc.start), f'scene {i}: start mismatch'
+        assert by[(i, 'cpp_rules')]['goal'] == str(sc.goal), f'scene {i}: goal mismatch'
+    paths = {}
+    for i in pick_examples(scenes, rows):
+        out = plan_scene(ref, cpp, scenes[i])
+        paths[i] = {m: v[0] for m, v in out.items()}
+        for m, (cells, _, _) in out.items():
+            got, ref_row = metrics(scenes[i], cells), by[(i, m)]
+            for k in ('found', 'length_cm', 'turns', 'compliant') + VIOLATION_KEYS:
+                if ref_row['found']:
+                    assert abs(float(got[k]) - float(ref_row[k])) < 1e-6, \
+                        f'scene {i} {m} {k}: {got[k]} != {ref_row[k]}'
+        print(f'示例场景 {i}：重新规划的指标与 wall_results.csv 一致')
+    plot(scenes, paths, rows, summary, args.out)
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument('--partition', type=int, default=100, help='非承重墙场景数')
+    ap.add_argument('--load-bearing', type=int, default=40, help='承重墙场景数')
+    ap.add_argument('--seed', type=int, default=2026)
+    ap.add_argument('--out', default=os.path.join(REPO, 'docs', 'experiments', 'cpp_planner'))
+    ap.add_argument('--no-python', action='store_true', help='跳过第一版规划器（快速调试）')
+    ap.add_argument('--plot-only', action='store_true', help='只由已有 CSV 重画图')
+    args = ap.parse_args()
+
+    import improved_astar as ref  # noqa: E402  第一版规划器
+    cpp = OrientedAStar()
+    if args.plot_only:
+        return plot_only(args, ref, cpp)
+    scenes, discarded = make_scenes(args, cpp)
     print(f'场景: {len(scenes)} 个，丢弃只避障也不可达的 {discarded} 个')
 
     rows, paths = [], []
     for i, sc in enumerate(scenes):
         plain = sc.grid(top_preference=False)
-        ruled = sc.grid(top_preference=True)
-        out = {}
-        if not args.no_python:
-            cells, t = run_python(ref, sc, plain)
-            out['py_enhanced'] = (cells, t, None)
-        r = cpp.plan(plain, sc.start, sc.goal, **sc.params(rules=False))
-        out['cpp_plain'] = (wr.densify(r['corners']) if r['ok'] else [], r['time_ms'], r)
-        r = cpp.plan(ruled, sc.start, sc.goal, **sc.params(rules=True))
-        out['cpp_rules'] = (wr.densify(r['corners']) if r['ok'] else [], r['time_ms'], r)
-
+        out = plan_scene(ref, cpp, sc, not args.no_python)
         # 承重墙只能走竖槽：合规路径存在 <=> 入墙点到线盒的竖直线全程可开槽（独立判定）
         feasible = ''
         if sc.load_bearing:
@@ -175,15 +230,8 @@ def main():
     plot(scenes, paths, rows, summary, args.out)
 
 
-def plot(scenes, paths, rows, summary, out):
-    import matplotlib
-    matplotlib.use('Agg')
-    import matplotlib.pyplot as plt
-    from matplotlib.patches import Arc, Rectangle
-    matplotlib.rcParams['font.sans-serif'] = ['Noto Sans CJK SC', 'Noto Sans CJK JP',
-                                              'Noto Serif CJK JP', 'DejaVu Sans']
-    matplotlib.rcParams['axes.unicode_minus'] = False
-
+def pick_examples(scenes, rows):
+    """图中的三个示例：横槽过长、弯放不下、承重墙上的横槽（各取第一个满足条件的场景）."""
     by = {(r['scene'], r['method']): r for r in rows}
 
     def pick(pred):
@@ -201,38 +249,54 @@ def plot(scenes, paths, rows, summary, out):
         pick(lambda i, sc: sc.load_bearing and by.get((i, 'py_enhanced'), {}).get(
             'horizontal_on_load_bearing', 0) > 0),
     ]
-    examples = [e for e in examples if e is not None][:3]
-    colors = {'kind': {'door': '#8E9AAF', 'window': '#9FC5E8', 'beam': '#7F7F7F',
-                       'column': '#7F7F7F', 'box': '#E06666', 'weak_line': '#6AA84F',
-                       'pier': '#B4A7D6'}}
-    fig, axes = plt.subplots(1, len(examples) + 1, squeeze=False, figsize=(5.2 * (len(examples) + 1), 4.6),
-                             gridspec_kw={'width_ratios': [1.15] * len(examples) + [1.0]})
-    axes = axes[0]
-    for ax, i in zip(axes, examples):
+    return [e for e in examples if e is not None][:3]
+
+
+def plot(scenes, paths, rows, summary, out):
+    sys.path.insert(0, os.path.join(REPO, 'docs'))
+    import figstyle as fs
+    from matplotlib.patches import Rectangle
+
+    by = {(r['scene'], r['method']): r for r in rows}
+    examples = pick_examples(scenes, rows)
+    kind_color = {'door': '#BFBFBF', 'window': '#C6DBEF', 'beam': '#8C8C8C',
+                  'column': '#8C8C8C', 'box': fs.GREY, 'weak_line': '#A1D99B', 'pier': '#DADAEB'}
+    viol_en = {'horizontal_too_long': 'horizontal run > 50 cm', 'short_leg': 'no room for bend',
+               'horizontal_on_load_bearing': 'horizontal slot on load-bearing wall',
+               'arc_blocked': 'bend hits obstacle', 'diagonal': 'diagonal slot',
+               'blocked_cell': 'crosses obstacle'}
+    styles = (('py_enhanced', 'baseline', 'First-version planner (Python)'),
+              ('cpp_rules', 'proposed', 'C++ planner + slotting rules'))
+    import textwrap
+    fig = fs.figure(width='double', height=4.6)
+    gs = fig.add_gridspec(2, max(len(examples), 1), height_ratios=[1.5, 0.8])
+    wmax = max(scenes[i].width for i in examples)
+    hmax = max(scenes[i].height for i in examples)
+    axes = [fig.add_subplot(gs[0, k]) for k in range(len(examples))]
+    axes.append(fig.add_subplot(gs[1, :]))
+    for n, (ax, i) in enumerate(zip(axes, examples)):
+        verdicts = []
         sc = scenes[i]
         blocked = sc.grid(top_preference=False) >= 253
-        ax.imshow(np.where(blocked, 0.86, 1.0), cmap='gray', vmin=0, vmax=1, origin='lower',
-                  extent=(0, sc.width, 0, sc.height))
+        ax.imshow(np.where(blocked, 0.9, 1.0), cmap='gray', vmin=0, vmax=1, origin='lower',
+                  extent=(0, sc.width, 0, sc.height), interpolation='nearest')
         for o in sc.obstacles:
-            ax.add_patch(Rectangle((o.x, o.y), o.w, o.h, color=colors['kind'][o.kind], alpha=0.9))
-        for m, col, ls, lw, lab in (('py_enhanced', '#E67E22', '-', 2.4, '第一版规划器 (Python)'),
-                                    ('cpp_rules', '#1F4E9C', '-', 1.8, 'C++ + 开槽规范')):
+            ax.add_patch(Rectangle((o.x, o.y), o.w, o.h, color=kind_color[o.kind], lw=0))
+        for m, role, lab in styles:
             cells = paths[i].get(m) or []
             r = by.get((i, m))
+            short = 'First version' if role == 'baseline' else 'C++ + rules'
             if not cells:
-                ax.plot([], [], color=col, label=f'{lab}: 无合规路径')
+                verdicts.append(f'{short}: no compliant path exists')
                 continue
-            tag = '合规' if r['compliant'] else '违规: ' + ', '.join(
-                {'horizontal_too_long': '横槽>50cm', 'short_leg': '弯放不下',
-                 'horizontal_on_load_bearing': '承重墙横槽', 'arc_blocked': '弯碰障碍',
-                 'diagonal': '斜槽', 'blocked_cell': '穿障碍'}[k]
-                for k in VIOLATION_KEYS if r[k] > 0)
+            tag = 'compliant' if r['compliant'] else 'violates ' + ', '.join(
+                viol_en[k] for k in VIOLATION_KEYS if r[k] > 0)
+            verdicts.append(f'{short}: {tag}')
             if m == 'cpp_rules':  # 画出半径 12 cm 的弯管圆弧
                 segs = wr.segments(cells)
                 pts = [segs[0][0]] + [s[1] for s in segs]
                 R = wr.BEND_RADIUS
-                xs, ys = [], []
-                xs.append(pts[0][0]); ys.append(pts[0][1])
+                xs, ys = [pts[0][0]], [pts[0][1]]
                 for k in range(1, len(pts) - 1):
                     a, c, b = np.array(pts[k - 1]), np.array(pts[k]), np.array(pts[k + 1])
                     u = (c - a) / np.linalg.norm(c - a)
@@ -243,43 +307,58 @@ def plot(scenes, paths, rows, summary, out):
                     da = np.arctan2(*(p1 - ctr)[::-1]) - a0
                     da = (da + np.pi) % (2 * np.pi) - np.pi
                     t = np.linspace(a0, a0 + da, 20)
-                    xs += list(ctr[0] + R * np.cos(t)); ys += list(ctr[1] + R * np.sin(t))
-                xs.append(pts[-1][0]); ys.append(pts[-1][1])
-                ax.plot(xs, ys, ls, color=col, lw=lw, label=f'{lab}: {tag}')
+                    xs += list(ctr[0] + R * np.cos(t))
+                    ys += list(ctr[1] + R * np.sin(t))
+                xs.append(pts[-1][0])
+                ys.append(pts[-1][1])
             else:
-                ax.plot([c[0] for c in cells], [c[1] for c in cells], ls, color=col, lw=lw,
-                        label=f'{lab}: {tag}')
-        ax.plot(*sc.start, 's', color='k', ms=6)
-        ax.plot(*sc.goal, 'o', color='#C00000', ms=7)
-        ax.set_title(f"场景 #{i}（{'承重墙' if sc.load_bearing else '非承重墙'}，"
-                     f"{sc.start_label}→{sc.goal_label}）", fontsize=10)
-        ax.set_xlim(0, sc.width)
-        ax.set_ylim(0, sc.height)
+                xs, ys = [c[0] for c in cells], [c[1] for c in cells]
+            ax.plot(xs, ys, **fs.line(role, lw=1.4 if role == 'baseline' else 1.1))
+        ax.plot(*sc.start, 's', color=fs.BLACK, ms=3.5)
+        ax.plot(*sc.goal, 'o', color=fs.BLACK, ms=3.5, mfc='white')
+        fs.panel_label(ax, 'abcd'[n], f"Scene #{i} "
+                       f"({'load-bearing' if sc.load_bearing else 'partition'} wall)")
+        ax.add_patch(Rectangle((0, 0), sc.width, sc.height, fill=False, ec=fs.BLACK, lw=0.5))
+        ax.set_xlim(0, wmax)          # 三个示例用同一坐标范围，面板等大
+        ax.set_ylim(0, hmax)
         ax.set_aspect('equal')
-        ax.set_xlabel('cm')
-        ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.12), fontsize=8, frameon=False)
+        ax.set_xlabel(fs.label('u', 'cm'))
+        ax.annotate('\n'.join(textwrap.fill(v, 46) for v in verdicts), xy=(0.5, 0),
+                    xycoords='axes fraction', xytext=(0, -24), textcoords='offset points',
+                    ha='center', va='top', fontsize=7)
+    axes[0].set_ylabel(fs.label('v', 'cm'))
+    from matplotlib.lines import Line2D
+    from matplotlib.patches import Patch
+    handles = [Line2D([], [], label=lab, **fs.line(role)) for _, role, lab in styles]
+    handles += [Line2D([], [], color=fs.BLACK, marker='s', ls='none', ms=3.5,
+                       label='Wall entry point'),
+                Line2D([], [], color=fs.BLACK, marker='o', mfc='white', ls='none', ms=3.5,
+                       label='Target box'),
+                Patch(color='0.9', label='Blocked (obstacle + margin)')]
+    fig.legend(handles=handles, loc='outside upper center', ncol=5)
 
     ax = axes[-1]
-    labels = {'py_enhanced': '第一版规划器 (Python)', 'cpp_plain': 'C++ 只避障', 'cpp_rules': 'C++ + 规范'}
+    labels = {'py_enhanced': 'First-version planner (Python)',
+              'cpp_plain': 'C++, obstacle avoidance only', 'cpp_rules': 'C++ + slotting rules'}
+    roles = {'py_enhanced': 'baseline', 'cpp_plain': 'alt2', 'cpp_rules': 'proposed'}
     x = np.arange(2)
     for k, m in enumerate(METHODS):
         vals = []
         for wall in ('partition', 'load_bearing'):
             d = next((d for d in summary if d['wall'] == wall and d['method'] == m), None)
             vals.append(100.0 * d['violating'] / d['n'] if d else 0)
-        bars = ax.bar(x + (k - 1) * 0.26, vals, 0.25, label=labels[m],
-                      color=('#E67E22', '#9B59B6', '#1F4E9C')[k])
+        bars = ax.bar(x + (k - 1) * 0.2, vals, 0.19, label=labels[m], **fs.bar(roles[m]))
         for b, v in zip(bars, vals):
-            ax.text(b.get_x() + b.get_width() / 2, v + 1, f'{v:.0f}%', ha='center', fontsize=8)
+            ax.text(b.get_x() + b.get_width() / 2, v + 1.5, f'{v:.0f}%', ha='center',
+                    va='bottom', fontsize=7)
     ax.set_xticks(x)
-    ax.set_xticklabels(['非承重墙', '承重墙'])
-    ax.set_ylabel('输出违规路径的场景占比 (%)')
-    ax.set_ylim(0, 110)
-    ax.set_title('违反开槽规范的输出（越低越好）', fontsize=10)
-    ax.legend(fontsize=8)
-    fig.tight_layout()
-    fig.savefig(os.path.join(out, 'wall_comparison.png'), dpi=110, bbox_inches='tight')
-    print('图已保存:', os.path.join(out, 'wall_comparison.png'))
+    ax.set_xticklabels(['Partition walls (n = 100)', 'Load-bearing walls (n = 40)'])
+    ax.set_xlim(-0.5, 2.6)
+    ax.set_ylabel(fs.label('Scenes with a\nrule-violating path', '%'))
+    ax.set_ylim(0, 118)
+    ax.legend(loc='center right')
+    fs.panel_label(ax, 'abcd'[len(examples)], 'Rule violations (lower is better)')
+    print('图已保存:', fs.save(fig, os.path.join(out, 'wall_comparison.png')))
 
 
 if __name__ == '__main__':
