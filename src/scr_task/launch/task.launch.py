@@ -21,7 +21,8 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'alignment_params',
             default_value=os.path.join(arm_share, 'config', 'fine_alignment.yaml'),
-            description='Fine-alignment parameters (alignment.*) for the skill server'),
+            description='Fine-alignment parameters (alignment.*) for the skill server; the '
+                        'default enables the multi-tag map and lateral scale estimation'),
         DeclareLaunchArgument(
             'odom_topic', default_value='/odom',
             description='Odometry for the skills\' local loops (/wheel/odom when fusing an EKF)'),

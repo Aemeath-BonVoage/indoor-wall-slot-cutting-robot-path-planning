@@ -1,5 +1,6 @@
 """TagMap 单元测试：加载与校验、子地图、位置误差扰动."""
 import math
+import os
 
 import pytest
 
@@ -84,3 +85,4 @@ def test_resolve_path():
     assert resolve_path('', '/cfg') is None
     assert resolve_path('/a/b.yaml', '/cfg') == '/a/b.yaml'
     assert resolve_path('tag_map.yaml', '/cfg') == '/cfg/tag_map.yaml'
+    assert resolve_path('~/maps/a.yaml', '/cfg') == os.path.expanduser('~/maps/a.yaml')

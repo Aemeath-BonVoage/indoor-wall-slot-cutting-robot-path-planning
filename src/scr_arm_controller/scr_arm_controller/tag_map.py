@@ -130,9 +130,10 @@ class TagMap:
 
 
 def resolve_path(path, config_dir=None):
-    """相对路径按 config_dir（默认本包的 share/config）解析；空串返回 None."""
+    """相对路径按 config_dir（默认本包的 share/config）解析；空串返回 None；展开 ~."""
     if not path:
         return None
+    path = os.path.expanduser(path)
     if os.path.isabs(path) or config_dir is None:
         return path
     return os.path.join(config_dir, path)

@@ -73,15 +73,15 @@ ALIGNMENT_PARAMS = {
     'sigma_hold': 0.01,                # σ_u 超过该值（米）时停车等待标记
     'fold_residual': True,             # 多站：以估计的标记位置（而非停车位姿）为墙面坐标原点
     # 多站：站间横移与到站残差测量时，视野内的定位标记继续参与沿墙位置更新
-    'strafe_tag_updates': False,
+    'strafe_tag_updates': True,
     # 横移前机械臂先回观测位姿（滑台 observe_joint1、伸缩轴缩回），使墙上的标记处在画面内、
     # 不被机械臂遮挡；只在 strafe_tag_updates 时生效。切割位姿下滑台较低，标记落在画面上沿外
     'observe_between_stations': True,
     # 标记地图（tag_map.py 的 YAML；相对路径按本包 config 目录解析）。空串 = 只有 tag_id
     # 一个标记，站间沿墙位置只能由里程计外推
-    'tag_map': '',
+    'tag_map': 'tag_map.yaml',
     # 横移比例修正 s 作为 EKF 的第四个状态在线估计（真实横移 = (1 + s)·里程计横移）
-    'estimate_scale': False,
+    'estimate_scale': True,
     'scale_init': 0.0,                 # s 的先验（可填离线标定值）
     'scale_sigma': 0.05,               # s 的先验标准差
 }
