@@ -4,10 +4,13 @@
 
   python3 src/scr_planner/scripts/plan_wall_slots.py <task.yaml> <plan.yaml>
       [--routes=rule|joint] [--partition=dp|greedy|per_slot] [--order=sweep|slot_by_slot]
+      [--time-model=align_v2|align_v1]
 
 --routes=rule（默认）：逐条槽按开槽规范代价选线，再划分停靠站；
 --routes=joint：槽线与停靠站联合规划，最小化预测执行时间（task_plan.py，
 docs/experiments/task_planning）。两者输出格式相同，执行器无需区分。
+--time-model：时间模型预设（slot_plan.TIME_MODELS），默认为当前执行路径的标定 align_v2；
+align_v1 用于复现第一版精对位下的报告数字。
 
 规划结果包含：每条槽的正交折线、停靠站（按执行顺序）、每站底盘位姿与机械臂切割点、
 预测执行时间。参考原点是 Gazebo 中的黄色定位标记（执行时先对位到它）。
@@ -30,7 +33,7 @@ from scr_planner_py import OrientedAStar  # noqa: E402
 MARKER_XY = (8.42, -3.9245)
 
 
-def plan_file(task_file, partition=None, order=None, routes=None):
+def plan_file(task_file, partition=None, order=None, routes=None, time_model=None):
     with open(task_file, encoding='utf-8') as f:
         cfg = yaml.safe_load(f)
     scene, wall = sp.scene_from_config(cfg)
@@ -43,7 +46,8 @@ def plan_file(task_file, partition=None, order=None, routes=None):
                         retract_between_turns=opt.get('retract_between_turns', True),
                         partition=partition or opt.get('partition', 'dp'),
                         order=order or opt.get('order', 'sweep'), start_u=marker_u,
-                        routes=routes or opt.get('routes', 'rule'))
+                        routes=routes or opt.get('routes', 'rule'),
+                        tm=sp.TimeModel.preset(time_model or opt.get('time_model', 'align_v2')))
     return sp.plan_to_dict(plan, wall, robot, opt.get('duration', 2.0), scene=scene,
                            marker_u=marker_u), plan
 
@@ -54,7 +58,8 @@ def main():
         print(__doc__)
         sys.exit(1)
     kw = dict(a[2:].split('=', 1) for a in sys.argv[1:] if a.startswith('--'))
-    d, plan = plan_file(args[0], kw.get('partition'), kw.get('order'), kw.get('routes'))
+    d, plan = plan_file(args[0], kw.get('partition'), kw.get('order'), kw.get('routes'),
+                        kw.get('time-model'))
     with open(args[1], 'w', encoding='utf-8') as f:
         yaml.safe_dump(d, f, allow_unicode=True, sort_keys=False)
     print(f"{d['status']}: {len(d['slots'])} 条槽 {d['length']:.3f} m，{len(d['stations'])} 个停靠站 "

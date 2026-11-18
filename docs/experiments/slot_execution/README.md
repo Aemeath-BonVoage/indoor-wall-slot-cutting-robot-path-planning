@@ -72,6 +72,8 @@
 每站耗时 = t_settle + 横移距离 / v_strafe + 机械臂点数 × t_point
 ```
 
+（本小节为第一版精对位下的标定，现保存为预设 `align_v1`；精对位第二版下的重标定见下文“时间模型重标定”。）
+
 用力控仿真（main a43d3dd）上、经主任务执行路径的四次完整执行（54 个停靠站）最小二乘拟合：**t_settle = 4.40 s，v_strafe = 0.0945 m/s，t_point = 2.034 s，R² = 1.000，每站 RMSE 0.10 s**（`calibrate_time_model.py`，已写入 `slot_plan.TimeModel`）。
 
 | 标定数据 | t_settle | v_strafe | t_point | 每站 RMSE |
@@ -233,6 +235,44 @@
 2. **站间重复性也提高**：站间标准差 0.12–0.18 mm（第一版 0.38–0.41 mm），到站朝向误差 0.06°（第一版 0.29–0.36°）。这一项来自站间横移改用 EKF + 新控制律（第一版用激光朝向的指数平滑，单帧抖动约 ±1°），与原点修正无关。
 3. **横移更快**：每站“横移 + 到位”平均 2.8 s（第一版 4.5 s），各站耗时之和 233 s，比第一版少 6.5 %。时间模型（`slot_plan.TimeModel`，t_settle 4.40 s、v 0.0945 m/s）是用第一版执行路径标定的，现在偏保守，需要重新标定。
 4. 刀尖轨迹误差的 95 分位从 0.37–0.98 mm 降到 0.22–0.53 mm，最大值从 1.2–1.3 mm 降到 0.8–0.9 mm。
+
+## 时间模型重标定（精对位第二版）
+
+上文的时间模型（t_settle 4.40 s、v_strafe 0.0945 m/s、t_point 2.034 s）是用第一版精对位下的执行数据标定的；精对位第二版的站间横移改用 EKF 与平方根整形控制律后，每站“横移 + 到位”从约 4.5 s 降到 2.8 s，该模型偏保守。用 `runs/fine_align_dp`、`fine_align_dp_repeat`、`fine_align_dp_nofold` 三次运行的 33 个停靠站重新标定。`nofold` 只改变墙面坐标原点，横移、定点保持与切割的时序与另两次相同，所以一并纳入。
+
+**方法**。`stations.csv` 中每站耗时 = 到站 `move_s` + 切割 `cut_s` + 其余固定开销（测残差、记录器采真值等，1.2–1.3 s）。这批数据的横移阶段非常确定（`move_s` 对横移距离的线性拟合残差 0.05 s），但切割阶段在 3 / 33 个站上有 2.2–2.7 s 的停顿（`fine_align_dp` 第 7 站、`fine_align_dp_repeat` 第 8 站、`fine_align_dp_nofold` 第 0 站）。横移距离只有 0.055 / 0.12 / 0.23 m 三档，0.23 m 只出现在每次运行的第 0 站，所以对每站总耗时做整体最小二乘时，`nofold` 第 0 站的停顿被当成横移变慢：v_strafe = 0.063 m/s，逐次运行留一交叉验证时在 0.052–0.097 m/s 之间摆动。为此 `calibrate_time_model.py` 增加按阶段估计（`--method=phases`）：
+
+- 横移阶段：`move_s = a + d / v_strafe`，最小二乘；
+- 切割阶段：`t_point = Σ cut_s / Σ 点数`，停顿按平均摊入；
+- 固定开销：`c = mean(station_s − move_s − cut_s)`；`t_settle = a + c`。
+
+**结果**：
+
+| 预设 | 标定数据 | 方法 | t_settle | v_strafe | t_point |
+|---|---|---|---|---|---|
+| `align_v1` | 第一版精对位，`dp`、`dp_repeat`、`per_slot`、`per_slot_repeat`（54 站） | 整体最小二乘 | 4.40 s | 0.0945 m/s | 2.034 s |
+| **`align_v2`（默认）** | 第二版精对位，`fine_align_*`（33 站） | 按阶段估计 | **2.83 s** | **0.0984 m/s** | **2.049 s** |
+
+在第二版的 33 个停靠站上比较：
+
+| 模型 | 每站 RMSE | 平均偏差（预测 − 实测） | 各站耗时之和的误差（`dp` / `nofold` / `repeat`） |
+|---|---|---|---|
+| `align_v1` | 1.65 s | +1.50 s | +16.5 / +16.3 / +16.8 s（约 +7.1 %） |
+| `align_v2`，样本内 | 0.68 s（去掉 3 个停顿站为 0.24 s） | −0.02 s | −0.2 / −0.4 / +0.1 s |
+| `align_v2`，逐次运行留一交叉验证 | 0.68 s | — | −0.1 / −0.3 / +0.4 s |
+| 整体最小二乘（对照），留一交叉验证 | 0.79 s | — | −0.1 / −0.4 / +0.4 s |
+
+反过来，`align_v2` 用于第一版的 54 站时每站偏低 1.54 s，即两个预设各自只适用于对应的执行路径。对本节使用的 11 站规划（`runs/dp/slot_plan.yaml`），`align_v1` 预测 250.0 s，`align_v2` 预测 233.5 s，三次实测 233.2–233.7 s（样本内）。
+
+- 两个预设保存在 `slot_plan.TIME_MODELS`，`TimeModel()` 的默认值为 `align_v2`；`plan_wall_slots.py --time-model=align_v1` 等可复现此前的报告数字。
+- 重标定只改变 t_settle（4.40 → 2.83 s），t_point 与 v_strafe 基本不变：站数在总时间中的权重下降，机械臂点数的权重相对上升。
+- **局限**：只有一份规划（11 站）、3 次运行；横移距离只覆盖 0.055–0.23 m，站间相距 1 m 以上时 v_strafe 是外推值；停顿的原因没有排查。用新模型规划的任务尚未在 Gazebo 中做样本外验证。任务级规划在新模型下的结果见 [task_planning](../task_planning/README.md#时间模型重标定精对位第二版)。
+
+```bash
+python3 src/scr_planner/scripts/calibrate_time_model.py docs/experiments/slot_execution/runs/fine_align_dp \
+    docs/experiments/slot_execution/runs/fine_align_dp_repeat docs/experiments/slot_execution/runs/fine_align_dp_nofold \
+    --method=phases --compare=align_v1,align_v2 --loo
+```
 
 ## 单条槽的执行精度（补偿方法的验证，旧仿真）
 

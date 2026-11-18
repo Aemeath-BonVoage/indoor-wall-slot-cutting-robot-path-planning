@@ -18,12 +18,17 @@
 
   python3 src/scr_planner/scripts/task_planning_benchmark.py --scenes 400 --jobs 2
   python3 src/scr_planner/scripts/task_planning_benchmark.py --sensitivity --scenes 120
+  python3 src/scr_planner/scripts/task_planning_benchmark.py --time-model align_v1 --out <dir>
 
-输出（默认 docs/experiments/task_planning/data/）：
+--time-model：时间模型预设（slot_plan.TIME_MODELS），默认 align_v2（当前执行路径的标定）；
+  data/ 下的原始结果用 align_v1（第一版精对位下的标定）生成，align_v2/data/ 用 align_v2。
+
+输出（默认 docs/experiments/task_planning/align_v2/data/；align_v1 为 data/）：
   results.csv（每面墙 × 每种方法一行）、lee.csv（每条槽一行）、sensitivity.csv
 """
 import argparse
 import csv
+import functools
 import multiprocessing as mp
 import os
 import random
@@ -194,8 +199,8 @@ SENS = (('calibrated', 1.0, 1.0, 1.0), ('settle_x2', 2.0, 1.0, 1.0),
         ('strafe_x2', 1.0, 2.0, 1.0))
 
 
-def run_sens(seed):
-    base = sp.TimeModel()
+def run_sens(seed, tm=None):
+    base = tm or sp.TimeModel()
     out = []
     for name, ks, kv, kp in SENS:
         tm = sp.TimeModel(base.t_settle * ks, base.v_strafe * kv, base.t_point * kp)
@@ -221,19 +226,24 @@ def main():
     ap.add_argument('--seed0', type=int, default=1000)
     ap.add_argument('--jobs', type=int, default=2)
     ap.add_argument('--sensitivity', action='store_true')
-    ap.add_argument('--out', default=os.path.join(REPO, 'docs', 'experiments', 'task_planning',
-                                                  'data'))
+    ap.add_argument('--time-model', default='align_v2', choices=sorted(sp.TIME_MODELS))
+    ap.add_argument('--out', default=None)
     args = ap.parse_args()
+    tm = sp.TimeModel.preset(args.time_model)
+    args.out = args.out or os.path.join(
+        REPO, 'docs', 'experiments', 'task_planning',
+        *(('data',) if args.time_model == 'align_v1' else (args.time_model, 'data')))
+    print(f'时间模型 {args.time_model}：{tm}', flush=True)
     os.makedirs(args.out, exist_ok=True)
     seeds = list(range(args.seed0, args.seed0 + args.scenes))
     t0 = time.time()
     with mp.Pool(min(args.jobs, 2), initializer=_init) as pool:
         if args.sensitivity:
-            rows = [r for rs in pool.imap(run_sens, seeds) for r in rs]
+            rows = [r for rs in pool.imap(functools.partial(run_sens, tm=tm), seeds) for r in rs]
             write(os.path.join(args.out, 'sensitivity.csv'), rows)
         else:
             rows = []
-            for i, rs in enumerate(pool.imap(run_scene, seeds)):
+            for i, rs in enumerate(pool.imap(functools.partial(run_scene, tm=tm), seeds)):
                 rows += rs
                 if i % 20 == 0:
                     d = {r['method']: r.get('t_total') for r in rs

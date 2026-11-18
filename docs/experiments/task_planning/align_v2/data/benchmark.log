@@ -1,0 +1,26 @@
+时间模型 align_v2：TimeModel(t_settle=2.83, v_strafe=0.0984, t_point=2.049)
+[   0]     12 s  {'current': None, 'joint': 392.3, 'lower_bound': 354.5}
+[  20]     36 s  {'current': 17.4, 'joint': 17.4, 'lower_bound': 17.4}
+[  40]     63 s  {'current': 63.0, 'joint': 63.0, 'lower_bound': 63.0}
+[  60]     87 s  {'current': 24.8, 'joint': 24.8, 'lower_bound': 24.8}
+[  80]    125 s  {'current': 462.4, 'joint': 437.8, 'lower_bound': 437.8}
+[ 100]    172 s  {'current': 72.5, 'joint': 72.5, 'lower_bound': 72.5}
+[ 120]    217 s  {'current': 167.0, 'joint': 158.8, 'lower_bound': 158.8}
+[ 140]    262 s  {'current': 287.9, 'joint': 279.7, 'lower_bound': 279.7}
+[ 160]    299 s  {'current': None, 'joint': None, 'lower_bound': 412.3}
+[ 180]    340 s  {'current': None, 'joint': None, 'lower_bound': 392.2}
+[ 200]    386 s  {'current': 235.4, 'joint': 235.4, 'lower_bound': 235.4}
+[ 220]    424 s  {'current': 302.0, 'joint': 302.0, 'lower_bound': 277.4}
+[ 240]    460 s  {'current': None, 'joint': None, 'lower_bound': 380.0}
+[ 260]    505 s  {'current': 14.7, 'joint': 14.7, 'lower_bound': 14.7}
+[ 280]    554 s  {'current': 357.7, 'joint': 333.1, 'lower_bound': 333.1}
+[ 300]    600 s  {'current': 49.7, 'joint': 49.7, 'lower_bound': 49.7}
+[ 320]    643 s  {'current': 44.4, 'joint': 44.4, 'lower_bound': 44.4}
+[ 340]    688 s  {'current': None, 'joint': None, 'lower_bound': 232.0}
+[ 360]    730 s  {'current': 184.3, 'joint': 173.3, 'lower_bound': 173.3}
+[ 380]    772 s  {'current': None, 'joint': None, 'lower_bound': 527.9}
+400 面墙，910 s
+
+real	15m10.014s
+user	28m1.933s
+sys	0m54.499s
