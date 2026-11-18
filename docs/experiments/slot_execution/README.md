@@ -320,15 +320,27 @@ python3 src/scr_planner/scripts/plan_wall_slots.py src/scr_planner/config/wall_t
 python3 src/scr_planner/scripts/plan_wall_slots.py src/scr_planner/config/wall_task_room3_south.yaml /tmp/plan_naive.yaml \
     --partition=per_slot --order=slot_by_slot
 
-# 2. Gazebo 中逐站执行（只读规划文件）。带 Nav2 的流程用 rtf=1
-ros2 launch scr_bringup sim_nav.launch.py gui:=false rviz:=false
-#   主任务（执行主路径）：
+# 2. Gazebo 中逐站执行（只读规划文件）。带 Nav2 的流程用 rtf=1。
+#    执行由行为树任务层完成（sim_nav.launch.py 默认启动）；本报告的数据在早期配置下取得：
+#    底盘力控插件、/odom 为真值、NavFn + DWB
+ros2 launch scr_bringup sim_nav.launch.py gui:=false rviz:=false base_control:=plugin \
+    params_file:=$(ros2 pkg prefix scr_navigation)/share/scr_navigation/config/nav2_params_dwb.yaml
+#   任务客户端（发给行为树执行器 /execute_slot_plan）：
 ros2 run scr_arm_controller navigation_cutting_task /tmp/plan_dp.yaml --dry-run-gap=0.01
-#   或带真值记录的实验记录器（同一执行路径 + 评估输出）：
+#   或带真值记录的实验记录器（同一 action 的客户端 + 评估输出）：
 ros2 run scr_planner execute_slot_plan.py /tmp/plan_dp.yaml /tmp/run_dp --dry-run-gap=0.01
 #   每站都走 Nav2 的对照：再加 --max-strafe=0.1
-#   精对位改进后的复测（runs/fine_align_*）；原点消融再加 --ros-args -p alignment.fold_residual:=false
+#   第一版精对位下的运行（runs/dp、per_slot 等）：当前多站行为树只使用精对位第二版，
+#   复现这些数据需检出 a44d354 并按当时的命令运行
+#   精对位改进后的复测（runs/fine_align_*）：
 ros2 run scr_planner execute_slot_plan.py docs/experiments/slot_execution/runs/dp/slot_plan.yaml /tmp/run_fine_align --dry-run-gap=0.01
+#   原点消融（runs/fine_align_dp_nofold）：精对位参数属于技能服务器，在启动时传入
+sed 's/fold_residual: true/fold_residual: false/' \
+    $(ros2 pkg prefix scr_arm_controller)/share/scr_arm_controller/config/fine_alignment.yaml > /tmp/fine_alignment_nofold.yaml
+ros2 launch scr_bringup sim_nav.launch.py gui:=false rviz:=false base_control:=plugin \
+    params_file:=$(ros2 pkg prefix scr_navigation)/share/scr_navigation/config/nav2_params_dwb.yaml \
+    alignment_params:=/tmp/fine_alignment_nofold.yaml
+ros2 run scr_planner execute_slot_plan.py docs/experiments/slot_execution/runs/dp/slot_plan.yaml /tmp/run_nofold --dry-run-gap=0.01
 
 # 3. 标定时间模型、离线对比、作图
 python3 src/scr_planner/scripts/calibrate_time_model.py /tmp/run_naive /tmp/run_dp

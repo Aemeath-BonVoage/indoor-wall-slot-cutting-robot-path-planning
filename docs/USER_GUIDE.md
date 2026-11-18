@@ -22,7 +22,7 @@
 
 - Ubuntu 22.04 + ROS 2 Humble
 - Gazebo 11（Gazebo Classic，`ros-humble-gazebo-ros-pkgs`）
-- Nav2、SLAM Toolbox、ros2_control
+- Nav2（含 MPPI 控制器、Smac 规划器与 BehaviorTree.CPP v3）、SLAM Toolbox、ros2_control、`gazebo_ros2_control`、`robot_localization`
 
 参考配置：4 核 CPU / 4 GB 内存的虚拟机可以运行完整仿真（不开 Gazebo 窗口时）。
 
@@ -47,7 +47,7 @@ sudo apt install ros-humble-navigation2 ros-humble-nav2-bringup ros-humble-slam-
   ros-humble-robot-localization ros-humble-cv-bridge
 ```
 
-`--symlink-install` 下修改 URDF、world、launch 和 YAML 后无需重新编译；修改 C++ 代码（`scr_planner`、`scr_description` 中的 Gazebo 插件）后需要重新编译对应的包。
+`--symlink-install` 下修改 URDF、world、launch、YAML 和行为树 XML 后无需重新编译；修改 C++ 代码（`scr_planner`、`scr_task`、`scr_base_control`，以及 `scr_description` 中的 Gazebo 插件）或 `scr_interfaces` 中的消息 / action 定义后需要重新编译对应的包。
 
 ### 1.3 Docker（可选）
 
@@ -77,7 +77,7 @@ source install/setup.bash
 
 ### 2.1 一键启动（推荐）
 
-`scr_bringup` 用一条命令启动 Gazebo 仿真、Nav2 导航和 RViz：
+`scr_bringup` 用一条命令启动 Gazebo 仿真、Nav2 导航、任务层（技能服务器 + 行为树执行器）和 RViz：
 
 ```bash
 ros2 launch scr_bringup sim_nav.launch.py                        # 完整界面
@@ -92,21 +92,36 @@ ros2 launch scr_bringup sim_nav.launch.py gui:=false rviz:=false # 纯后台，�
 | `rtf` | `1.0` | 仿真速度上限（相对实时的倍数），`0` 为不限速 |
 | `world` | `scr_description/worlds/room.world` | Gazebo 世界文件 |
 | `map` | `scr_navigation/maps/my_map.yaml` | Nav2 使用的地图 |
-| `params_file` | `scr_navigation/config/nav2_params.yaml` | Nav2 参数文件 |
-| `nav_delay` | `8.0` | Gazebo 启动后等待多少秒再启动 Nav2 |
+| `params_file` | `scr_navigation/config/nav2_params.yaml` | Nav2 参数文件（默认 Smac 2D + MPPI；基线 `nav2_params_dwb.yaml` 为 NavFn + DWB） |
+| `nav_delay` | `8.0` | Gazebo 启动后等待多少秒再启动 Nav2 与任务层 |
+| `use_composition` | `True` | Nav2 各服务器放在一个容器进程中；`False` 时每个服务器一个进程（便于分别统计 CPU） |
+| `base_control` | `ros2_control` | 底盘实现：`ros2_control`（麦克纳姆控制器 + 仿真硬件接口）或 `plugin`（早期力控插件，`/odom` 为真值） |
+| `plant` | `force` | ros2_control 底盘的被控对象：`force`（力驱动）或 `wheels`（轮子驱动，实验） |
+| `odom_error` | `true` | 编码器误差模型开关（只作用于 `force`）；`false` 时轮式里程计等于真值积分 |
+| `odom_seed` | `1` | 编码器打滑过程的随机种子 |
+| `localization` | `ekf` | `ekf`：轮式里程计 + 陀螺经 `robot_localization` 融合为 `/odom`；`wheel`：控制器直接发布 `/odom` |
+| `task` | `true` | 是否启动任务层；只做导航实验时设为 `false` |
+| `alignment_params` | `scr_arm_controller/config/fine_alignment.yaml` | 技能服务器的精对位参数文件（`alignment.*`） |
 
-Nav2 在启动后约 20–30 s 就绪。初始位姿由 `set_initial_pose.py` 自动发布（默认 `(0, 0, 0)`，与机器人在 `room.world` 中的出生位置一致），不需要在 RViz 中手动设置。纯后台模式下，仿真加完整 Nav2 约额外占用 400 MB 内存，仿真实时率约 1.0（4 核虚拟机）。
+Nav2 在启动后约 20–30 s 就绪。初始位姿由 `set_initial_pose.py` 自动发布（默认 `(0, 0, 0)`，与机器人在 `room.world` 中的出生位置一致），不需要在 RViz 中手动设置。任务层的行为树执行器先等待 Nav2（`bt_navigator` 激活）与技能服务器就绪，再加载行为树。纯后台模式下，仿真加完整 Nav2 约额外占用 400 MB 内存，仿真实时率约 1.0（4 核虚拟机）。
 
 ### 2.2 只启动仿真
 
-不需要导航时（例如单独测试机械臂、运行对位实验）：
+不需要导航时（例如单独测试机械臂、运行对位实验、底盘特性测试）：
 
 ```bash
 ros2 launch scr_description gazebo.launch.py                     # 带 Gazebo 窗口
 ros2 launch scr_description gazebo.launch.py gui:=false rtf:=2.5 # 批量实验：最多 2.5 倍实时
 ```
 
-该 launch 文件启动 gzserver（及可选的 gzclient）、`robot_state_publisher`、生成机器人实体、底盘运动学节点 `mecanum_controller.py`，并在 5 s 后加载 `joint_state_broadcaster`、`arm_controller`、`wheel_controller` 三个控制器。
+该 launch 文件启动 gzserver（及可选的 gzclient）、`robot_state_publisher`、生成机器人实体，并在 5 s 后加载控制器。`gazebo.launch.py` 接受 `world`、`gui`、`rtf`、`camera_yaw_error_deg`（相机安装偏角，只注入 Gazebo 中的模型，用于验证示教零位）以及与 2.1 相同的 `base_control`、`plant`、`odom_error`、`odom_seed`、`localization`。按底盘实现不同，启动的节点为：
+
+| `base_control` | 底盘相关节点 | 控制器 |
+|---|---|---|
+| `ros2_control`（默认） | 仿真硬件接口 `ScrMecanumBaseSystem`（在 `gazebo_ros2_control` 中加载）；`localization:=ekf` 时另启动 `robot_localization` 的 `ekf_filter_node` | `joint_state_broadcaster`、`arm_controller`、`base_controller` |
+| `plugin` | 力控平面运动插件 `scr_planar_move` + 运动学节点 `mecanum_controller.py` | `joint_state_broadcaster`、`arm_controller`、`wheel_controller` |
+
+真值始终发布在 `/ground_truth/odom`（`gazebo_ros_p3d`）与 `/gazebo/model_states`、`/gazebo/link_states`，只用于评估。
 
 **关于 `rtf`**：所有控制循环按仿真时钟计时，加速不改变控制律；但感知与控制代码的计算延迟按仿真时间计会被放大 `rtf` 倍。批量实验前应先用同一随机种子与 `rtf:=1.0` 对比，确认结果一致。带 Nav2 的流程建议使用 `rtf:=1.0`。
 
@@ -117,6 +132,26 @@ ros2 launch scr_description display.launch.py
 ```
 
 启动 RViz 和 `joint_state_publisher_gui`，可以拖动滑条查看各关节的运动方向。
+
+### 2.4 底盘、里程计与定位
+
+默认配置（`base_control:=ros2_control plant:=force odom_error:=true localization:=ekf`）中：
+
+- 底盘由 ros2_control 控制：`base_controller`（`scr_base_control/MecanumDriveController`）把 `/cmd_vel` 经逆运动学分配为四个轮的速度命令，并由四个轮的速度状态积分出轮式里程计 `/wheel/odom`；
+- 仿真硬件接口 `ScrMecanumBaseSystem` 用力 / 力矩驱动底盘，编码器读数由底盘实际运动加误差模型（每轮轮径误差、随机打滑、横移打滑 3 %、转向打滑 2 %）得到，同时以 100 Hz 在 `/imu` 发布模拟陀螺；
+- `robot_localization` 的 EKF 融合轮式里程计的 `(vx, vy)` 与陀螺的 `wz`，发布 `/odom` 与 `odom → base_link`，供 Nav2 与 AMCL 使用；
+- 技能服务器的局部闭环（精对位预测、站间横移、定点保持）使用 `/wheel/odom`，由 `sim_nav.launch.py` 自动设置。原因是 EKF 输出在 mm/s 级的慢速运动下明显偏小，见 [系统层现代化报告](experiments/system_modernization/README.md#45-真实里程计下的精对位与多站执行) 4.5 节。
+
+常用组合：
+
+```bash
+ros2 launch scr_bringup sim_nav.launch.py localization:=wheel   # 只用轮式里程计
+ros2 launch scr_bringup sim_nav.launch.py odom_error:=false     # 理想编码器
+ros2 launch scr_bringup sim_nav.launch.py plant:=wheels         # 轮子驱动底盘（实验，跟踪与里程计明显变差）
+ros2 launch scr_bringup sim_nav.launch.py base_control:=plugin  # 早期配置：/odom 为真值，用于复现早期结果
+```
+
+本仓库中早于系统层现代化的实验数据（精对位、多站执行、时间模型标定）都在早期配置下取得（仿真配置 v2，`/odom` 为真值，NavFn + DWB）。复现这些数据时使用 `base_control:=plugin`，需要时再加 `params_file:=` 指向 `nav2_params_dwb.yaml`。在默认配置（真实里程计）下，多站执行的沿墙误差随离定位标记的距离增长到约 25 mm，见 [7.3](#73-执行)。
 
 ---
 
@@ -136,7 +171,9 @@ ros2 run teleop_twist_keyboard teleop_twist_keyboard
 ros2 topic pub --once /cmd_vel geometry_msgs/Twist "{linear: {x: 0.0, y: 0.2, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}"
 ```
 
-仿真中的速度链路：`/cmd_vel` → `mecanum_controller.py`（同时计算四轮转速，驱动轮子转动作为显示）→ `/cmd_vel_direct` → 力控平面运动插件 `scr_planar_move`（对底盘施加力 / 力矩做速度闭环）→ 发布 `/odom` 与 `odom → base_link` TF。
+仿真中的速度链路（默认 `base_control:=ros2_control`）：`/cmd_vel` → `base_controller`（逆运动学 → 四个轮的速度命令）→ `ScrMecanumBaseSystem`（对底盘施加力 / 力矩做速度闭环；轮子只按命令转动作为外观）→ 编码器读数 → `base_controller` 积分为 `/wheel/odom` → EKF 融合陀螺后发布 `/odom` 与 `odom → base_link` TF。`/cmd_vel` 超过 0.5 s 没有新指令时底盘停车。
+
+早期配置（`base_control:=plugin`）的链路为：`/cmd_vel` → `mecanum_controller.py`（同时计算四轮转速作为显示）→ `/cmd_vel_direct` → 力控平面运动插件 `scr_planar_move` → 以真值位姿发布 `/odom` 与 TF。
 
 ### 3.2 机械臂
 
@@ -215,7 +252,7 @@ ros2 launch scr_navigation navigation.launch.py                                 
 ros2 launch scr_navigation navigation.launch.py map:=/path/to/other_map.yaml rviz:=false
 ```
 
-`navigation.launch.py` 的参数：`map`、`params_file`、`use_sim_time`（默认 `true`）、`rviz`、`initial_pose_x / initial_pose_y / initial_pose_yaw`（默认 0，启动 6 s 后自动发布）。
+`navigation.launch.py` 的参数：`map`、`params_file`、`use_sim_time`（默认 `true`）、`rviz`、`use_composition`（默认 `True`）、`initial_pose_x / initial_pose_y / initial_pose_yaw`（默认 0，启动 6 s 后自动发布）。分步启动时不包含任务层，需要时另开终端运行 `ros2 launch scr_task task.launch.py`（技能服务器的 `odom_topic` 默认为 `/odom`，融合定位时应加 `odom_topic:=/wheel/odom`）。
 
 发送导航目标：
 
@@ -225,7 +262,21 @@ ros2 run scr_navigation send_goal.py 1.5 0.0 0.0     # x y yaw（map 坐标，�
 
 或在 RViz 中用 “Nav2 Goal” 点选。若机器人实际不在默认初始位姿，先用 “2D Pose Estimate” 设置初始位姿。
 
-Nav2 配置要点（`src/scr_navigation/config/nav2_params.yaml`）：AMCL 使用全向运动模型 `OmniMotionModel`；全局规划器 NavFn；局部控制器 DWB，速度上限 `vx = vy = 0.4 m/s`、`ωz = 0.8 rad/s`；代价地图机器人半径 0.4 m、膨胀半径 0.7 m。可以通过 `params_file:=` 换用其他参数文件。
+Nav2 配置要点（`src/scr_navigation/config/nav2_params.yaml`）：AMCL 使用全向运动模型 `OmniMotionModel`；全局规划器 Smac 2D（`SmacPlanner2D`，`cost_travel_multiplier = 2.0`，路径远离障碍）；局部控制器 MPPI，运动模型 `Omni`，1000 条采样、40 步 × 50 ms 预测时域、20 Hz；速度上限 `vx = vy = 0.4 m/s`、`ωz = 0.8 rad/s`；代价地图机器人半径 0.4 m、膨胀半径 0.7 m。
+
+基线配置 `nav2_params_dwb.yaml`（NavFn + DWB）与默认配置只有 `FollowPath` 与 `GridBased` 两项不同，用 `params_file:=` 切换：
+
+```bash
+ros2 launch scr_bringup sim_nav.launch.py \
+    params_file:=$(ros2 pkg prefix scr_navigation)/share/scr_navigation/config/nav2_params_dwb.yaml
+```
+
+两者的对比（到达率、离障间隙、平滑性、CPU）见 [系统层现代化报告](experiments/system_modernization/README.md#42-nav2smac-2d--mppi-与-navfn--dwb) 4.2 节。导航巡回基准脚本：
+
+```bash
+ros2 launch scr_bringup sim_nav.launch.py gui:=false rviz:=false task:=false use_composition:=False
+ros2 run scr_navigation nav_benchmark.py --out /tmp/nav_mppi --rounds 3 --label mppi_smac2d
+```
 
 ---
 
@@ -234,20 +285,22 @@ Nav2 配置要点（`src/scr_navigation/config/nav2_params.yaml`）：AMCL 使�
 ### 6.1 运行
 
 ```bash
-ros2 launch scr_bringup sim_nav.launch.py gui:=false        # 终端 1
+ros2 launch scr_bringup sim_nav.launch.py gui:=false        # 终端 1：仿真 + Nav2 + 任务层
 ros2 run scr_arm_controller navigation_cutting_task task_at_target.yaml   # 终端 2
 ```
 
-相对路径的任务文件先在当前目录查找，再到 `scr_arm_controller` 包的 `config/` 中查找。完整任务约 100 s。
+任务由行为树执行。`navigation_cutting_task` 是命令行入口（action 客户端）：它判断任务文件的类型，单站任务发给行为树执行器的 `/execute_cutting_task`，多站开槽规划发给 `/execute_slot_plan`（第 7 节），然后打印执行阶段与结果；Ctrl-C 会取消任务。相对路径的任务文件先在当前目录查找，再到 `scr_arm_controller` 包的 `config/` 中查找。任务层没有就绪时，客户端每 10 s 打印一次“等待行为树执行器”。完整任务约 85 s 仿真时间。
 
-流程：
+单站任务的行为树为 [`cutting_task.xml`](../src/scr_task/behavior_trees/cutting_task.xml)，各步骤是技能服务器 `task_skill_server` 的 action：
 
-1. **导航**：Nav2 把底盘送到任务文件中的 `navigation` 位姿（墙前约 1.9 m）。仿真刚启动时 Nav2 可能拒绝第一个目标，程序会每 3 s 重试，最多 10 次。
-2. **精对位**：机械臂先移到观测位姿（滑台降 0.15 m，避免机械臂遮挡相机），伸缩轴完全缩回；然后驱动全向底盘停在墙面定位标记正前方 `distance_from_marker` 处：相机检测 AprilTag 定位标记、激光拟合墙面，二者经 EKF 融合为墙面相对位姿估计，饱和控制律闭环，满足收敛判据（误差在容差内、底盘静止、估计不确定度足够小）后转入定点保持。参数见 `config/fine_alignment.yaml`，设计见 [精对位报告](experiments/fine_alignment/README.md)。
-3. **扫描**：在当前位姿检测定位标记（5 帧平均）；未检测到时，机械臂末端在 Z = 0.30–0.70 m（`base_link` 坐标）内以 5 cm 步长逐级检测。完成后回到缩回位姿。
-4. **切割**：按 `points` 逐点执行。从对位结束到切割完成，底盘处于定点保持状态。
+1. **导航**（`NavigateToPose`）：Nav2 把底盘送到任务文件中的 `navigation` 位姿（墙前约 1.9 m），失败时重试一次。
+2. **精对位**（`FineAlign`）：机械臂先移到观测位姿（滑台降 0.15 m，避免机械臂遮挡相机），伸缩轴完全缩回；然后驱动全向底盘停在墙面定位标记正前方 `distance_from_marker` 处：相机检测 AprilTag 定位标记、激光拟合墙面，二者经 EKF 融合为墙面相对位姿估计，饱和控制律闭环，满足收敛判据（误差在容差内、底盘静止、估计不确定度足够小）后到位。失败时缩回机械臂、重新导航并再对位一次。参数见 `config/fine_alignment.yaml`（[6.3](#63-精对位参数)），设计见 [精对位报告](experiments/fine_alignment/README.md)。
+3. **扫描**（`ScanMarker`，与定点保持 `HoldBase` 并行）：在当前位姿检测定位标记（5 帧平均）；未检测到时，机械臂末端在 Z = 0.30–0.70 m（`base_link` 坐标）内以 5 cm 步长逐级检测。扫描失败不影响切割。
+4. **切割**（`CutStation`，与 `HoldBase` 并行）：可达性检查后按 `points` 逐点执行。从对位结束到切割完成，底盘处于定点保持状态。
 
-运行中输出两类真值误差，用于评估（不参与控制）：对位结束时底盘相对目标的真值误差，以及扫描 + 切割期间底盘的最大真值漂移。
+技能服务器的日志（`sim_nav.launch.py` 所在终端）中输出两类真值误差，用于评估（不参与控制）：对位结束时底盘相对目标的真值误差，以及扫描 + 切割期间底盘的最大真值漂移。
+
+需要换用其他行为树时（例如修改恢复策略），用 `--bt=<tree.xml>` 指定 XML 文件；树中可用的节点见 [`scr_task`](../src/scr_task/README.md)。
 
 ### 6.2 任务文件
 
@@ -263,11 +316,6 @@ precise_positioning:
   enabled: true
   mode: visual                # visual = AprilTag + 激光 EKF；visual_v1 = 第一版色块 PBVS；odom = 里程计 + 已知标记坐标
   distance_from_marker: 0.70  # 对位后底盘中心离墙距离（米）
-  position_tolerance: 0.01    # 收敛容差（米）
-  angle_tolerance_deg: 1.0    # 收敛容差（度）
-  observe_joint1: -0.15       # 对位时滑台高度（米）
-
-base_hold: true          # 扫描 / 切割期间的定点保持；false 时只测量漂移
 
 scanning:
   enabled: true          # 扫描高度范围在程序中固定为 0.30–0.70 m
@@ -281,9 +329,33 @@ motion:
   dry_run_gap: 0.005     # 空切间隙（米），见下文
 ```
 
+行为树执行器读取上面列出的字段。示例文件中另有 `position_tolerance`、`angle_tolerance_deg`、`observe_joint1`、`base_hold` 与 `scanning.z_*` 等字段，它们来自早期的顺序程序，当前执行路径不读取：第一版对位的容差（1 cm / 1°）、观测滑台高度（−0.15 m）与扫描范围由技能服务器内置，扫描与切割期间始终定点保持。
+
 **空切**：Gazebo 中的墙是刚体，刀具按切割点压入墙面会把整台机器人顶开（约 9 mm、3–4°）。设置 `motion.dry_run_gap` 后，处于切深的点按激光实测墙距整体后移，刀尖最深处停在墙前该距离，只验证轨迹位置。真机上删去此项。
 
 **安全措施**：接近墙面时机械臂伸缩轴完全缩回（0.70 m 对位时刀尖离墙约 24 mm）；激光防碰撞守护按制动距离限制向墙速度，允许速度 = (刀尖间隙 − 5 mm) / 0.5 s。
+
+### 6.3 精对位参数
+
+精对位参数（`alignment.*`）属于技能服务器，启动时用 `alignment_params:=` 指定参数文件，默认 [`config/fine_alignment.yaml`](../src/scr_arm_controller/config/fine_alignment.yaml)。参数文件的节点名用通配 `/**`，同一文件也可以直接传给对位实验脚本。
+
+```bash
+# 示教零位（只需仿真，不需要 Nav2）：输出参数文件
+ros2 run scr_arm_controller teach_alignment_offset --out /tmp/fine_alignment_taught.yaml --seconds 30
+# 用示教结果执行任务
+ros2 launch scr_bringup sim_nav.launch.py gui:=false alignment_params:=/tmp/fine_alignment_taught.yaml
+ros2 run scr_arm_controller navigation_cutting_task task_at_target.yaml
+```
+
+| 参数 | 默认 | 说明 |
+|---|---|---|
+| `alignment.detector` | `apriltag` | `apriltag` 或 `blob`（第一版色块检测器，基线） |
+| `alignment.tolerance_normal / _lateral / _yaw_deg` | 2 mm / 2 mm / 0.3° | 收敛容差 |
+| `alignment.offset_normal / _lateral / _yaw_deg` | 0 | 示教零位偏置 |
+| `alignment.fold_residual` | `true` | 多站执行以 EKF 估计的标记位置为墙面原点；`false` 为第一版语义（以停车位姿为原点），用于消融 |
+| `alignment.strafe_tag_updates` | `false` | 站间横移时若定位标记在视野内，继续用它更新沿墙位置 |
+
+早期版本中通过 `navigation_cutting_task ... --ros-args --params-file <yaml>` 或 `-p alignment.*:=` 传参；任务改由行为树执行后，这些参数需在启动任务层时传给技能服务器，对客户端设置不再生效。
 
 ---
 
@@ -326,7 +398,16 @@ python3 src/scr_planner/scripts/plan_wall_slots.py src/scr_planner/config/wall_t
     --partition=per_slot --order=slot_by_slot
 ```
 
-不需要 ROS。输出包含每条槽的直角折线、按执行顺序排列的停靠站、每站底盘位姿与机械臂切割点、预测执行时间。也可以运行 ROS 节点 `wall_slot_planner_node.py`（参数 `task_file`、`output_file`），它额外在 `/wall_slot_plan/markers` 发布 RViz 显示。
+不需要 ROS。输出包含每条槽的直角折线、按执行顺序排列的停靠站、每站底盘位姿与机械臂切割点、预测执行时间。
+
+| 选项 | 默认 | 说明 |
+|---|---|---|
+| `--routes=rule\|joint` | `rule` | `rule`：逐条槽按规范代价选线后划分停靠站；`joint`：槽线与停靠站联合规划（[task_planning](experiments/task_planning/README.md)） |
+| `--partition=dp\|greedy\|per_slot` | 任务文件 `options.partition`，未设时 `dp` | 停靠站划分 |
+| `--order=sweep\|slot_by_slot` | 任务文件 `options.order`，未设时 `sweep` | 访问顺序 |
+| `--time-model=align_v2\|align_v1` | `align_v2` | 预测执行时间所用的时间模型预设（[7.4](#74-执行时间模型)）；也可在任务文件 `options.time_model` 中指定 |
+
+也可以运行 ROS 节点 `wall_slot_planner_node.py`（参数 `task_file`、`output_file`），它额外在 `/wall_slot_plan/markers` 发布 RViz 显示。
 
 ### 7.3 执行
 
@@ -335,21 +416,44 @@ ros2 launch scr_bringup sim_nav.launch.py gui:=false rviz:=false
 ros2 run scr_arm_controller navigation_cutting_task /tmp/plan.yaml --dry-run-gap=0.01
 ```
 
-主任务识别到规划文件（含 `wall` 和 `stations`）就走多站流程：Nav2 到定位标记前 1.2 m → 精对位到 0.70 m（此时的里程计位姿作为墙面坐标原点）→ 逐站：沿墙横移到站 → 定点保持 → 用激光 / 里程计测量残余误差并补偿机械臂点 → 切割。
+客户端识别到规划文件（含 `wall` 和 `stations`）就把它发给行为树执行器的 `/execute_slot_plan`。行为树 [`slot_plan.xml`](../src/scr_task/behavior_trees/slot_plan.xml) 的流程：Nav2 到定位标记前 1.2 m → 精对位到 0.70 m（EKF 估计的标记位置作为墙面坐标原点）→ 逐站：沿墙横移到站（站间距离超过 `--max-strafe` 时先缩回机械臂、用 Nav2 过去）→ 定点保持下测量残余误差、补偿机械臂点并切割 → 记录本站 → 全部完成后缩回机械臂。
+
+恢复策略：导航失败重试一次；精对位失败时缩回机械臂、回到标记前再对位；到站失败（未收敛且残差超出机械臂补偿范围）时回到标记前重新对位、重新建立墙面原点后再到站；切割失败重试一次。仍失败时任务失败，结果给出失败的停靠站与节点。客户端在结束时打印每站耗时、到站残差与恢复次数。
 
 | 选项 | 默认 | 说明 |
 |---|---|---|
-| `--dry-run-gap=<m>` | 不设 | 空切：切深处的点改为刀尖停在墙前该距离 |
+| `--dry-run-gap=<m>` | 不设 | 空切：切深处的点改为刀尖停在墙前该距离（仿真中统一用 0.01） |
 | `--max-strafe=<m>` | 1.5 | 站间距离超过该值时，先缩回机械臂、退到离墙 1.2 m 用 Nav2 过去 |
 | `--no-compensation` | — | 关闭到站后的残差补偿 |
+| `--bt=<tree.xml>` | `slot_plan.xml` | 换用其他行为树 |
 
-需要真值评估时使用实验记录器，它调用同一执行路径，额外记录刀尖轨迹、到站误差和底盘漂移：
+需要真值评估时使用实验记录器。它是同一 action 的客户端，另外订阅 Gazebo 真值与技能服务器的阶段话题 `/task_skills/status`，记录刀尖轨迹、到站误差和底盘漂移，选项与上表相同：
 
 ```bash
 ros2 run scr_planner execute_slot_plan.py /tmp/plan.yaml /tmp/run --dry-run-gap=0.01
 ```
 
-输出 `stations.csv`、`tool_trace.csv`、`summary.yaml`。示例任务（两条槽、11 站）约 250 s 仿真时间。
+输出 `stations.csv`、`tool_trace.csv`、`summary.yaml`（含每站恢复次数）。示例任务（两条槽、11 站）约 230 s 仿真时间。
+
+**精度与里程计**：多站执行时，站间横移的沿墙位置只能由里程计外推（激光只观测离墙距离与朝向）。在早期配置（`base_control:=plugin`，`/odom` 为真值）下，11 站的到站横向误差为 0.2–0.3 mm 量级；在默认配置（编码器误差模型 + EKF）下，沿墙误差随离标记的距离线性增长，最大 24.8 mm，设置 `alignment.strafe_tag_updates: true`（例如 `alignment_params:=docs/experiments/system_modernization/fine_alignment_strafe_tag.yaml`）后最大 14.4 mm。离墙距离与朝向不受影响。详见 [系统层现代化报告](experiments/system_modernization/README.md#45-真实里程计下的精对位与多站执行) 4.5 节。
+
+### 7.4 执行时间模型
+
+规划器用时间模型预测执行时间：每站耗时 = `t_settle` + 横移距离 / `v_strafe` + 点数 × `t_point`。模型由 Gazebo 执行记录标定，标定结果保存为命名预设（`slot_plan.TIME_MODELS`）：
+
+| 预设 | 对应的执行路径 | `t_settle` | `v_strafe` | `t_point` |
+|---|---|---|---|---|
+| `align_v2`（默认） | 精对位第二版 | 2.83 s | 0.0984 m/s | 2.049 s |
+| `align_v1` | 第一版精对位，用于复现早期报告的数字 | 4.40 s | 0.0945 m/s | 2.034 s |
+
+`plan_wall_slots.py`、`task_planning_benchmark.py` 与 `task_planning_report.py` 都接受 `--time-model`。用新的执行记录重标定：
+
+```bash
+python3 src/scr_planner/scripts/calibrate_time_model.py /tmp/run_a /tmp/run_b \
+    --method=phases --compare=align_v1,align_v2 --loo
+```
+
+`--method=joint`（默认）对每站总耗时做整体最小二乘；`--method=phases` 按横移、切割与固定开销分阶段估计，对少数站上的偶发停顿不敏感；`--compare` 在同一批数据上评估已有预设；`--loo` 给出逐次运行留一交叉验证的每站 RMSE。两个预设都在早期配置（`/odom` 为真值）下标定，执行路径或仿真配置改变后应重新标定。
 
 ---
 
@@ -399,7 +503,7 @@ colcon build && colcon test && colcon test-result --verbose
 colcon test --packages-select scr_planner     # 只测单个包
 ```
 
-测试包括 C++ gtest、pytest 单元测试和 flake8 / pep257 代码风格检查；GitHub Actions 在 `ros:humble` 容器中执行同样的编译与测试。
+测试包括 C++ gtest（规划器、麦克纳姆运动学与编码器误差模型、行为树结构与任务文件解析）、pytest 单元测试和 flake8 / pep257 代码风格检查；GitHub Actions 在 `ros:humble` 容器中执行同样的编译与测试。行为树结构测试用模拟技能节点运行两棵树，不需要 Gazebo。
 
 各实验的复现命令在对应报告的“复现”一节：
 
@@ -412,6 +516,9 @@ colcon test --packages-select scr_planner     # 只测单个包
 | 精对位设计与控制分析 | 离线部分否 | [fine_alignment](experiments/fine_alignment/README.md) |
 | PBVS / IBVS / 2.5D 混合伺服对比 | 否 | [ibvs_vs_pbvs](experiments/ibvs_vs_pbvs/README.md) |
 | 可视化与演示 | 部分 | [demo](experiments/demo/README.md) |
+| 行为树编排、Nav2 MPPI / Smac、定位融合、底盘 ros2_control | 是 | [system_modernization](experiments/system_modernization/README.md) |
+
+注意各报告所用的仿真配置：系统层现代化之前的实验（精对位、多站执行、时间模型）在早期配置（`base_control:=plugin`，`/odom` 为真值，NavFn + DWB）下取得，复现时按 [2.4](#24-底盘里程计与定位) 设置启动参数；各报告的“复现”一节给出了对应的命令。
 
 第一版规划器（Python 原型）的对比脚本不需要 ROS：
 
@@ -433,11 +540,14 @@ Nav2 尚未就绪或地图未加载。确认地图文件存在（`ls src/scr_nav
 ### 10.2 机器人不响应 `/cmd_vel`
 
 ```bash
-ros2 control list_controllers          # 应有 joint_state_broadcaster / arm_controller / wheel_controller，均为 active
-ros2 topic info /cmd_vel_direct        # 应有 mecanum_controller 发布、planar_move 订阅
+ros2 control list_controllers          # 应有 joint_state_broadcaster / arm_controller / base_controller，均为 active
+ros2 topic hz /wheel/odom              # 底盘控制器的轮式里程计，约 50 Hz
+ros2 topic hz /odom                    # EKF 输出（localization:=ekf）
 ```
 
-控制器在仿真启动 5 s 后才加载。若控制器加载失败，查看 gzserver 输出中的 ros2_control 报错，并确认已安装 `ros-humble-gazebo-ros2-control`。
+控制器在仿真启动 5 s 后才加载。若控制器加载失败，查看 gzserver 输出中的 ros2_control 报错，确认已安装 `ros-humble-gazebo-ros2-control`，并确认 `scr_base_control` 已编译（`base_controller` 与仿真硬件接口都由它的插件提供）。`/cmd_vel` 超过 0.5 s 没有新指令时底盘会停车，`ros2 topic pub --once` 只能让底盘动一下，持续运动用 `--rate 10`。
+
+早期配置（`base_control:=plugin`）下控制器列表为 `joint_state_broadcaster / arm_controller / wheel_controller`，`/cmd_vel_direct` 应有 `mecanum_controller` 发布、`planar_move` 订阅。
 
 ### 10.3 机械臂不动或报“不可达”
 
@@ -460,7 +570,7 @@ ros2 run tf2_tools view_frames
 ros2 run tf2_ros tf2_echo base_link camera_optical_link
 ```
 
-正常的 TF 树为 `map → odom → base_link → link1 → … / camera_link → camera_optical_link / lidar_link`。`map → odom` 由 AMCL 发布（只启动仿真时没有），`odom → base_link` 由 `scr_planar_move` 发布，其余由 `robot_state_publisher` 发布。对位和扫描只需要 `base_link` 以下的 TF，不依赖 AMCL。
+正常的 TF 树为 `map → odom → base_link → link1 → … / camera_link → camera_optical_link / lidar_link`。`map → odom` 由 AMCL 发布（只启动仿真时没有）；`odom → base_link` 默认由 EKF（`ekf_filter_node`）发布，`localization:=wheel` 时由 `base_controller` 发布，`base_control:=plugin` 时由 `scr_planar_move` 发布，同一时刻只能有一个发布者；其余由 `robot_state_publisher` 发布。对位和扫描只需要 `base_link` 以下的 TF，不依赖 AMCL。
 
 ### 10.6 Docker 中 RViz 报 GLSL 错误
 
@@ -478,7 +588,42 @@ export LIBGL_ALWAYS_SOFTWARE=1
 
 ### 10.8 关闭仿真时 `mecanum_controller` 报错退出
 
-按 Ctrl-C 关闭仿真时，launch 会显示 `mecanum_controller` 以非零码退出。这是该节点未处理关闭信号导致的退出报错，不影响仿真和实验结果，已列入 [路线图](ROADMAP.md)。
+只出现在早期配置（`base_control:=plugin`）下：按 Ctrl-C 关闭仿真时，launch 会显示 `mecanum_controller` 以非零码退出。这是该节点未处理关闭信号导致的退出报错，不影响仿真和实验结果，已列入 [路线图](ROADMAP.md)。
+
+### 10.9 客户端一直显示“等待行为树执行器”
+
+行为树执行器在 `nav_delay`（默认 8 s）后启动，并等待 Nav2 的 `bt_navigator` 激活与技能服务器就绪后才提供 `/execute_slot_plan`、`/execute_cutting_task`。
+
+```bash
+ros2 action list | grep -E "execute_|task_skills"   # 应有 2 个任务 action 与 6 个技能 action
+ros2 lifecycle get /bt_navigator                    # 应为 active
+```
+
+- 启动时设置了 `task:=false`：任务层没有启动，改为 `task:=true` 或另行运行 `ros2 launch scr_task task.launch.py`；
+- Nav2 没有激活：见 [10.11](#1011-nav2-停在生命周期配置阶段)；
+- 技能服务器没有就绪：查看 `task_skills` 节点的日志，并确认控制器均为 active（[10.2](#102-机器人不响应-cmd_vel)）；
+- 目标被拒绝（`目标被行为树执行器拒绝`）：执行器无法加载行为树，常见原因是 `--bt=` 给出的 XML 路径不存在或树中使用了未注册的节点，原因见执行器日志。
+
+### 10.10 多站执行中沿墙误差逐站增大、触发重新对位
+
+默认配置下站间横移的沿墙位置由轮式里程计外推，编码器的横移打滑使误差随离标记的距离线性增长（[7.3](#73-执行)）。到站残差超出机械臂的补偿范围（横向 20 mm、离墙 10 mm、朝向 1.5°）时，行为树会回到标记前重新对位，任务耗时随之增加。评估执行精度时：
+
+- 确认技能服务器的局部闭环用的是 `/wheel/odom`（启动日志中技能服务器的 `odom_topic`）。若用 EKF 的 `/odom`，定点保持会随 EKF 在慢速运动下的偏差一起漂移；
+- 需要排除里程计误差时用 `odom_error:=false` 或早期配置 `base_control:=plugin`；
+- 定位标记在视野内的站可以通过 `alignment.strafe_tag_updates: true` 继续用标记更新沿墙位置（[6.3](#63-精对位参数)）。
+
+### 10.11 Nav2 停在生命周期配置阶段
+
+`use_composition:=False`（每个 Nav2 服务器一个进程）时偶尔停在生命周期配置阶段，同时出现 Fast DDS 共享内存端口错误。关闭全部进程后清理共享内存再重新启动：
+
+```bash
+pgrep -af "gzserver|robot_state_publisher|component_container|ekf_node|task_executor"   # 确认没有残留进程
+fastdds shm clean
+```
+
+### 10.12 机械臂动作时底盘缓慢转动或漂移（早期配置）
+
+Gazebo 中底盘有一部分转动（零速度指令下约 0.08°/s）只出现在位姿里、不出现在连杆速度里。默认的 ros2_control 底盘用位姿差分得到的实际速度做速度闭环、生成编码器与陀螺读数，因而不受影响；早期配置（`base_control:=plugin`）仍有这一现象，由定点保持在位置环中修正。排查过程见 [系统层现代化报告](experiments/system_modernization/README.md#24-轮式里程计陀螺与-ekf) 2.4 节。
 
 ---
 
@@ -490,12 +635,19 @@ export LIBGL_ALWAYS_SOFTWARE=1
 
 | 名称 | 类型 | 说明 |
 |---|---|---|
-| `/cmd_vel` | `geometry_msgs/Twist` | 底盘速度指令 |
-| `/odom` | `nav_msgs/Odometry` | 底盘里程计（`scr_planar_move`，50 Hz） |
+| `/cmd_vel` | `geometry_msgs/Twist` | 底盘速度指令（Nav2 与技能服务器） |
+| `/odom` | `nav_msgs/Odometry` | 导航用里程计：默认为 EKF 输出（50 Hz）；`localization:=wheel` 时为轮式里程计；`base_control:=plugin` 时为真值 |
+| `/wheel/odom` | `nav_msgs/Odometry` | 轮式里程计（`base_controller`，50 Hz，含编码器误差），技能的局部闭环使用 |
+| `/imu` | `sensor_msgs/Imu` | 模拟陀螺（只有角速度，100 Hz） |
+| `/ground_truth/odom` | `nav_msgs/Odometry` | 底盘真值（`gazebo_ros_p3d`），只用于评估 |
 | `/scan` | `sensor_msgs/LaserScan` | 2D 激光雷达（360 线，测距噪声 σ = 1 cm） |
 | `/front_camera/image_raw`、`/front_camera/camera_info` | `sensor_msgs/Image`、`CameraInfo` | 前视相机，640 × 480，水平视场 80°，30 Hz |
 | `/arm_controller/follow_joint_trajectory` | `control_msgs/action/FollowJointTrajectory` | 机械臂轨迹 |
 | `/navigate_to_pose` | `nav2_msgs/action/NavigateToPose` | Nav2 导航 |
+| `/execute_cutting_task`、`/execute_slot_plan` | `scr_interfaces/action/ExecuteCuttingTask`、`ExecuteSlotPlan` | 行为树执行器的任务 action |
+| `/task_skills/fine_align` 等 6 个 | `scr_interfaces/action/*` | 技能 action（`fine_align`、`move_to_station`、`cut_station`、`hold_base`、`scan_marker`、`retract_arm`） |
+| `/task_skills/status` | `scr_interfaces/msg/TaskStatus` | 技能服务器的当前阶段与停靠站序号 |
+| `/task_executor/station_records` | `scr_interfaces/msg/StationRecord` | 每站执行记录 |
 | `/gazebo/model_states`、`/gazebo/link_states` | `gazebo_msgs` | 仿真真值，只用于评估 |
 | `/scr_plan_viz/markers`、`/scr_plan_viz/tool_trace` | `visualization_msgs/MarkerArray` | 开槽场景与刀尖轨迹 |
 

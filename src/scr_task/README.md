@@ -25,8 +25,14 @@
 执行器由 `scr_bringup/sim_nav.launch.py` 启动（`task:=true`，默认），也可单独启动任务层：
 
 ```bash
-ros2 launch scr_task task.launch.py
+ros2 launch scr_task task.launch.py [alignment_params:=<yaml>] [odom_topic:=/wheel/odom] [executor_params:=<yaml>]
 ```
+
+| 参数 | 默认 | 说明 |
+|---|---|---|
+| `alignment_params` | `scr_arm_controller/config/fine_alignment.yaml` | 技能服务器的精对位参数（`alignment.*`） |
+| `odom_topic` | `/odom` | 技能局部闭环使用的里程计；融合定位时应为 `/wheel/odom`（`sim_nav.launch.py` 自动设置） |
+| `executor_params` | `config/task_executor.yaml` | 行为树执行器参数 |
 
 执行器先等待 Nav2（`bt_navigator` 激活）与技能服务器就绪，再加载行为树并激活。发送任务用命令行入口：
 
@@ -35,7 +41,9 @@ ros2 run scr_arm_controller navigation_cutting_task task_at_target.yaml
 ros2 run scr_arm_controller navigation_cutting_task <plan.yaml> --dry-run-gap=0.01 [--bt=<tree.xml>]
 ```
 
-参数见 [`config/task_executor.yaml`](config/task_executor.yaml)（定位标记坐标、Nav2 目标离墙距离、行为树文件、插件库）。
+执行器参数见 [`config/task_executor.yaml`](config/task_executor.yaml)：tick 周期与超时、行为树插件库、定位标记在 map 中的坐标 `marker_x / marker_y`、Nav2 目标离墙距离 `nav_standoff`（1.2 m）。默认行为树由参数 `slot_plan_bt`、`cutting_task_bt` 指定（缺省为本包 `behavior_trees/` 下的两个文件，未写在该 YAML 中）；单个任务可以用客户端的 `--bt=<tree.xml>` 换用其他树。多站任务的 `max_strafe` 为 0 时取 1.5 m，空切间隙为 0 时取 0.01 m。
+
+每站结束时执行器在 `/task_executor/station_records`（`scr_interfaces/StationRecord`）发布该站记录；任务 action 的反馈给出当前停靠站、阶段与恢复次数。
 
 ## 测试
 

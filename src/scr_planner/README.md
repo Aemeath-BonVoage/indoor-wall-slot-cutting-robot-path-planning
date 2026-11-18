@@ -10,7 +10,7 @@
   - 弯曲半径 r：与弯相邻的直线段 ≥ r（两弯之间 ≥ 2r），且半径 r 的弯管圆弧不碰障碍。
 - **接口**：C 接口 `include/scr_planner/c_api.h`，Python ctypes 封装 `python/scr_planner_py.py`。
 - **`python/wall_rules.py`**：开槽规范常量（逐条标注来源：国标 / 参照 / 行业 / 假设）、规则 → 栅格与搜索参数、独立的合规检查、随机墙面场景生成。
-- **`python/slot_plan.py`**：开槽任务规划。槽线限制在机械臂可切高度带内；按机械臂每站 12 cm 的可切宽度划分停靠站（每条槽单独贪心 / 合并贪心 / 合并动态规划）；访问顺序（逐条槽 / 一维最优扫掠）；每站的机械臂切割点（每刀只动一个轴，刀片 0° / 90°）；标定后的时间模型。
+- **`python/slot_plan.py`**：开槽任务规划。槽线限制在机械臂可切高度带内；按机械臂每站 12 cm 的可切宽度划分停靠站（每条槽单独贪心 / 合并贪心 / 合并动态规划）；访问顺序（逐条槽 / 一维最优扫掠）；每站的机械臂切割点（每刀只动一个轴，刀片 0° / 90°）；由 Gazebo 执行记录标定的时间模型，标定结果保存为命名预设 `TIME_MODELS`（见下文）。
 - **`python/task_plan.py`**：任务级联合规划。在分段 A\* 中加入按停靠站窗口划分的列代价，使拐点落在窗口边界上，搜索多个窗口偏移并保留规范代价最优的路线作候选，以预测执行时间为目标选择；多条槽互相阻挡时尝试其他规划顺序；时间下界证书；Lee 迷宫布线基线与独立的规范检查。
 - **`python/wall_gen.py`**：随机住宅墙面生成器（承重 / 非承重、门窗、梁柱、常见点位高度、强弱电间距、1–4 条槽），由整数种子完全确定。
 
@@ -33,14 +33,17 @@
 ```bash
 # 离线规划（不需要 ROS）：槽线、停靠站（按执行顺序）、每站机械臂点、预测时间
 python3 src/scr_planner/scripts/plan_wall_slots.py src/scr_planner/config/wall_task_room3_south.yaml /tmp/plan.yaml \
-    [--routes=rule|joint] [--partition=dp|greedy|per_slot] [--order=sweep|slot_by_slot]
+    [--routes=rule|joint] [--partition=dp|greedy|per_slot] [--order=sweep|slot_by_slot] \
+    [--time-model=align_v2|align_v1]
 # --routes=joint：槽线与停靠站联合规划（每面墙规划耗时中位约 0.4 s，最长约 5.5 s），输出格式不变
+# --time-model：预测时间所用的预设，默认 align_v2；也可在任务文件 options.time_model 中指定
 
-# 执行（scr_arm_controller 的任务总流程，只读规划文件）；--dry-run-gap 为空切
+# 执行（行为树执行器 /execute_slot_plan，需先 ros2 launch scr_bringup sim_nav.launch.py）；--dry-run-gap 为空切
 ros2 run scr_arm_controller navigation_cutting_task /tmp/plan.yaml --dry-run-gap=0.01
 
-# 实验记录器：同一执行路径 + Gazebo 真值评估，输出 stations.csv / tool_trace.csv / summary.yaml
-ros2 run scr_planner execute_slot_plan.py /tmp/plan.yaml /tmp/run --dry-run-gap=0.01
+# 实验记录器：同一 action 的客户端 + Gazebo 真值评估，输出 stations.csv / tool_trace.csv / summary.yaml
+ros2 run scr_planner execute_slot_plan.py /tmp/plan.yaml /tmp/run --dry-run-gap=0.01 \
+    [--no-compensation] [--max-strafe=1.5] [--bt=<tree.xml>]
 
 # ROS 节点：规划并在 /wall_slot_plan/markers 发布 RViz 显示
 ros2 run scr_planner wall_slot_planner_node.py --ros-args \
@@ -50,7 +53,32 @@ ros2 run scr_planner wall_slot_planner_node.py --ros-args \
 
 墙面任务文件的格式见 `config/wall_task_room3_south.yaml` 和 [使用指南](../../docs/USER_GUIDE.md#7-多站开槽离线规划--逐站执行)。线盒高度须在机械臂可切范围内（离地约 0.27–0.80 m）。
 
-其他脚本：`wall_benchmark.py`（规划器与施工规范的随机墙面对比）、`station_order_benchmark.py`（停靠站划分与顺序的离线对比）、`calibrate_time_model.py`（由执行记录标定时间模型）、`task_planning_benchmark.py` / `task_planning_report.py`（联合规划的批量基准与统计，见 [报告](../../docs/experiments/task_planning/README.md)）、`plot_execution.py` / `plot_station_order.py`（作图）。
+`execute_slot_plan.py` 不含执行逻辑：执行由 `scr_task` 的行为树完成，记录器发送规划文件，订阅 Gazebo 真值与技能服务器的阶段话题 `/task_skills/status`，把刀尖轨迹、到站误差、底盘漂移与规划槽线比较。`summary.yaml` 与 `stations.csv` 的字段与早期版本相同，另增每站恢复次数 `recoveries`。
+
+## 时间模型
+
+每站耗时 = `t_settle` + 横移距离 / `v_strafe` + 点数 × `t_point`（`slot_plan.TimeModel`）。标定结果保存为命名预设 `slot_plan.TIME_MODELS`，用 `TimeModel.preset(name)` 取用：
+
+| 预设 | 标定数据 | 方法 | `t_settle` | `v_strafe` | `t_point` |
+|---|---|---|---|---|---|
+| `align_v2`（默认，`TimeModel()`） | 精对位第二版，3 次运行 33 站 | 分阶段估计 | 2.83 s | 0.0984 m/s | 2.049 s |
+| `align_v1` | 第一版精对位，4 次运行 54 站 | 整体最小二乘 | 4.40 s | 0.0945 m/s | 2.034 s |
+
+`plan_wall_slots.py`、`task_planning_benchmark.py`、`task_planning_report.py` 接受 `--time-model=<预设>`。标定：
+
+```bash
+python3 src/scr_planner/scripts/calibrate_time_model.py <run_dir> [<run_dir> ...] \
+    [--method=joint|phases] [--compare=align_v1,align_v2] [--loo]
+```
+
+- `--method=joint`（默认）：对每站总耗时 `station_s` 做整体最小二乘，三个参数同时拟合；
+- `--method=phases`：分阶段估计——横移阶段 `move_s = a + d / v_strafe` 回归，`t_point = Σ cut_s / Σ points`，固定开销取均值，`t_settle = a + 固定开销`；少数站上的偶发停顿只影响 `t_point` 的均值，而不会被归到横移距离上；
+- `--compare`：在同一批数据上评估已有预设的每站 RMSE、平均偏差与各站耗时之和的误差；
+- `--loo`：逐次运行留一交叉验证。
+
+两个预设的数据都来自早期配置（`/odom` 为真值）。执行路径或仿真配置改变后应用新的执行记录重新标定。标定过程与比较见 [技术报告](../../docs/report/README.md#64-执行时间模型的标定) 6.4 节。
+
+其他脚本：`wall_benchmark.py`（规划器与施工规范的随机墙面对比）、`station_order_benchmark.py`（停靠站划分与顺序的离线对比）、`task_planning_benchmark.py` / `task_planning_report.py`（联合规划的批量基准与统计，见 [报告](../../docs/experiments/task_planning/README.md)）、`plot_execution.py` / `plot_station_order.py`（作图）。
 
 ## 测试
 
@@ -60,6 +88,6 @@ colcon test --packages-select scr_planner && colcon test-result --verbose
 ```
 
 - `test/test_oriented_astar.cpp`（gtest）：基本行为、各项规范约束，以及在 400 张随机栅格、随机规则组合上与独立实现的逐格 Dijkstra 比较最优值；
-- `test/test_slot_plan.py`（pytest）：停靠站覆盖、动态规划划分不劣于贪心、扫掠顺序与暴力枚举一致、单轴切割、规划文件读写、主任务对规划文件的解析与补偿公式。
+- `test/test_slot_plan.py`（pytest）：停靠站覆盖、动态规划划分不劣于贪心、扫掠顺序与暴力枚举一致、单轴切割、规划文件读写、规划文件的解析与补偿公式（`scr_arm_controller/slot_execution.py`）、时间模型预设。
 
 实验报告：[开槽规划算法与施工规范](../../docs/experiments/cpp_planner/README.md)、[多站执行与停靠站顺序优化](../../docs/experiments/slot_execution/README.md)。
