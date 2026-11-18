@@ -15,6 +15,7 @@ install(DIRECTORY
 install(PROGRAMS
   scripts/set_initial_pose.py
   scripts/send_goal.py
+  scripts/nav_benchmark.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
