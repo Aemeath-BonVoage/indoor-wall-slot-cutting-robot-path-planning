@@ -35,3 +35,8 @@
       fold_residual: true
       # 多站执行：站间横移时定位标记在视野内则继续用于更新沿墙位置（false = 只用里程计外推）
       strafe_tag_updates: true
+      # 复现本报告 slot_ekf_tag 的配置：单个标记、横移前不回观测位姿、不估计横移比例
+      # （之后的默认值见 scr_arm_controller/config/fine_alignment.yaml）
+      observe_between_stations: false
+      tag_map: ''
+      estimate_scale: false

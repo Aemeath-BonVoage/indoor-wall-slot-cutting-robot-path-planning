@@ -326,7 +326,10 @@ def main():
     goal.compensate = 'no-compensation' not in flags
     goal.max_strafe = float(flags.get('max-strafe', 0.0))
     goal.behavior_tree = flags['bt'] if isinstance(flags.get('bt'), str) else ''
-    goal.realign_distance = float(flags.get('realign-distance', 0.0))
+    realign_arg = flags.get('realign-distance', 0.0)
+    if realign_arg is True:      # 只写 --realign-distance 不带数值：视为未设置
+        realign_arg = 0.0
+    goal.realign_distance = float(realign_arg)
     t_start = time.time()
     sim_start = ex.now()
     ok, result = ex.execute(goal)
