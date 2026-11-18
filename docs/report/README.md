@@ -55,7 +55,7 @@
 
 ![Gazebo 仿真场景](../images/gazebo_world.png)
 
-*图 1　Gazebo 中的室内场景与机器人（[README](../../README.md)）。*
+*图 1：Gazebo 中的室内场景与机器人（[README](../../README.md)）。*
 
 | 组成 | 参数 | 来源 |
 |---|---|---|
@@ -79,7 +79,7 @@
 
 ![系统架构](fig_architecture.png)
 
-*图 2　软件架构（默认配置）。实线为指令与数据流，虚线为传感器与里程计反馈；真值只用于评估，不进入任何控制或估计环节。*
+*图 2：软件架构（默认配置）。方框为节点或文件，底色区分层次；实线箭头为指令与数据流，虚线箭头为传感器与里程计反馈；真值只用于评估，不进入任何控制或估计环节。*
 
 系统由 10 个 ROS 2 包组成：
 
@@ -219,7 +219,7 @@ c[k]   = −k·e[k]
 
 ![闭环极点](../experiments/fine_alignment/fig_poles.png)
 
-*图 3　离散闭环极点随增益的变化（[fine_alignment](../experiments/fine_alignment/README.md#24-控制分析)）。*
+*图 3：(a) 最大闭环极点模 |z| 随归一化增益 k·T 的变化（点线 |z| = 1 为稳定边界）；(b) 闭环极点在 z 平面中的位置（[fine_alignment](../experiments/fine_alignment/README.md#24-控制分析)）。*
 
 | T | k | k·T | 闭环极点 | 主导时间常数 |
 |---|---|---|---|---|
@@ -247,7 +247,7 @@ Gazebo 配对实验（每条件 8 次，同一组随机起点：离墙 1.0–1.5
 
 ![对位鲁棒性](../experiments/alignment_robustness/robustness.png)
 
-*图 4　各条件下两种流水线的到位误差（n = 8 / 格；斜线柱为 8 次全部失败）。*
+*图 4：各测试条件（横轴）下各流水线的最终位置误差（均值 ± 标准差，n = 8 / 格）；朱红斜线柱为第一版（v1），蓝色实心柱为本版（v2），竖排 “all 8 failed” 为 8 次全部失败。*
 
 | 条件 | 第一版 | 第二版 | 说明 |
 |---|---|---|---|
@@ -309,7 +309,7 @@ Gazebo 配对实验（每条件 8 次，同一组随机起点：离墙 1.0–1.5
 
 ![规划对比](../experiments/cpp_planner/wall_comparison.png)
 
-*图 5　典型场景中第一版规划器（橙）与带规范的 C++ 规划器（蓝）的路线，以及各方法输出违规路线的场景占比（[cpp_planner](../experiments/cpp_planner/README.md)）。*
+*图 5：(a)–(c) 典型场景中第一版规划器（朱红虚线）与带规范的 C++ 规划器（蓝实线）的路线，(d) 各方法输出违规路线的场景占比（[cpp_planner](../experiments/cpp_planner/README.md)）。*
 
 ### 5.3 停靠站划分与访问顺序
 
@@ -364,7 +364,7 @@ T = Σ_站 (t_settle + 横移距离 / v_strafe) + t_point × 机械臂点数
 
 ![联合规划结果](../experiments/task_planning/fig_results.png)
 
-*图 6　(a) 非承重墙上每面墙的节省；(b) 各方法与下界差距的经验分布；(c) 有解的墙数；(d) 规划耗时（[task_planning](../experiments/task_planning/README.md)，`align_v1` 时间模型）。*
+*图 6：(a) 非承重墙上每面墙的节省；(b) 各方法与下界差距的累积分布；(c) 有解的墙数；(d) 规划耗时。灰色为逐槽划分，朱红为先选线后 DP，蓝色为联合规划（[task_planning](../experiments/task_planning/README.md)，`align_v1` 时间模型）。*
 
 ---
 
@@ -424,7 +424,7 @@ T = Σ_站 (t_settle + 横移距离 / v_strafe) + t_point × 机械臂点数
 
 ![执行结果](../experiments/slot_execution/execution.png)
 
-*图 7　优化方案的执行结果（第一版精对位）：规划槽线、切割阶段的真值刀尖、各站窗口、拐角放大、每站停靠误差与耗时（[slot_execution](../experiments/slot_execution/README.md)）。*
+*图 7：优化方案的执行结果（第一版精对位）：规划槽线、切割阶段的真值刀尖、各站窗口、拐角放大、每站停靠误差与耗时（[slot_execution](../experiments/slot_execution/README.md)）。*
 
 **停靠站优化**（第一版精对位，每种方案 2 次）：
 
@@ -469,7 +469,7 @@ T = Σ_站 (t_settle + 横移距离 / v_strafe) + t_point × 机械臂点数
 
 ![沿墙误差随停靠站位置的变化](../experiments/along_wall_accuracy/fig_error_vs_distance.png)
 
-*图 8　到站沿墙误差（上）与补偿后刀尖沿墙误差（下）随停靠站离参考标记距离的变化，每个配置 2 次运行（[along_wall_accuracy](../experiments/along_wall_accuracy/README.md)）。*
+*图 8：到站沿墙误差（上排）与补偿后刀尖沿墙误差（下排）随停靠站离参考标记距离的变化，每个配置 2 次运行（实线 / 虚线为打滑种子 1 / 2）；颜色区分方法组（朱红 基线、绿 多标记、橙 重新对位、蓝 比例修正、黑 默认配置），灰色区域为参考标记参与更新的范围（[along_wall_accuracy](../experiments/along_wall_accuracy/README.md)）。*
 
 - **多标记的效果由“每站是否有可见标记”决定**：工作距离下，标记在底盘相对它 −0.39 … +0.44 m 内可用（约 0.83 m 的窗口）。间距 0.3 / 0.6 m 时每站都有可见标记，误差不再随距离增长，0.3 m 没有可区分的改善；1.2 m 留下 0.37 m 的无标记区，区内误差回到里程计外推的水平。
 - **地图位置误差几乎一比一进入结果**：±3 mm 的记录偏差使依赖该标记的站偏约 3 mm。标记应在粘贴后测量实际位置，而不是按设计位置记录。
@@ -500,7 +500,7 @@ T = Σ_站 (t_settle + 横移距离 / v_strafe) + t_point × 机械臂点数
 
 ![演示：第 8 站切割](../experiments/demo/demo_cut.png)
 
-*图 9　演示运行第 8 站切割：上为 Gazebo 演示相机（`oblique`），下为墙面立面图：白色宽线为规划槽线，橙红为真值刀尖切割段（空切，刀尖停在墙前 10 mm），青色为刀尖移动，彩色竖带为每站机械臂可达窗口，黄框为当前站，黑色方块为定位标记（[demo](../experiments/demo/README.md)，动画 [`slot_demo.gif`](../experiments/demo/slot_demo.gif)）。*
+*图 9：演示运行第 8 站切割：上为 Gazebo 演示相机（`oblique`），下为墙面立面图：白色宽线为规划槽线，橙红为真值刀尖切割段（空切，刀尖停在墙前 10 mm），青色为刀尖移动，彩色竖带为每站机械臂可达窗口，黄框为当前站，黑色方块为定位标记（[demo](../experiments/demo/README.md)，动画 [`slot_demo.gif`](../experiments/demo/slot_demo.gif)）。*
 
 ---
 
@@ -546,7 +546,7 @@ T = Σ_站 (t_settle + 横移距离 / v_strafe) + t_point × 机械臂点数
 
 ![结果汇总](fig_summary.png)
 
-*图 10　(a) 精对位配对实验（Gazebo，n = 8 / 条件）；(b) 多站执行每次运行的到站横向误差（Gazebo，真值里程计）；(c) 当前默认路径下 5 次未参与标定的运行（55 站）上，`align_v2` 与 `align_v3` 的每站预测与实测（Gazebo，样本外）；(d) 400 面随机墙配对样本上的平均预测执行时间（离线，模型预测），三种时间模型。数据来自各实验报告的 CSV，作图脚本 [`make_figures.py`](make_figures.py)。*
+*图 10：(a) 精对位配对实验（Gazebo，n = 8 / 条件）；(b) 多站执行每次运行的到站沿墙误差（横轴，均值 ± 站间标准差，右列为均值；Gazebo，真值里程计）；(c) 当前默认路径下 5 次未参与标定的运行（55 站）上，`align_v2` 与 `align_v3` 的每站预测与实测（Gazebo，样本外）；(d) 400 面随机墙配对样本上的平均预测执行时间（离线，模型预测），三种时间模型。数据来自各实验报告的 CSV，作图脚本 [`make_figures.py`](make_figures.py)。*
 
 ### 8.1 Gazebo 实测结果
 
@@ -618,7 +618,7 @@ T = Σ_站 (t_settle + 横移距离 / v_strafe) + t_point × 机械臂点数
 
 ![可观性](../experiments/ibvs_vs_pbvs/fig_observability.png)
 
-*图 11　IBVS 特征雅可比的可观性分析（[ibvs_vs_pbvs](../experiments/ibvs_vs_pbvs/README.md)）。*
+*图 11：IBVS 特征雅可比的可观性分析：(a)(b) 单帧测量标准差随标记边长的变化，(c) 闭环稳态偏航 RMS（[ibvs_vs_pbvs](../experiments/ibvs_vs_pbvs/README.md)）。*
 
 ---
 
