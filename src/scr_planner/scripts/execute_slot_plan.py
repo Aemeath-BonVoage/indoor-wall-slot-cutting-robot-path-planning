@@ -289,7 +289,10 @@ def main():
     args = [a for a in argv[1:] if not a.startswith('--')]
     flags = dict((a[2:].partition('=')[0], a[2:].partition('=')[2] or True)
                  for a in argv[1:] if a.startswith('--'))
-    dry_gap = float(flags['dry-run-gap']) if 'dry-run-gap' in flags else None
+    gap_arg = flags.get('dry-run-gap')
+    if gap_arg is True:          # 只写 --dry-run-gap 不带数值：取主任务的默认间隙
+        gap_arg = '0.01'
+    dry_gap = float(gap_arg) if gap_arg is not None else None
     plan_path = os.path.abspath(args[0])
     out_dir = args[1] if len(args) > 1 else os.getcwd()
     os.makedirs(out_dir, exist_ok=True)

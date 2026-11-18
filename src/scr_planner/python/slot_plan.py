@@ -304,7 +304,7 @@ class TimeModel:
         return TIME_MODELS[name]
 
 
-# 时间模型标定预设（Gazebo 仿真配置 v2，主任务执行路径 navigation_cutting_task.run_slot_plan）
+# 时间模型标定预设（Gazebo 仿真配置 v2；标定数据来自行为树改造之前的执行路径 navigation_cutting_task.run_slot_plan）
 TIME_MODELS = {
     # 第一版精对位（色块 + PBVS，站间横移用激光朝向平滑）：runs/dp、dp_repeat、per_slot、
     # per_slot_repeat 共 54 站，整体最小二乘，每站 RMSE 0.10 s

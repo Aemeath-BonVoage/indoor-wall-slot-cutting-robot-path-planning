@@ -25,7 +25,7 @@
 |---|---|---|
 | 精对位 | AprilTag + 激光 EKF + 饱和控制律：对位误差 4.2 → 0.53 ± 0.21 mm（n = 8，配对）；冷光、间歇遮挡、里程计漂移下保持 0.5–0.8 mm；示教零位把 1° 相机安装误差的影响从约 10 mm 降到 1.0 mm；给出李雅普诺夫与离散采样稳定性分析 | [设计与分析](docs/experiments/fine_alignment/README.md)、[对比实验](docs/experiments/alignment_robustness/README.md) |
 | 开槽规划 | C++ 方向感知增强 A\* 把施工规范作为硬约束并保持最优；140 面随机墙上 0 条违规路线，第一版规划器在 106 面上违规 | [规划与规范](docs/experiments/cpp_planner/README.md) |
-| 多站执行 | 两条槽 11 个停靠站全部完成；精对位升级并以标记估计位置为墙面原点后，每次运行的常值横向偏差 +0.65–1.26 → −0.18–+0.24 mm，刀尖轨迹误差最大 0.9 mm，总耗时 250 → 233 s。以上为理想里程计；换成含打滑与噪声的编码器模型后，沿墙误差随离标记的距离累积到 25 mm，是当前的主要问题 | [多站执行](docs/experiments/slot_execution/README.md)、[系统层](docs/experiments/system_modernization/README.md#45-真实里程计下的精对位与多站执行) |
+| 多站执行 | 两条槽 11 个停靠站全部完成；精对位升级并以标记估计位置为墙面原点后，每次运行的常值横向偏差 +0.65–1.26 → −0.18–+0.24 mm，刀尖轨迹误差最大 0.9 mm，总耗时 250 → 233 s。换成含打滑与噪声的编码器模型后，沿墙误差曾随离标记的距离累积到 25 mm；按 0.6 m 间距布置 AprilTag 并在 EKF 中在线估计里程计横移比例后，最大沿墙误差 24.7 → 1.5 mm | [多站执行](docs/experiments/slot_execution/README.md)、[沿墙精度](docs/experiments/along_wall_accuracy/README.md) |
 | 停靠站优化 | 动态规划划分 + 最优扫掠顺序，Gazebo 中总耗时 283 s → 250 s（−11.8 %） | [多站执行](docs/experiments/slot_execution/README.md) |
 | 任务级联合规划 | 槽线走向与停靠站联合优化：400 面随机住宅墙上从不比分步方法慢，非承重墙预测执行时间再省 3.8 %（95 % CI [3.3, 4.3] %，Wilcoxon p < 1e-10，按精对位第二版重新标定的时间模型），下界证书证明 92 % 的墙已达最优 | [联合规划](docs/experiments/task_planning/README.md) |
 | 系统层 | 任务改由 BehaviorTree.CPP 编排 6 个技能 action（含重试与重新对位）；Nav2 换用 Smac 2D + MPPI：到达 18 / 18（NavFn + DWB 15 / 18），最小离障间隙 183 mm（5 mm），控制器 CPU 9.7 %（45.5 %）；底盘接入 ros2_control | [系统层现代化](docs/experiments/system_modernization/README.md) |
@@ -162,6 +162,7 @@ colcon test && colcon test-result --verbose
   - [墙面开槽规划：C++ 增强 A\* 与施工规范](docs/experiments/cpp_planner/README.md)
   - [多站执行与停靠站顺序优化](docs/experiments/slot_execution/README.md)
   - [系统层现代化：行为树、Nav2 MPPI / Smac、定位融合、ros2_control](docs/experiments/system_modernization/README.md)
+  - [多站沿墙精度：多标记地图与横移比例在线估计](docs/experiments/along_wall_accuracy/README.md)
   - [任务级联合规划：槽线走向 + 停靠站](docs/experiments/task_planning/README.md)
   - [视觉伺服方法对比：PBVS / IBVS / 2.5D 混合](docs/experiments/ibvs_vs_pbvs/README.md)
   - [可视化与演示](docs/experiments/demo/README.md)
