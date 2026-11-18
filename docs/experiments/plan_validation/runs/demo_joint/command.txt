@@ -1,0 +1,5 @@
+ros2 launch scr_bringup sim_nav.launch.py gui:=false rviz:=false odom_seed:=1
+ros2 run scr_viz spawn_wall_fixtures src/scr_viz/config/wall_task_room3_south_demo.yaml --spawn
+ros2 run scr_viz demo_record --out ~/scr_media/demo_frames/overview --name demo_overview --preset overview --rate 2 --width 800 --height 450 --cam-fps 4 --duration 1500
+ros2 run scr_viz demo_record --out ~/scr_media/demo_frames/oblique --name demo_oblique --preset oblique --rate 2 --width 800 --height 450 --cam-fps 4 --duration 1500
+ros2 run scr_planner execute_slot_plan.py docs/experiments/plan_validation/plans/plan_joint.yaml docs/experiments/plan_validation/runs/demo_joint --dry-run-gap=0.01

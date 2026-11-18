@@ -6,7 +6,7 @@
 
 **结论**：在 400 面随机住宅墙上，联合规划在所有方案可比的墙上**从不比现有方法慢**；非承重墙上预测执行时间平均再降 **3.5 %**（95 % CI [3.1, 4.0] %，n = 156，Wilcoxon p < 1e-10），相对逐槽划分的基线共降 **11.9 %**。用下界证书可以证明它在 **92 %** 的墙上已是该时间模型下的最优解。代价是规划耗时从约 25 ms 增加到约 0.4 s（中位数）。
 
-（本报告正文的数字都使用第一版精对位下标定的时间模型，即预设 `align_v1`。按当前执行路径重标定后（预设 `align_v2`，现为默认值），非承重墙上的节省为 3.84 %，相对基线共 12.41 %，证明最优的比例为 92.0 %，见文末“时间模型重标定（精对位第二版）”。）
+（本报告正文的数字都使用第一版精对位下标定的时间模型，即预设 `align_v1`。按此后的执行路径重标定后结论不变：`align_v2` 下非承重墙节省 3.84 %，当前默认的 `align_v3` 下 3.46 %，证明最优的比例都约为 92 %，见文末“时间模型重标定”两节。room3 南墙示例任务上，联合规划已在 Gazebo 中执行：11 个停靠站实测 228 s，规则路线 246 s，**实测节省 7.3 %**，与预测（6.6 %）一致，见 [plan_validation](../plan_validation/README.md)。）
 
 ## 问题
 
@@ -239,7 +239,7 @@ r_rb = 1.00 表示所有非零差值方向相同（没有一面墙变慢），�
 | 现有方法，修正后评估 | 11 | 88 | 241.8 s |
 | 联合规划（`--routes=joint`） | 11 | 80 | 225.5 s（−6.7 %） |
 
-后两行尚未在 Gazebo 中执行。
+后两行此后在 Gazebo 中执行，见文末“时间模型重标定（当前默认执行路径）与 Gazebo 验证”。
 
 ### 排查：评估环节的三处修正
 
@@ -287,8 +287,40 @@ r_rb = 1.00 表示所有非零差值方向相同（没有一面墙变慢），�
   | 现有方法，修正后评估（`--routes=rule`） | 11 | 88 | 241.8 s | 225.3 s |
   | 联合规划（`--routes=joint`） | 11 | 80 | 225.5 s | 208.9 s（−7.3 %） |
 
-  后两行仍未在 Gazebo 中执行；新模型下的规划文件在 [`align_v2/example_room3/`](align_v2/example_room3/)。
+  新模型下的规划文件在 [`align_v2/example_room3/`](align_v2/example_room3/)。后两行此后在 Gazebo 中执行，见下一节。
 - **示例墙（种子 1121）**：现有 335.6 s → 联合 302.8 s（−9.8 %；`align_v1` 下为 366.9 → 334.4 s，−8.9 %），图见 [`align_v2/fig_example.png`](align_v2/fig_example.png)，汇总图 [`align_v2/fig_results.png`](align_v2/fig_results.png)。
+
+## 时间模型重标定（当前默认执行路径）与 Gazebo 验证
+
+此后默认执行路径改为行为树任务层 + 标记地图 + 横移比例估计，横移前机械臂回到观测位姿（[along_wall_accuracy](../along_wall_accuracy/README.md)），每站多出约 2 s，`align_v2` 在新路径上每次运行低估 18–21 s。按新路径的 44 个停靠站重新标定得到 `align_v3`：t_settle 4.70 s、v_strafe 0.0971 m/s、t_point 2.030 s（每站 RMSE 0.22 s，逐次运行留一 0.24 s；切割阶段改用回归，原因见 [plan_validation](../plan_validation/README.md#41-时间模型重标定)）。标定、样本外检验与 Gazebo 执行都在 [plan_validation](../plan_validation/README.md)。
+
+**Gazebo 执行（room3 南墙示例任务，`align_v3` 下的规划文件在 [`plan_validation/plans/`](../plan_validation/plans/)）**：
+
+| 流程 | 停靠站 / 机械臂点 | `align_v3` 预测 | Gazebo 实测（种子 1 / 2） | 到站沿墙误差最大 | 刀尖轨迹误差平均 |
+|---|---|---|---|---|---|
+| 现有方法（`--routes=rule`） | 11 / 88 | 244.4 s | 245.7 / 246.0 s | 1.51 / 1.28 mm | 0.18 / 0.18 mm |
+| 联合规划（`--routes=joint`） | 11 / 80 | 228.1 s（−6.6 %） | 228.1 / 227.8 s（**−7.3 %**） | 2.00 / 1.27 mm | 0.19 / 0.19 mm |
+
+实测节省 17.9 s，比预测多 1.7 s；差额来自规则路线每次运行中一次约 2.7 s 的偶发停顿，扣除后实测节省 15.2 s（6.2 %）。两种规划的执行精度没有可见差别。时间均为各站耗时之和（仿真时间），不含导航与首次精对位。
+
+**400 面墙的离线对比用 `align_v3` 重跑**（种子 1000–1399，其余设置不变，结果在 [`align_v3/`](align_v3/)；仍是模型预测）：
+
+| 指标 | `align_v1`（正文） | `align_v2` | `align_v3`（当前默认） |
+|---|---|---|---|
+| 配对墙平均预测时间：逐槽基线 / 现有 / 联合 / 下界 | 174.3 / 155.8 / 150.6 / 149.3 s | 159.5 / 142.2 / 137.0 / 135.7 s | 175.6 / 157.4 / 152.2 / 150.9 s |
+| 现有 → 联合，非承重墙（n = 156）平均节省 | 3.53 %，95 % CI [3.08, 3.98] % | 3.84 %，[3.34, 4.34] % | **3.46 %**，[3.02, 3.91] %（中位 3.89 %，最大 9.3 %） |
+| 　快 / 持平 / 慢 | 106 / 50 / 0 | 105 / 51 / 0 | 106 / 50 / 0 |
+| 　按槽数 1 / 2 / 3 / 4 | 3.22 / 4.43 / 3.07 / 2.83 % | 3.55 / 4.86 / 3.26 / 2.93 % | 3.17 / 4.37 / 3.02 / 2.66 % |
+| 逐槽基线 → 联合，全部（n = 275） | 11.93 % | 12.41 % | 11.69 %，[10.65, 12.75] % |
+| 逐槽基线 → 现有，全部 | 10.06 % | 10.37 % | 9.84 % |
+| 联合规划证明最优（配对墙） | 254 / 275（92.4 %） | 253 / 275（92.0 %） | 253 / 275（92.0 %） |
+| 得到合规方案的墙：现有 / 联合 | 275 / 294 | 275 / 293 | 275 / 293 |
+| 时间模型敏感性子集（42 面）平均节省 | 3.14 % | 3.46 % | 3.09 % |
+
+- `align_v3` 的参数与 `align_v1` 接近（每站固定开销 4.70 s 对 4.40 s，每点 2.030 s 对 2.034 s），结果也接近 `align_v1`：配对墙上联合规划非承重墙平均减少 4.41 个机械臂点，节省的绝对量约 9.1 s 不变，占比随每站固定开销增大而略降。
+- `align_v2` 下出现的“各槽独立变体比联合规划快”的墙（种子 1220）在 `align_v3` 下没有出现：四种站感知变体在 275 面配对墙上逐墙相同。
+- 规划耗时中位数：现有 19 ms、联合 0.28 s（本次运行时机器负载较轻，与上文 25 ms / 0.4 s 不可直接比较）。
+- 示例墙（种子 1121）：现有 371.3 s → 联合 338.8 s（−8.8 %），图见 [`align_v3/fig_example.png`](align_v3/fig_example.png)，汇总图 [`align_v3/fig_results.png`](align_v3/fig_results.png)。
 
 ## 分析
 
@@ -309,7 +341,7 @@ r_rb = 1.00 表示所有非零差值方向相同（没有一面墙变慢），�
 
 ## 局限
 
-- **时间模型**：每个机械臂点固定约 2 s，与切割长度无关（Gazebo 中 `motion.duration = 2.0 s`）。真实切割受进给速度限制，长段要更久；联合规划使槽长平均只增加 7 mm，影响应很小，但未量化。所有结论都是模型预测，本轮没有 Gazebo 执行。
+- **时间模型**：每个机械臂点固定约 2 s，与切割长度无关（Gazebo 中 `motion.duration = 2.0 s`）。真实切割受进给速度限制，长段要更久；联合规划使槽长平均只增加 7 mm，影响应很小，但未量化。400 面墙的结论都是模型预测；Gazebo 中只执行了 room3 南墙一个示例任务（[plan_validation](../plan_validation/README.md)，联合规划与规则路线各 2 次）。
 - **最优性证明**：用下界证书代替 MILP。下界忽略槽间约束，多槽墙上有 7.6 % 的配对墙没有闭合，这些墙上的最优性未知。
 - **场景**：生成器是按常见做法写的规则化布局，不是实测户型数据；任务限定在可切高度带内；一面墙独立规划，不考虑多面墙之间的转场。
 - **离散化**：路线栅格和窗口相位都是 1 cm；DP 候选位置为 5 mm 网格加拐点。
@@ -327,7 +359,11 @@ python3 src/scr_planner/scripts/task_planning_benchmark.py --scenes 400 --seed0 
 python3 src/scr_planner/scripts/task_planning_benchmark.py --sensitivity --scenes 120 --seed0 1000 --time-model align_v1
 # 统计、表格与图（本报告正文的数字都来自它的输出）
 python3 src/scr_planner/scripts/task_planning_report.py docs/experiments/task_planning/data docs/experiments/task_planning --time-model=align_v1
-# 重标定后（align_v2，默认，输出 align_v2/data/ 与 align_v2/）：主实验 15 min，敏感性 5 min
+# 重标定后（align_v2，输出 align_v2/data/ 与 align_v2/）：主实验 15 min，敏感性 5 min
+python3 src/scr_planner/scripts/task_planning_benchmark.py --scenes 400 --seed0 1000 --jobs 2 --time-model align_v2
+python3 src/scr_planner/scripts/task_planning_benchmark.py --sensitivity --scenes 120 --seed0 1000 --time-model align_v2
+python3 src/scr_planner/scripts/task_planning_report.py docs/experiments/task_planning/align_v2/data --time-model=align_v2
+# 当前默认（align_v3，输出 align_v3/data/ 与 align_v3/）：主实验 12 min，敏感性 4 min
 python3 src/scr_planner/scripts/task_planning_benchmark.py --scenes 400 --seed0 1000 --jobs 2
 python3 src/scr_planner/scripts/task_planning_benchmark.py --sensitivity --scenes 120 --seed0 1000
 python3 src/scr_planner/scripts/task_planning_report.py
@@ -343,6 +379,7 @@ python3 src/scr_planner/scripts/plan_wall_slots.py src/scr_planner/config/wall_t
 | [`summary.csv`](summary.csv)、[`paired_tests.csv`](paired_tests.csv)、[`gap.csv`](gap.csv)、[`lee_summary.csv`](lee_summary.csv)、[`sensitivity_summary.csv`](sensitivity_summary.csv) | 统计结果 |
 | [`example/`](example/) | 示例墙（种子 1121）的任务文件及两种方法的规划结果（`align_v1`） |
 | [`align_v2/`](align_v2/) | 用 `align_v2` 时间模型重跑的原始数据（`align_v2/data/`）、统计结果、图，以及 room3 南墙示例任务的规划文件（`align_v2/example_room3/`） |
+| [`align_v3/`](align_v3/) | 用 `align_v3`（当前默认）重跑的原始数据（`align_v3/data/`）、统计结果与图；room3 南墙示例任务的规划文件与 Gazebo 执行数据在 [`plan_validation/`](../plan_validation/) |
 
 代码：
 
