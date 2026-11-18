@@ -4,13 +4,13 @@
 
   python3 src/scr_planner/scripts/plan_wall_slots.py <task.yaml> <plan.yaml>
       [--routes=rule|joint] [--partition=dp|greedy|per_slot] [--order=sweep|slot_by_slot]
-      [--time-model=align_v2|align_v1]
+      [--time-model=align_v3|align_v2|align_v1]
 
 --routes=rule（默认）：逐条槽按开槽规范代价选线，再划分停靠站；
 --routes=joint：槽线与停靠站联合规划，最小化预测执行时间（task_plan.py，
 docs/experiments/task_planning）。两者输出格式相同，执行器无需区分。
---time-model：时间模型预设（slot_plan.TIME_MODELS），默认为当前执行路径的标定 align_v2；
-align_v1 用于复现第一版精对位下的报告数字。
+--time-model：时间模型预设（slot_plan.TIME_MODELS），默认为当前默认执行路径的标定 align_v3；
+align_v1 / align_v2 用于复现此前执行路径下的报告数字。
 
 规划结果包含：每条槽的正交折线、停靠站（按执行顺序）、每站底盘位姿与机械臂切割点、
 预测执行时间。参考原点是 Gazebo 中的黄色定位标记（执行时先对位到它）。
@@ -47,7 +47,7 @@ def plan_file(task_file, partition=None, order=None, routes=None, time_model=Non
                         partition=partition or opt.get('partition', 'dp'),
                         order=order or opt.get('order', 'sweep'), start_u=marker_u,
                         routes=routes or opt.get('routes', 'rule'),
-                        tm=sp.TimeModel.preset(time_model or opt.get('time_model', 'align_v2')))
+                        tm=sp.TimeModel.preset(time_model or opt.get('time_model', 'align_v3')))
     return sp.plan_to_dict(plan, wall, robot, opt.get('duration', 2.0), scene=scene,
                            marker_u=marker_u), plan
 

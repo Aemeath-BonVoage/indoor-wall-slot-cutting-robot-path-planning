@@ -111,8 +111,19 @@ def test_look_at_degenerate():
 
 def test_camera_presets_inside_room3():
     for name, (eye, target) in sdf_gen.CAMERA_PRESETS.items():
+        if name == 'overview':
+            continue
         assert 5.075 < eye[0] < 9.925 and -3.925 < eye[1] < 3.925, name
         assert sdf_gen.rpy_forward(sdf_gen.look_at_rpy(eye, target))[1] < 0, name  # 朝南墙
+
+
+def test_overview_preset_sees_start_and_wall():
+    eye, target = sdf_gen.CAMERA_PRESETS['overview']
+    fwd = sdf_gen.rpy_forward(sdf_gen.look_at_rpy(eye, target))
+    assert fwd[2] < -0.99                       # 近似竖直向下
+    half = eye[2] * math.tan(1.2 / 2)           # 默认 hfov 下地面半宽
+    for x, y in ((0.0, 0.0), (8.42, -3.925)):   # 导航起点、参考标记
+        assert abs(x - target[0]) < half and abs(y - target[1]) < half * 9 / 16
 
 
 def test_camera_sdf():
@@ -131,3 +142,13 @@ def test_camera_sdf():
     assert plugin.get('filename') == 'libgazebo_ros_camera.so'
     assert plugin.find('ros/namespace').text == '/cam1'
     assert m.find('link/collision') is None
+
+
+def test_camera_topic_matches_plugin_naming():
+    # gazebo_ros_camera 发布在 <命名空间>/<camera_name>/image_raw（Gazebo 中实测）
+    xml = sdf_gen.camera_sdf('cam1')
+    plugin = ET.fromstring(xml.split('\n', 1)[1]).find('model/link/sensor/plugin')
+    ns, cam = plugin.find('ros/namespace').text, plugin.find('camera_name').text
+    assert sdf_gen.camera_topic('cam1') == f'{ns}/{cam}/image_raw' == '/cam1/cam1/image_raw'
+    assert sdf_gen.camera_topic('cam1', '/demo') == '/demo/cam1/image_raw'
+    assert plugin.find('ros/remapping') is None

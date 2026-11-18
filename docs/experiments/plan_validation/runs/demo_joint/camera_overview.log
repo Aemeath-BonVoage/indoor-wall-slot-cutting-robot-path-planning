@@ -1,0 +1,3 @@
+[INFO] [1795001552.617281640] [scr_demo_camera]: 相机 demo_overview 已生成：eye=(4.3, -2.3, 7.5) target=(4.3, -1.5, 0.0)
+[INFO] [1795001552.651240997] [scr_demo_camera]: 订阅 /demo_overview/demo_overview/image_raw，每仿真秒 2 帧，存到 ~/scr_media/demo_frames/overview
+共存 453 帧（收到 621 帧）→ ~/scr_media/demo_frames/overview

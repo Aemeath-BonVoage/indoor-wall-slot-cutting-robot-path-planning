@@ -6,8 +6,8 @@
       [--collision] [--no-endpoints] [--skip-label 定位标记 ...]
 
   --out DIR      把每个实体写成 DIR/<name>.sdf，并写 DIR/fixtures.yaml 清单
-  --spawn        调 /gazebo/spawn_entity 生成（同名实体已存在时先删除）
-  --delete       调 /gazebo/delete_entity 删除本任务对应的全部实体
+  --spawn        调 /spawn_entity 生成（同名实体已存在时先删除）
+  --delete       调 /delete_entity 删除本任务对应的全部实体
   --collision    带 collision（默认只有 visual：激光与机械臂都不会碰到它）
   --no-endpoints 不生成开槽任务的起点 / 终点线盒，只生成 obstacles 中的 box
 

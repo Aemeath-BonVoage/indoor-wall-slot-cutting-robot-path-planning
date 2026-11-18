@@ -284,14 +284,15 @@ def station_points(st: Station, wall: WallFrame, robot: RobotModel, depth,
 class TimeModel:
     """执行时间模型（仿真时间，秒）：每站 t_settle + 横移距离 / v_strafe + 点数 × t_point.
 
-    默认值为当前执行路径（精对位 v2：AprilTag + 激光 EKF，站间横移用同一 EKF 与平方根整形
-    控制律）的标定结果，即 TIME_MODELS['align_v2']；第一版精对位下的标定保留为
-    TIME_MODELS['align_v1']，用于复现此前的报告。标定数据与方法见 calibrate_time_model.py 与
-    docs/experiments/slot_execution。仿真或执行代码改动后应重标定。
+    默认值为当前默认执行路径（行为树任务层；精对位为 AprilTag 标记地图 + 激光 EKF + 横移
+    比例估计，横移前机械臂回到观测位姿）的标定结果，即 TIME_MODELS['align_v3']。此前执行
+    路径下的标定保留为 TIME_MODELS['align_v1'] / ['align_v2']，用于复现此前的报告。标定数据与
+    方法见 calibrate_time_model.py 与 docs/experiments/plan_validation。仿真或执行代码改动后
+    应重标定。
     """
-    t_settle: float = 2.83      # 每站：横移启停 + 到位 + 测残差的固定开销
-    v_strafe: float = 0.0984    # 沿墙横移的等效速度（m/s）
-    t_point: float = 2.049      # 每个机械臂点（motion.duration = 2.0 s + 通信开销，含偶发停顿）
+    t_settle: float = 4.70      # 每站：横移启停 + 到位 + 测残差 + 观测位姿 → 首个切割点
+    v_strafe: float = 0.0971    # 沿墙横移的等效速度（m/s）
+    t_point: float = 2.030      # 每个机械臂点（motion.duration = 2.0 s + 通信开销）
 
     def move(self, d):
         return self.t_settle + abs(d) / self.v_strafe
@@ -304,14 +305,21 @@ class TimeModel:
         return TIME_MODELS[name]
 
 
-# 时间模型标定预设（Gazebo 仿真配置 v2；标定数据来自行为树改造之前的执行路径 navigation_cutting_task.run_slot_plan）
+# 时间模型标定预设（Gazebo 仿真配置 v2）
 TIME_MODELS = {
-    # 第一版精对位（色块 + PBVS，站间横移用激光朝向平滑）：runs/dp、dp_repeat、per_slot、
-    # per_slot_repeat 共 54 站，整体最小二乘，每站 RMSE 0.10 s
+    # 第一版精对位（色块 + PBVS，站间横移用激光朝向平滑），行为树改造之前的执行路径：
+    # slot_execution/runs/dp、dp_repeat、per_slot、per_slot_repeat 共 54 站，整体最小二乘，
+    # 每站 RMSE 0.10 s
     'align_v1': TimeModel(t_settle=4.40, v_strafe=0.0945, t_point=2.034),
-    # 精对位 v2：runs/fine_align_dp、fine_align_dp_repeat、fine_align_dp_nofold 共 33 站，
+    # 精对位 v2（单个 AprilTag + 激光 EKF），行为树改造之前的执行路径：
+    # slot_execution/runs/fine_align_dp、fine_align_dp_repeat、fine_align_dp_nofold 共 33 站，
     # 按阶段拟合（横移阶段回归 + 固定开销均值 + 切割总时间 / 总点数），每站 RMSE 0.68 s
-    'align_v2': TimeModel(),
+    'align_v2': TimeModel(t_settle=2.83, v_strafe=0.0984, t_point=2.049),
+    # 当前默认执行路径（行为树 + 标记地图 + 横移比例估计 + 横移前回观测位姿）：
+    # along_wall_accuracy/runs/default_s1、default_s2、scale_tags_0.6_s1、scale_tags_0.6_s2
+    # 共 44 站，按阶段拟合且切割阶段用回归（method phases-reg），每站 RMSE 0.22 s，
+    # 逐次运行留一交叉验证 0.24 s
+    'align_v3': TimeModel(),
 }
 
 
