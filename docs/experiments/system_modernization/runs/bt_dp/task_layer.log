@@ -1,0 +1,42 @@
+[task_executor-10] [INFO] [1794960561.790819612] [task_executor]: Executing cutting task install/scr_arm_controller/share/scr_arm_controller/config/task_at_target.yaml
+[task_skill_server-9] [INFO] [1794960605.337276362] [task_skills]: 墙面闭环收敛：误差 法向 +0.18 mm、沿墙 +0.41 mm、朝向 -0.042°，σ = (0.34 mm, 0.52 mm, 0.043°)，用时 11.5 s
+[task_skill_server-9] [INFO] [1794960605.838418785] [task_skills]: 真值误差: 位置=0.5mm (dx=0.3, dy=0.3), 角度=0.08°
+[task_skill_server-9] [INFO] [1794960649.041417075] [task_skills]: 定点保持期间底盘真值最大漂移: 0.22 mm, 0.083°
+[task_executor-10] [INFO] [1794960649.048481518] [task_executor]: Cutting task finished: success, 84.3 s
+[task_executor-10] [INFO] [1794960651.333296101] [task_executor]: Executing slot plan docs/experiments/slot_execution/runs/dp/slot_plan.yaml (dry run on, compensation on)
+[task_skill_server-9] [INFO] [1794960671.624929754] [task_skills]: 墙面闭环收敛：误差 法向 -0.02 mm、沿墙 +0.37 mm、朝向 -0.034°，σ = (0.32 mm, 0.49 mm, 0.041°)，用时 5.7 s
+[task_skill_server-9] [INFO] [1794960672.139201857] [task_skills]: 真值误差: 位置=1.2mm (dx=1.0, dy=0.5), 角度=0.00°
+[task_skill_server-9] [INFO] [1794960676.297379599] [task_skills]: 墙面闭环收敛：误差 法向 +0.16 mm、沿墙 +0.49 mm、朝向 -0.022°，σ = (0.33 mm, 1.18 mm, 0.047°)，用时 4.0 s
+[task_skill_server-9] [INFO] [1794960677.309153860] [task_skills]: S0 残余误差（传感器）: 横向 +0.6 mm, 离墙 +0.3 mm, 朝向 -0.07°，已补偿
+[task_skill_server-9] [INFO] [1794960685.655558819] [task_skills]: 定点保持期间底盘真值最大漂移: 0.22 mm, 0.145°
+[task_skill_server-9] [INFO] [1794960687.945897738] [task_skills]: 墙面闭环收敛：误差 法向 -0.13 mm、沿墙 +0.14 mm、朝向 -0.045°，σ = (0.33 mm, 1.36 mm, 0.048°)，用时 2.2 s
+[task_skill_server-9] [INFO] [1794960688.977130728] [task_skills]: S1 残余误差（传感器）: 横向 +0.3 mm, 离墙 -0.6 mm, 朝向 -0.06°，已补偿
+[task_skill_server-9] [INFO] [1794960697.224158212] [task_skills]: 定点保持期间底盘真值最大漂移: 0.28 mm, 0.150°
+[task_skill_server-9] [INFO] [1794960700.085049950] [task_skills]: 墙面闭环收敛：误差 法向 -0.16 mm、沿墙 -0.04 mm、朝向 -0.042°，σ = (0.32 mm, 1.62 mm, 0.047°)，用时 2.8 s
+[task_skill_server-9] [INFO] [1794960701.117482822] [task_skills]: S2 残余误差（传感器）: 横向 +0.0 mm, 离墙 -0.1 mm, 朝向 -0.08°，已补偿
+[task_skill_server-9] [INFO] [1794960709.392249613] [task_skills]: 定点保持期间底盘真值最大漂移: 0.24 mm, 0.157°
+[task_skill_server-9] [INFO] [1794960712.316171599] [task_skills]: 墙面闭环收敛：误差 法向 -0.38 mm、沿墙 +0.02 mm、朝向 -0.022°，σ = (0.35 mm, 1.85 mm, 0.050°)，用时 2.9 s
+[task_skill_server-9] [INFO] [1794960713.367361634] [task_skills]: S3 残余误差（传感器）: 横向 +0.1 mm, 离墙 -0.0 mm, 朝向 -0.01°，已补偿
+[task_skill_server-9] [INFO] [1794960739.185566575] [task_skills]: 定点保持期间底盘真值最大漂移: 0.24 mm, 0.155°
+[task_skill_server-9] [INFO] [1794960742.156503674] [task_skills]: 墙面闭环收敛：误差 法向 -0.06 mm、沿墙 +0.09 mm、朝向 -0.056°，σ = (0.34 mm, 2.05 mm, 0.049°)，用时 2.8 s
+[task_skill_server-9] [INFO] [1794960743.189304169] [task_skills]: S4 残余误差（传感器）: 横向 +0.2 mm, 离墙 -0.3 mm, 朝向 -0.04°，已补偿
+[task_skill_server-9] [INFO] [1794960751.430696994] [task_skills]: 定点保持期间底盘真值最大漂移: 0.29 mm, 0.164°
+[task_skill_server-9] [INFO] [1794960754.301794873] [task_skills]: 墙面闭环收敛：误差 法向 +0.10 mm、沿墙 +0.05 mm、朝向 -0.065°，σ = (0.33 mm, 2.24 mm, 0.048°)，用时 2.8 s
+[task_skill_server-9] [INFO] [1794960755.336722017] [task_skills]: S5 残余误差（传感器）: 横向 +0.2 mm, 离墙 +0.1 mm, 朝向 -0.07°，已补偿
+[task_skill_server-9] [INFO] [1794960771.956341622] [task_skills]: 定点保持期间底盘真值最大漂移: 0.28 mm, 0.162°
+[task_skill_server-9] [INFO] [1794960774.776013486] [task_skills]: 墙面闭环收敛：误差 法向 -0.35 mm、沿墙 -0.01 mm、朝向 -0.037°，σ = (0.34 mm, 2.40 mm, 0.048°)，用时 2.8 s
+[task_skill_server-9] [INFO] [1794960775.812660204] [task_skills]: S6 残余误差（传感器）: 横向 +0.1 mm, 离墙 -0.1 mm, 朝向 -0.06°，已补偿
+[task_skill_server-9] [INFO] [1794960792.432371629] [task_skills]: 定点保持期间底盘真值最大漂移: 0.29 mm, 0.164°
+[task_skill_server-9] [INFO] [1794960795.280186872] [task_skills]: 墙面闭环收敛：误差 法向 -0.20 mm、沿墙 -0.00 mm、朝向 -0.040°，σ = (0.33 mm, 2.57 mm, 0.048°)，用时 2.8 s
+[task_skill_server-9] [INFO] [1794960796.313791228] [task_skills]: S7 残余误差（传感器）: 横向 +0.1 mm, 离墙 -0.4 mm, 朝向 -0.12°，已补偿
+[task_skill_server-9] [INFO] [1794960829.572187248] [task_skills]: 定点保持期间底盘真值最大漂移: 0.28 mm, 0.163°
+[task_skill_server-9] [INFO] [1794960832.463626838] [task_skills]: 墙面闭环收敛：误差 法向 -0.18 mm、沿墙 +0.07 mm、朝向 -0.040°，σ = (0.34 mm, 2.75 mm, 0.049°)，用时 2.8 s
+[task_skill_server-9] [INFO] [1794960833.500300873] [task_skills]: S8 残余误差（传感器）: 横向 +0.2 mm, 离墙 -0.6 mm, 朝向 -0.06°，已补偿
+[task_skill_server-9] [INFO] [1794960869.596094097] [task_skills]: 定点保持期间底盘真值最大漂移: 0.29 mm, 0.159°
+[task_skill_server-9] [INFO] [1794960872.567224000] [task_skills]: 墙面闭环收敛：误差 法向 +0.10 mm、沿墙 -0.02 mm、朝向 -0.058°，σ = (0.34 mm, 2.88 mm, 0.049°)，用时 2.8 s
+[task_skill_server-9] [INFO] [1794960873.641698641] [task_skills]: S9 残余误差（传感器）: 横向 +0.1 mm, 离墙 +0.2 mm, 朝向 -0.06°，已补偿
+[task_skill_server-9] [INFO] [1794960890.249033657] [task_skills]: 定点保持期间底盘真值最大漂移: 0.24 mm, 0.155°
+[task_skill_server-9] [INFO] [1794960893.144516213] [task_skills]: 墙面闭环收敛：误差 法向 -0.51 mm、沿墙 +0.06 mm、朝向 -0.081°，σ = (0.33 mm, 3.02 mm, 0.048°)，用时 2.9 s
+[task_skill_server-9] [INFO] [1794960894.176043646] [task_skills]: S10 残余误差（传感器）: 横向 +0.2 mm, 离墙 -0.6 mm, 朝向 -0.04°，已补偿
+[task_skill_server-9] [INFO] [1794960910.866839963] [task_skills]: 定点保持期间底盘真值最大漂移: 0.31 mm, 0.199°
+[task_executor-10] [INFO] [1794960913.461574428] [task_executor]: Slot plan finished: success, 11 stations, 255.0 s

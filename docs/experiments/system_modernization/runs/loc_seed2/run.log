@@ -1,0 +1,20 @@
+[INFO] [1794967166.187886887] [nav_benchmark]: CPU 统计进程: ['amcl', 'bt_navigator', 'controller_serv', 'planner_server']
+[INFO] [1794967177.361219590] [nav_benchmark]: [0] G1_big_room_ne: status 4 10.9 s 3.72 m 间隙 0.311 m jerk 3.49 CPU amcl=4% controller_serv=9% planner_server=3% bt_navigator=6% system=32%
+[INFO] [1794967196.055929866] [nav_benchmark]: [0] G2_wall_target: status 4 18.2 s 7.25 m 间隙 0.185 m jerk 3.30 CPU amcl=4% controller_serv=9% planner_server=3% bt_navigator=6% system=32%
+[INFO] [1794967215.096645198] [nav_benchmark]: [0] G3_east_room_n: status 4 18.6 s 5.88 m 间隙 0.193 m jerk 2.97 CPU amcl=4% controller_serv=9% planner_server=3% bt_navigator=6% system=32%
+[INFO] [1794967249.997374941] [nav_benchmark]: [0] G4_big_room_sw: status 4 34.3 s 12.95 m 间隙 0.176 m jerk 3.81 CPU amcl=4% controller_serv=9% planner_server=4% bt_navigator=7% system=32%
+[INFO] [1794967270.511475307] [nav_benchmark]: [0] G5_south_room: status 4 19.8 s 6.50 m 间隙 0.252 m jerk 2.97 CPU amcl=4% controller_serv=10% planner_server=4% bt_navigator=7% system=35%
+[INFO] [1794967290.238679123] [nav_benchmark]: [0] G6_start: status 4 19.2 s 6.60 m 间隙 0.402 m jerk 2.96 CPU amcl=4% controller_serv=9% planner_server=4% bt_navigator=7% system=32%
+[INFO] [1794967301.570400009] [nav_benchmark]: [1] G1_big_room_ne: status 4 10.9 s 3.75 m 间隙 0.356 m jerk 3.68 CPU amcl=4% controller_serv=8% planner_server=4% bt_navigator=7% system=33%
+[INFO] [1794967320.272840632] [nav_benchmark]: [1] G2_wall_target: status 4 18.3 s 7.24 m 间隙 0.187 m jerk 3.53 CPU amcl=4% controller_serv=8% planner_server=4% bt_navigator=7% system=33%
+[INFO] [1794967340.671852873] [nav_benchmark]: [1] G3_east_room_n: status 4 19.6 s 6.04 m 间隙 0.229 m jerk 2.79 CPU amcl=4% controller_serv=9% planner_server=4% bt_navigator=7% system=35%
+[INFO] [1794967375.623787897] [nav_benchmark]: [1] G4_big_room_sw: status 4 34.2 s 12.95 m 间隙 0.204 m jerk 3.85 CPU amcl=4% controller_serv=8% planner_server=4% bt_navigator=7% system=33%
+[INFO] [1794967395.951899403] [nav_benchmark]: [1] G5_south_room: status 4 19.9 s 6.54 m 间隙 0.281 m jerk 3.30 CPU amcl=4% controller_serv=9% planner_server=3% bt_navigator=7% system=32%
+[INFO] [1794967415.546590118] [nav_benchmark]: [1] G6_start: status 4 19.1 s 6.58 m 间隙 0.395 m jerk 3.70 CPU amcl=4% controller_serv=8% planner_server=3% bt_navigator=7% system=31%
+[INFO] [1794967426.832056981] [nav_benchmark]: [2] G1_big_room_ne: status 4 10.9 s 3.75 m 间隙 0.359 m jerk 3.49 CPU amcl=4% controller_serv=8% planner_server=3% bt_navigator=7% system=32%
+[INFO] [1794967445.709943079] [nav_benchmark]: [2] G2_wall_target: status 4 18.4 s 7.24 m 间隙 0.196 m jerk 3.18 CPU amcl=4% controller_serv=8% planner_server=4% bt_navigator=7% system=34%
+[INFO] [1794967466.250684226] [nav_benchmark]: [2] G3_east_room_n: status 4 20.0 s 6.07 m 间隙 0.225 m jerk 3.71 CPU amcl=4% controller_serv=9% planner_server=3% bt_navigator=7% system=33%
+[INFO] [1794967501.085333237] [nav_benchmark]: [2] G4_big_room_sw: status 4 34.1 s 12.95 m 间隙 0.192 m jerk 3.46 CPU amcl=4% controller_serv=9% planner_server=4% bt_navigator=7% system=33%
+[INFO] [1794967521.255777502] [nav_benchmark]: [2] G5_south_room: status 4 19.7 s 6.52 m 间隙 0.243 m jerk 3.67 CPU amcl=4% controller_serv=9% planner_server=3% bt_navigator=7% system=32%
+[INFO] [1794967540.818444911] [nav_benchmark]: [2] G6_start: status 4 19.1 s 6.57 m 间隙 0.462 m jerk 3.14 CPU amcl=4% controller_serv=9% planner_server=3% bt_navigator=7% system=32%
+[INFO] [1794967540.860986630] [nav_benchmark]: 完成：18/18 成功 → .

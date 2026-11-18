@@ -1,0 +1,14 @@
+label: base_plugin
+sim_s: 60.1
+wall_s: 60.3996
+rtf: 0.995
+gzserver_cpu_pct: 46.4738
+path_m: 9.9454
+turn_rad: 10.118
+odom_final_pos_err_m: 0.0
+odom_max_pos_err_m: 0.006
+odom_final_yaw_err_deg: -0.0021
+odom_drift_pct: 0.0004
+ratio_vx_mean: 1.0005
+ratio_vy_mean: 0.9972
+ratio_wz_mean: 0.9945

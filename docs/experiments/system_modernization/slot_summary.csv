@@ -1,0 +1,6 @@
+run,stations_done,stations,all_ok,recoveries,stations_total_s,station_lateral_mm_mean_abs,station_lateral_mm_max_abs,station_standoff_mm_mean_abs,station_yaw_deg_mean_abs,station_sensed_yaw_deg_mean_abs,path_err_mean_mm,path_err_p95_mm,path_err_max_mm,coverage,station_base_drift_mm_max_abs,lateral_mm_mean_signed,lateral_mm_std
+bt_dp,11,11,True,0,232.5,0.1881,0.5287,0.1687,0.075,0.0593,0.1862,0.2313,1.356,1.0,0.2806,0.188,0.13
+ekfodom_slot_ekf,11,11,True,3,463.2,21.6942,51.9971,6.9449,0.3569,0.0408,7.9474,32.5745,37.2823,0.4029,804.9001,-21.214,17.361
+linkvel_slot_ekf,11,11,True,0,229.4,141.9139,242.266,115.9833,5.527,0.0153,94.4677,384.636,402.1528,0.2896,57.1233,141.914,74.009
+slot_ekf,11,11,True,0,230.4,11.5031,24.8439,0.2417,0.0507,0.0259,3.8544,19.5193,25.1125,0.7122,0.242,-8.598,11.282
+slot_ekf_tag,11,11,True,0,229.9,5.0145,14.3969,0.2587,0.0604,0.0336,1.8177,7.135,14.241,0.6457,0.2406,-4.309,5.208
