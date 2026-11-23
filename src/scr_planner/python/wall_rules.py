@@ -45,7 +45,7 @@ class Rect:
     y: int
     w: int
     h: int
-    kind: str          # door / window / beam / column / box / weak_line / pier / slot
+    kind: str          # door / window / beam / column / box / weak_line / strong_line / pier / slot
     label: str = ''
 
     def grown(self, m):
@@ -78,6 +78,8 @@ class WallScene:
         同类槽间距；'slot' / 'slot_x' 为已规划的同类 / 异类（强弱电）槽."""
         if o.kind == 'weak_line':
             return SLOT_SPACING if circuit == 'weak' else WEAK_CURRENT_SPACING
+        if o.kind == 'strong_line':         # 已有 / 墙外引入的强电线管（plan_alternatives 的引上段）
+            return SLOT_SPACING if circuit == 'strong' else WEAK_CURRENT_SPACING
         return {'door': OPENING_MARGIN, 'window': OPENING_MARGIN, 'beam': BEAM_MARGIN,
                 'column': BEAM_MARGIN, 'box': BOX_MARGIN, 'pier': 0, 'slot': SLOT_SPACING,
                 'slot_x': WEAK_CURRENT_SPACING}[o.kind]

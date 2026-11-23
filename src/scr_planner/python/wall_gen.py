@@ -151,20 +151,27 @@ def _fixtures(rng, scene, door):
     return sockets + weak
 
 
-def residential_wall(seed, n_slots=None, load_bearing=None, max_tries=200, routable=None):
+def residential_wall(seed, n_slots=None, load_bearing=None, max_tries=200, routable=None,
+                     width=None, accept=None):
     """按种子生成一面住宅墙及开槽任务 → (WallScene, meta)；放不下任务时换布局重试.
 
     n_slots：任务条数（None 时 1–4 均匀）；load_bearing：None 时 30 % 为承重墙。
     routable(scene, k) -> bool：可选的单槽可行性检查（例如在可切高度带内单独规划第 k
     条槽，见 task_plan.standalone_routable）；给出时只保留各自单独可行的任务。多条槽
     之间的相互阻挡不在这里排除——那是规划方法要解决的问题。
-    meta：dict(seed, n_slots, load_bearing, task_types)。
+    width：墙宽（厘米）；None 时 300–600 随机。accept(scene) -> bool：可选的整面墙筛选
+    （房间生成器用它排除机器人站不到的布局，见 room_gen）。两者为 None 时随机数序列与
+    之前完全相同，已有种子生成的墙不变。
+    meta：dict(seed, n_slots, load_bearing, task_types, feeds)；feeds 为未被任务用作起点的
+    已有带内点位 [(cx, cy, circuit, label)]。
     """
     rng = random.Random(seed)
     n = n_slots or rng.randint(1, 4)
     lb = (rng.random() < 0.3) if load_bearing is None else load_bearing
     for _ in range(max_tries):
         W, H = rng.randrange(300, 601, 10), 280
+        if width is not None:
+            W = int(width)
         structure = _structure(rng, W, H, lb)
         scene = wr.WallScene(W, H, lb, list(structure))
         door = next((o for o in structure if o.kind == 'door'), None)
@@ -182,8 +189,11 @@ def residential_wall(seed, n_slots=None, load_bearing=None, max_tries=200, routa
         scene.start, scene.goal, scene.start_label, scene.goal_label = scene.tasks[0]
         if routable is not None and not all(routable(scene, k) for k in range(n)):
             continue
+        if accept is not None and not accept(scene):
+            continue
         return scene, dict(seed=seed, n_slots=n, load_bearing=lb,
-                           task_types=[t[5] for t in tasks])
+                           task_types=[t[5] for t in tasks],
+                           feeds=[f for f in feeds if (f[0], f[1]) not in used])
     raise RuntimeError(f'seed {seed}: no layout after {max_tries} tries')
 
 
