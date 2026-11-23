@@ -1,0 +1,15 @@
+item,name,walls,slots2,slots3,slots4,first_choice,changed1,changed2,changed3,cost_median,cost_mean,cost_max,manual_m_mean,conduit_m_mean,robot_stub_m_mean,moved_cm_mean,t_pred_mean,violations
+cause,staircase_in_band,60,6,21,33,,,,,,,,,,,,,
+cause,band_only,31,1,10,20,,,,,,,,,,,,,
+cause,strong_weak_spacing,2,0,0,2,,,,,,,,,,,,,
+cause,unresolved,13,1,4,8,,,,,,,,,,,,,
+tier,refeed,70,,,,70,6,64,0,4.0,3.83,4.0,0.0,0.0,0.0,0.0,245.9,0
+tier,floor,98,,,,32,67,29,2,8.63,11.14,28.15,0.702,1.373,0.259,0.0,228.4,0
+tier,ceiling,6,,,,0,2,3,1,86.19,79.69,131.25,7.333,2.12,1.462,0.0,231.6,0
+tier,relocate,11,,,,0,11,0,0,15.0,13.18,20.0,0.0,0.0,0.0,13.18,277.4,0
+any,any_tier,102,,,,,,,,,,,,,,,,
+cumulative,refeed,70,,,,,,,,,,,,,,,,
+cumulative,floor,102,,,,,,,,,,,,,,,,
+cumulative,ceiling,102,,,,,,,,,,,,,,,,
+cumulative,relocate,102,,,,,,,,,,,,,,,,
+remaining,1018 1147 1226 1331,4,,,,,,,,,,,,,,,,

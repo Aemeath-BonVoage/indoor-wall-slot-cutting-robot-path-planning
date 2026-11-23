@@ -1,0 +1,107 @@
+seed,slots,load_bearing,weak,unused_feeds,rule_any_order,diag_s,min_remove,blockers,core,conflict,relax,cause,alternatives,searches,alt_s,best_tier,best_cost,best_t_pred,best_what
+1003,4,0,0,0,0,3.05,1,2,0 2,strong-strong,band H_RUN_MAX BEND_RADIUS,staircase_in_band,1,1475,13.8,floor,9.64,280.3,已有插座→新插座 改走地面
+1005,4,0,3,1,0,0.77,1,1,1 3,weak-weak,band H_RUN_MAX BEND_RADIUS,staircase_in_band,2,1461,4.53,floor,7.79,325.3,已有弱电口→电视柜弱电口 改走地面
+1013,4,0,0,0,0,0.77,1,0,0 2,strong-strong,band H_RUN_MAX BEND_RADIUS,staircase_in_band,4,1592,6.85,refeed,4.0,356.6,电视柜插座 与 新插座 互换引线点 | 新插座 与 电视柜插座 互换引线点
+1016,3,0,0,1,0,0.46,1,1,1 2,strong-strong,band H_RUN_MAX BEND_RADIUS,staircase_in_band,3,347,2.07,refeed,4.0,285.6,床头插座 与 新插座 互换引线点 | 新插座 与 床头插座 互换引线点
+1017,4,0,0,0,0,1.04,1,1,0 1,strong-strong,band,band_only,1,1148,3.75,floor,7.51,242.9,已有插座→新插座 改走地面
+1018,4,0,0,0,0,0.95,1,2,0 2,strong-strong,band,band_only,0,781,1.53,,,,
+1022,2,0,0,3,0,0.36,1,0,0 1,strong-strong,band H_RUN_MAX BEND_RADIUS,staircase_in_band,5,80,0.79,refeed,2.0,174.4,新插座 改由 u = 392 cm 处的已有插座引线
+1023,4,0,0,0,0,0.57,2,0 2,0 1,strong-strong,band BEND_RADIUS,staircase_in_band,2,1005,2.91,floor,14.1,164.2,已有插座→新插座 改走地面 | 已有插座→床头插座 改走地面
+1029,3,0,0,0,0,0.77,1,2,0 2,strong-strong,band,band_only,2,216,1.48,refeed,4.0,198.9,新插座 与 新插座 互换引线点 | 新插座 与 新插座 互换引线点
+1032,4,0,0,1,0,3.47,2,0 1,0 1,strong-strong,band H_RUN_MAX BEND_RADIUS,staircase_in_band,2,927,2.19,refeed,4.0,184.1,床头插座 与 新插座 互换引线点 | 新插座 与 床头插座 互换引线点
+1036,4,0,1,0,0,0.41,1,0,0 2,strong-weak,WEAK_CURRENT_SPACING,strong_weak_spacing,1,922,1.24,floor,16.29,148.2,已有插座→新插座 改走地面 | 已有弱电口→电视柜弱电口 改走地面
+1043,3,0,0,0,0,0.07,1,1,0 1,strong-strong,band H_RUN_MAX BEND_RADIUS,staircase_in_band,5,195,0.15,refeed,4.0,108.0,电视柜插座 与 电视柜插座 互换引线点 | 电视柜插座 与 电视柜插座 互换引线点
+1044,2,0,0,1,0,0.34,1,0,0 1,strong-strong,band BEND_RADIUS,staircase_in_band,3,60,0.57,refeed,4.0,201.2,床头插座 与 新插座 互换引线点 | 新插座 与 床头插座 互换引线点
+1046,4,0,0,0,0,2.03,1,0,0 2,strong-strong,band H_RUN_MAX BEND_RADIUS,staircase_in_band,3,1564,11.68,refeed,4.0,393.0,床头插座 与 新插座 互换引线点 | 新插座 与 床头插座 互换引线点
+1058,3,0,0,0,0,0.07,1,0,0 1,strong-strong,band H_RUN_MAX BEND_RADIUS,staircase_in_band,3,229,0.24,refeed,4.0,131.1,新插座 与 电视柜插座 互换引线点 | 电视柜插座 与 新插座 互换引线点
+1066,4,0,0,0,0,1.32,2,0 1,0 2,strong-strong,band H_RUN_MAX BEND_RADIUS,staircase_in_band,4,1201,7.06,floor,13.48,324.0,已有插座→床头插座 改走地面 | 已有插座→电视柜插座 改走地面
+1068,4,0,2,0,0,0.92,1,1,1 2,strong-strong,band H_RUN_MAX BEND_RADIUS SLOT_SPACING,staircase_in_band,6,1185,8.25,refeed,4.0,264.4,床头插座 与 新插座 互换引线点 | 新插座 与 床头插座 互换引线点
+1069,3,0,0,1,0,0.25,1,0,0 1,strong-strong,band H_RUN_MAX BEND_RADIUS,staircase_in_band,3,279,1.09,refeed,4.0,136.4,电视柜插座 与 床头插座 互换引线点 | 床头插座 与 电视柜插座 互换引线点
+1070,3,0,2,0,0,0.53,1,0,0 1,strong-weak,,unresolved,1,299,1.43,floor,18.48,108.1,已有弱电口→新弱电口 改走地面 | 已有插座→电视柜插座 改走地面
+1072,4,0,0,0,0,4.53,1,2,1 2,strong-strong,,unresolved,2,1088,3.27,refeed,4.0,251.9,新插座 与 电视柜插座 互换引线点 | 电视柜插座 与 新插座 互换引线点
+1081,4,0,0,1,0,1.3,1,0,0 2,strong-strong,band H_RUN_MAX BEND_RADIUS,staircase_in_band,2,1324,6.82,refeed,4.0,252.7,电视柜插座 与 床头插座 互换引线点 | 床头插座 与 电视柜插座 互换引线点
+1085,3,0,0,0,0,1.45,1,0,0 1,strong-strong,band H_RUN_MAX BEND_RADIUS,staircase_in_band,3,299,5.3,refeed,4.0,356.7,电视柜插座 与 新插座 互换引线点 | 新插座 与 电视柜插座 互换引线点
+1088,4,0,0,1,0,2.99,1,0,0 3,strong-strong,band H_RUN_MAX BEND_RADIUS,staircase_in_band,3,1421,16.42,refeed,4.0,332.4,新插座 与 电视柜插座 互换引线点 | 电视柜插座 与 新插座 互换引线点
+1093,3,0,1,0,0,0.23,1,1,1 2,strong-strong,band H_RUN_MAX BEND_RADIUS,staircase_in_band,3,245,0.64,refeed,4.0,152.4,床头插座 与 电视柜插座 互换引线点 | 电视柜插座 与 床头插座 互换引线点
+1094,3,0,0,0,0,0.59,1,1,1 2,strong-strong,band H_RUN_MAX BEND_RADIUS,staircase_in_band,13,257,2.05,refeed,4.0,289.3,电视柜插座 与 电视柜插座 互换引线点 | 电视柜插座 与 电视柜插座 互换引线点
+1096,4,0,0,0,0,1.17,2,1 2,1 2,strong-strong,band,band_only,2,734,2.16,refeed,4.0,250.2,新插座 与 床头插座 互换引线点 | 床头插座 与 新插座 互换引线点
+1106,4,0,0,0,0,5.6,2,1 2,1 2,strong-strong,H_RUN_MAX BEND_RADIUS,staircase_in_band,2,721,2.44,refeed,4.0,301.8,电视柜插座 与 新插座 互换引线点 | 新插座 与 电视柜插座 互换引线点
+1108,2,0,0,2,0,0.14,1,0,0 1,strong-strong,band,band_only,4,56,0.25,refeed,2.0,171.6,新插座 改由 u = 454 cm 处的已有插座引线
+1117,4,0,0,1,0,3.79,2,1 3,0 3,strong-strong,,unresolved,2,854,1.44,floor,16.92,232.1,已有插座→床头插座 改走地面 | 已有插座→新插座 改走地面
+1123,3,0,0,1,0,0.32,1,0,0 1,strong-strong,band H_RUN_MAX BEND_RADIUS,staircase_in_band,3,337,1.22,refeed,4.0,132.4,新插座 与 电视柜插座 互换引线点 | 电视柜插座 与 新插座 互换引线点
+1129,4,0,1,0,0,1.22,1,1,1 3,strong-weak,band WEAK_CURRENT_SPACING,strong_weak_spacing,1,1233,5.48,floor,9.7,269.2,已有插座→新插座 改走地面
+1133,4,0,2,1,0,0.93,1,2,2 3,weak-weak,band H_RUN_MAX BEND_RADIUS,staircase_in_band,4,1400,6.66,refeed,4.0,356.0,电视柜弱电口 与 新弱电口 互换引线点 | 新弱电口 与 电视柜弱电口 互换引线点
+1137,4,0,0,0,0,4.33,2,1 2,0 1,strong-strong,band BEND_RADIUS,staircase_in_band,2,858,6.69,refeed,4.0,280.1,床头插座 与 电视柜插座 互换引线点 | 电视柜插座 与 床头插座 互换引线点
+1138,3,0,0,1,0,1.28,1,0,0 2,strong-strong,band,band_only,3,350,2.09,refeed,4.0,333.7,新插座 与 新插座 互换引线点 | 新插座 与 新插座 互换引线点
+1146,4,0,1,0,0,2.15,1,0,0 3,strong-weak,band,band_only,1,1305,7.63,floor,10.57,289.4,已有插座→新插座 改走地面
+1147,2,0,1,0,0,0.14,1,0,0 1,strong-weak,,unresolved,0,67,0.24,,,,
+1148,4,0,3,1,0,2.21,1,0,0 2,strong-weak,,unresolved,1,693,6.12,floor,17.88,211.1,已有弱电口→电视柜弱电口 改走地面 | 已有插座→新插座 改走地面
+1155,2,0,0,1,0,0.11,1,0,0 1,strong-strong,H_RUN_MAX BEND_RADIUS,staircase_in_band,2,70,0.21,floor,8.32,132.3,已有插座→新插座 改走地面
+1157,4,0,0,0,0,1.66,1,1,1 3,strong-strong,band H_RUN_MAX BEND_RADIUS,staircase_in_band,5,1484,11.62,refeed,4.0,157.0,电视柜插座 与 床头插座 互换引线点 | 床头插座 与 电视柜插座 互换引线点
+1160,4,0,0,0,0,3.2,2,0 1,0 3,strong-strong,band,band_only,2,1142,10.49,floor,15.96,187.3,已有插座→新插座 改走地面 | 已有插座→电视柜插座 改走地面
+1162,4,0,1,0,0,3.4,2,0 2,0 1,strong-strong,band,band_only,2,652,5.82,floor,16.7,156.4,已有插座→新插座 改走地面 | 已有插座→新插座 改走地面
+1171,4,0,0,1,0,3.3,2,0 1,0 1,strong-strong,band,band_only,4,954,5.2,refeed,4.0,313.2,床头插座 与 新插座 互换引线点 | 新插座 与 床头插座 互换引线点
+1172,4,0,0,0,0,1.29,1,1,1 3,strong-strong,band H_RUN_MAX BEND_RADIUS,staircase_in_band,3,1409,11.66,refeed,4.0,191.7,床头插座 与 床头插座 互换引线点 | 床头插座 与 床头插座 互换引线点
+1173,4,0,0,0,0,2.45,2,0 2,0 1,strong-strong,band H_RUN_MAX BEND_RADIUS,staircase_in_band,4,1280,16.86,floor,15.13,233.9,已有插座→床头插座 改走地面 | 已有插座→床头插座 改走地面
+1178,4,0,0,0,0,1.97,1,2,0 2,strong-strong,band,band_only,3,1318,6.79,refeed,4.0,312.5,新插座 与 电视柜插座 互换引线点 | 电视柜插座 与 新插座 互换引线点
+1180,4,0,0,0,0,0.77,1,0,0 3,strong-strong,band H_RUN_MAX BEND_RADIUS,staircase_in_band,3,1458,6.39,refeed,4.0,357.3,新插座 与 新插座 互换引线点 | 新插座 与 新插座 互换引线点
+1183,3,0,1,0,0,0.78,1,0,0 1,strong-weak,,unresolved,2,284,1.45,floor,17.27,180.9,已有插座→新插座 改走地面 | 已有弱电口→新弱电口 改走地面
+1187,3,0,1,0,0,0.84,1,0,0 1,strong-strong,band,band_only,3,326,3.03,refeed,4.0,253.2,新插座 与 新插座 互换引线点 | 新插座 与 新插座 互换引线点
+1189,3,0,0,2,0,0.47,1,1,1 2,strong-strong,band H_RUN_MAX BEND_RADIUS,staircase_in_band,4,321,2.28,refeed,4.0,182.1,床头插座 与 床头插座 互换引线点 | 床头插座 与 床头插座 互换引线点
+1190,4,0,0,0,0,2.59,1,1,1 3,strong-strong,band,band_only,3,1265,11.74,refeed,4.0,264.1,新插座 与 新插座 互换引线点 | 新插座 与 新插座 互换引线点
+1191,4,0,0,0,0,1.18,1,1,1 3,strong-strong,band H_RUN_MAX BEND_RADIUS,staircase_in_band,4,1504,9.28,refeed,4.0,287.8,床头插座 与 新插座 互换引线点 | 新插座 与 床头插座 互换引线点
+1195,3,0,0,1,0,0.51,1,0,0 2,strong-strong,band H_RUN_MAX BEND_RADIUS,staircase_in_band,3,300,1.83,refeed,4.0,292.0,新插座 与 床头插座 互换引线点 | 床头插座 与 新插座 互换引线点
+1202,3,0,0,1,0,0.38,1,0,0 2,strong-strong,band BEND_RADIUS SLOT_SPACING,staircase_in_band,9,214,1.62,refeed,4.0,316.9,电视柜插座 与 新插座 互换引线点 | 新插座 与 电视柜插座 互换引线点
+1204,4,0,0,0,0,1.09,1,1,1 3,strong-strong,band H_RUN_MAX BEND_RADIUS,staircase_in_band,3,1449,7.27,refeed,4.0,290.0,新插座 与 电视柜插座 互换引线点 | 电视柜插座 与 新插座 互换引线点
+1205,4,0,0,0,0,0.33,1,1,1 2,strong-strong,band H_RUN_MAX BEND_RADIUS,staircase_in_band,4,1385,2.45,refeed,4.0,222.7,电视柜插座 与 床头插座 互换引线点 | 床头插座 与 电视柜插座 互换引线点
+1206,3,0,0,1,0,0.56,1,1,0 1,strong-strong,band,band_only,2,263,1.72,refeed,4.0,187.5,新插座 与 床头插座 互换引线点 | 床头插座 与 新插座 互换引线点
+1212,3,0,0,1,0,0.36,1,1,1 2,strong-strong,band H_RUN_MAX BEND_RADIUS,staircase_in_band,3,331,1.21,refeed,4.0,152.1,电视柜插座 与 电视柜插座 互换引线点 | 电视柜插座 与 电视柜插座 互换引线点
+1213,4,0,0,0,0,2.0,1,2,2 3,strong-strong,band H_RUN_MAX BEND_RADIUS,staircase_in_band,3,1744,16.84,refeed,4.0,326.7,新插座 与 床头插座 互换引线点 | 床头插座 与 新插座 互换引线点
+1214,3,0,0,0,0,0.45,1,1,1 2,strong-strong,band H_RUN_MAX BEND_RADIUS,staircase_in_band,3,245,1.31,refeed,4.0,175.8,床头插座 与 床头插座 互换引线点 | 床头插座 与 床头插座 互换引线点
+1215,4,0,1,0,0,1.72,2,0 1,0 2,strong-weak,,unresolved,1,880,4.62,floor,26.44,74.3,已有插座→新插座 改走地面 | 已有插座→床头插座 改走地面 | 已有弱电口→新弱电口 改走地面
+1222,4,0,0,1,0,3.01,1,0,0 1,strong-strong,band,band_only,2,843,4.86,refeed,4.0,250.7,新插座 与 新插座 互换引线点 | 新插座 与 新插座 互换引线点
+1223,4,0,0,0,0,1.86,1,2,0 2,strong-strong,band H_RUN_MAX BEND_RADIUS,staircase_in_band,2,1214,16.8,refeed,4.0,297.7,床头插座 与 床头插座 互换引线点 | 床头插座 与 床头插座 互换引线点
+1225,4,0,0,1,0,4.61,2,0 3,0 1,strong-strong,,unresolved,3,751,1.76,refeed,4.0,188.5,新插座 与 电视柜插座 互换引线点 | 电视柜插座 与 新插座 互换引线点
+1226,4,0,1,0,0,1.65,2,0 1,0 1,strong-weak,band,band_only,0,872,6.19,,,,
+1230,4,0,0,0,0,2.05,2,0 2,0 2,strong-strong,band BEND_RADIUS,staircase_in_band,1,959,6.37,floor,18.21,198.0,已有插座→床头插座 改走地面 | 已有插座→新插座 改走地面
+1231,4,0,0,0,0,1.84,2,0 1,0 1,strong-strong,band,band_only,1,812,5.83,floor,17.44,316.4,已有插座→床头插座 改走地面 | 已有插座→床头插座 改走地面
+1233,3,0,2,0,0,0.65,1,0,0 1,strong-weak,,unresolved,1,311,1.27,floor,18.04,96.6,已有插座→床头插座 改走地面 | 已有弱电口→电视柜弱电口 改走地面
+1235,4,0,0,1,0,2.43,1,1,1 3,strong-strong,band H_RUN_MAX BEND_RADIUS,staircase_in_band,4,1355,14.73,refeed,4.0,259.8,电视柜插座 与 电视柜插座 互换引线点 | 电视柜插座 与 电视柜插座 互换引线点
+1236,4,0,0,0,0,0.94,1,2,2 3,strong-strong,band H_RUN_MAX BEND_RADIUS,staircase_in_band,3,1748,7.27,refeed,4.0,239.8,床头插座 与 电视柜插座 互换引线点 | 电视柜插座 与 床头插座 互换引线点
+1237,2,0,0,2,0,0.37,1,0,0 1,strong-strong,band H_RUN_MAX BEND_RADIUS,staircase_in_band,3,60,0.85,refeed,4.0,179.0,新插座 与 床头插座 互换引线点 | 床头插座 与 新插座 互换引线点
+1240,4,0,0,0,0,0.47,1,1,0 1,strong-strong,band H_RUN_MAX BEND_RADIUS,staircase_in_band,1,1214,2.71,floor,7.7,261.8,已有插座→电视柜插座 改走地面
+1241,4,0,0,1,0,3.85,2,0 2,0 1,strong-strong,,unresolved,1,834,4.01,floor,20.1,210.2,已有插座→电视柜插座 改走地面 | 已有插座→新插座 改走地面
+1243,3,0,0,0,0,0.7,1,0,0 2,strong-strong,band H_RUN_MAX BEND_RADIUS SLOT_SPACING,staircase_in_band,4,326,3.29,refeed,4.0,314.8,新插座 与 电视柜插座 互换引线点 | 电视柜插座 与 新插座 互换引线点
+1253,2,0,0,1,0,0.93,1,0,0 1,strong-strong,band BEND_RADIUS,staircase_in_band,3,60,0.62,refeed,2.0,171.9,新插座 改由 u = 297 cm 处的已有插座引线
+1255,4,0,0,0,0,1.35,1,0,0 2,strong-strong,band,band_only,3,943,5.32,refeed,4.0,265.7,新插座 与 床头插座 互换引线点 | 床头插座 与 新插座 互换引线点
+1275,3,0,0,1,0,0.76,1,0,0 1,strong-strong,band,band_only,1,332,2.52,floor,9.62,259.1,已有插座→电视柜插座 改走地面
+1277,2,0,0,2,0,0.2,1,0,0 1,strong-strong,band H_RUN_MAX BEND_RADIUS SLOT_SPACING,staircase_in_band,4,67,0.84,refeed,2.0,137.9,电视柜插座 改由 u = 174 cm 处的已有插座引线
+1279,4,0,0,0,0,1.64,1,2,0 2,strong-strong,band,band_only,3,1293,7.34,refeed,4.0,334.9,电视柜插座 与 床头插座 互换引线点 | 床头插座 与 电视柜插座 互换引线点
+1284,4,0,0,1,0,0.46,1,1,1 3,strong-strong,band BEND_RADIUS,staircase_in_band,4,1473,2.65,refeed,4.0,227.9,床头插座 与 新插座 互换引线点 | 新插座 与 床头插座 互换引线点
+1285,3,0,0,1,0,0.74,1,1,0 1,strong-strong,band,band_only,1,292,2.94,floor,8.65,200.5,已有插座→新插座 改走地面
+1289,4,0,0,0,0,3.01,2,0 1,0 1,strong-strong,band BEND_RADIUS,staircase_in_band,1,693,7.25,refeed,4.0,193.8,电视柜插座 与 电视柜插座 互换引线点 | 电视柜插座 与 电视柜插座 互换引线点
+1290,3,0,0,0,0,1.02,1,2,0 2,strong-strong,band,band_only,1,226,1.6,floor,8.53,230.2,已有插座→新插座 改走地面
+1291,4,0,2,0,0,0.68,1,0,0 3,strong-strong,band H_RUN_MAX BEND_RADIUS,staircase_in_band,3,1076,3.31,refeed,4.0,240.7,新插座 与 电视柜插座 互换引线点 | 电视柜插座 与 新插座 互换引线点
+1292,4,0,0,1,0,1.71,2,1 2,1 2,strong-strong,band BEND_RADIUS,staircase_in_band,2,992,5.44,refeed,4.0,285.4,电视柜插座 与 床头插座 互换引线点 | 床头插座 与 电视柜插座 互换引线点
+1294,3,0,0,0,0,2.67,2,0 1,0 1,strong-strong,band,band_only,3,248,1.21,floor,15.87,157.1,已有插座→新插座 改走地面 | 已有插座→床头插座 改走地面
+1297,4,0,0,1,0,0.41,1,1,1 2,strong-strong,band H_RUN_MAX BEND_RADIUS,staircase_in_band,2,1182,2.54,refeed,4.0,296.8,新插座 与 电视柜插座 互换引线点 | 电视柜插座 与 新插座 互换引线点
+1299,3,0,0,1,0,0.71,1,0,0 1,strong-strong,band BEND_RADIUS,staircase_in_band,1,288,2.75,floor,9.07,214.5,已有插座→新插座 改走地面
+1306,4,0,0,1,0,0.98,2,0 1,0 2,strong-strong,band H_RUN_MAX BEND_RADIUS,staircase_in_band,1,1000,4.4,floor,16.22,195.7,已有插座→新插座 改走地面 | 已有插座→新插座 改走地面
+1309,4,0,1,0,0,1.58,2,0 2,0 2,strong-strong,,unresolved,1,681,4.05,floor,28.15,68.5,已有插座→新插座 改走地面 | 已有插座→床头插座 改走地面 | 已有弱电口→新弱电口 改走地面
+1312,3,0,0,1,0,0.6,1,0,0 2,strong-strong,band H_RUN_MAX BEND_RADIUS,staircase_in_band,3,360,3.5,refeed,4.0,155.2,电视柜插座 与 床头插座 互换引线点 | 床头插座 与 电视柜插座 互换引线点
+1317,3,0,0,1,0,0.75,1,0,0 1,strong-strong,band,band_only,2,279,1.09,refeed,2.0,209.7,新插座 改由 u = 238 cm 处的已有插座引线
+1324,4,0,0,1,0,1.51,1,1,1 2,strong-strong,band,band_only,3,974,4.16,refeed,4.0,187.2,床头插座 与 新插座 互换引线点 | 新插座 与 床头插座 互换引线点
+1331,4,0,0,1,0,0.57,2,0 1,0 3,strong-strong,band,band_only,0,836,1.46,,,,
+1340,3,0,0,0,0,0.2,1,0,0 1,strong-strong,band H_RUN_MAX BEND_RADIUS,staircase_in_band,6,198,0.67,refeed,4.0,141.3,床头插座 与 床头插座 互换引线点 | 床头插座 与 床头插座 互换引线点
+1341,4,0,0,1,0,1.29,2,0 2,0 1,strong-strong,band H_RUN_MAX BEND_RADIUS,staircase_in_band,4,1107,6.68,floor,14.32,305.9,已有插座→床头插座 改走地面 | 已有插座→电视柜插座 改走地面
+1343,3,0,0,1,0,0.89,1,2,0 2,strong-strong,band H_RUN_MAX BEND_RADIUS,staircase_in_band,3,254,1.22,refeed,2.0,315.0,电视柜插座 改由 u = 37 cm 处的已有插座引线
+1352,3,0,0,1,0,0.25,1,0,0 2,strong-strong,band H_RUN_MAX BEND_RADIUS,staircase_in_band,3,303,1.29,refeed,4.0,232.9,新插座 与 床头插座 互换引线点 | 床头插座 与 新插座 互换引线点
+1357,4,0,0,1,0,0.58,1,0,0 3,strong-strong,band,band_only,3,1163,3.08,refeed,4.0,245.3,新插座 与 新插座 互换引线点 | 新插座 与 新插座 互换引线点
+1367,4,0,0,1,0,1.47,1,0,0 3,strong-strong,band,band_only,3,1170,4.09,refeed,4.0,265.1,床头插座 与 新插座 互换引线点 | 新插座 与 床头插座 互换引线点
+1369,3,0,0,1,0,1.22,1,0,0 1,strong-strong,band H_RUN_MAX BEND_RADIUS,staircase_in_band,3,306,5.03,refeed,4.0,385.3,新插座 与 床头插座 互换引线点 | 床头插座 与 新插座 互换引线点
+1370,3,0,1,0,0,0.73,1,0,0 2,strong-weak,,unresolved,1,244,1.22,floor,20.66,45.8,已有弱电口→新弱电口 改走地面 | 已有插座→新插座 改走地面
+1371,4,0,0,1,0,16.61,2,0 1,0 1,strong-strong,,unresolved,3,754,5.65,floor,16.14,239.3,已有插座→电视柜插座 改走地面 | 已有插座→新插座 改走地面
+1379,3,0,0,0,0,0.69,1,1,1 2,strong-strong,band H_RUN_MAX BEND_RADIUS,staircase_in_band,3,344,4.12,refeed,4.0,175.3,电视柜插座 与 床头插座 互换引线点 | 床头插座 与 电视柜插座 互换引线点
+1380,4,0,0,0,0,3.6,2,0 2,0 2,strong-strong,band,band_only,3,980,6.88,refeed,4.0,303.9,床头插座 与 新插座 互换引线点 | 新插座 与 床头插座 互换引线点
+1392,3,0,0,1,0,0.76,1,2,0 2,strong-strong,band,band_only,2,287,2.15,refeed,4.0,282.3,床头插座 与 新插座 互换引线点 | 新插座 与 床头插座 互换引线点
+1393,4,0,0,0,0,4.96,1,0,0 3,strong-strong,band,band_only,3,1425,13.87,refeed,4.0,249.9,新插座 与 新插座 互换引线点 | 新插座 与 新插座 互换引线点

@@ -1,0 +1,111 @@
+room: room3
+status: success
+prediction:
+  t_total: 400.2
+  t_service: 323.66
+  t_nav: 31.54
+  t_align: 45.0
+  nav_m: 9.31
+  walls: 3
+  stations: 22
+transit_model:
+  t0: 3.07
+  v: 0.417
+  t_align: 15.0
+sequence:
+- step: 1
+  wall: north
+  file: wall_north.yaml
+  direction: +
+  marker_u: 0.6
+  nav_goal:
+    x: 5.67
+    y: 2.72
+    yaw: 1.57
+  nav_distance_m: 2.726
+  t_nav: 9.61
+  t_align: 15.0
+  t_wall: 95.38
+  stations: 8
+  status: success
+  blocked_stations: 0
+- step: 2
+  wall: east
+  file: wall_east.yaml
+  direction: +
+  marker_u: 3.0
+  nav_goal:
+    x: 8.73
+    y: 0.92
+    yaw: 0.0
+  nav_distance_m: 4.153
+  t_nav: 13.03
+  t_align: 15.0
+  t_wall: 47.3
+  stations: 2
+  status: success
+  blocked_stations: 0
+- step: 3
+  wall: south
+  file: wall_south.yaml
+  direction: +
+  marker_u: 1.5
+  nav_goal:
+    x: 8.42
+    y: -2.72
+    yaw: -1.57
+  nav_distance_m: 2.432
+  t_nav: 8.9
+  t_align: 15.0
+  t_wall: 180.97
+  stations: 12
+  status: success
+  blocked_stations: 0
+methods:
+  fixed:
+    t_total: 411.91
+    sequence:
+    - south+
+    - east+
+    - north+
+  nearest:
+    t_total: 400.2
+    sequence:
+    - north+
+    - east+
+    - south+
+  fixed_order_best_dir:
+    t_total: 405.94
+    sequence:
+    - south+
+    - east-
+    - north+
+  best_order_fixed_dir:
+    t_total: 400.2
+    sequence:
+    - north+
+    - east+
+    - south+
+  optimal:
+    t_total: 400.2
+    sequence:
+    - north+
+    - east+
+    - south+
+walls:
+- name: south
+  status: success
+- name: east
+  status: success
+- name: north
+  status: success
+installer_changes: []
+links:
+- link: 0
+  walls:
+  - east
+  - south
+  method: floor
+  manual_m: 0.57
+  conduit_m: 1.8
+  robot_m: 0.28

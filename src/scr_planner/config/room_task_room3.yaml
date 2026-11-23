@@ -1,0 +1,48 @@
+# 房间开槽任务示例：Gazebo room.world 的 room3（内表面 x ∈ [5.075, 9.925]，y ∈ [-3.925, 3.925]）
+#
+# 每面墙的条目与单面墙任务文件（wall_task_room3_south.yaml）格式相同，另加 name 与
+# markers（定位标记沿墙位置 u，米）。墙面坐标：u 沿墙向右（面对墙面时），v 为离地高度。
+# room.world 中目前只有南墙贴了定位标记；东墙、北墙的 markers 是建议位置，执行前需要在
+# 世界文件与标记地图中加上对应标记。
+name: room3
+start_pose: [5.6, 0.0, 0.0]       # 进门后的位置（西侧门洞 y ∈ [-1, 1]）
+boundary: [[5.075, -3.925], [9.925, -3.925], [9.925, 3.925], [5.075, 3.925]]
+floor_obstacles:
+  - {x: 7.1, y: 1.65, w: 1.8, h: 0.7, label: 设备柜}
+  - {x: 6.6, y: -2.4, w: 0.8, h: 0.8, label: 圆柱设备（外接正方形）}
+
+walls:
+  - name: south
+    wall: {frame_id: map, left_end: [9.925, -3.925], right_end: [5.075, -3.925], height: 2.0,
+           load_bearing: false}
+    markers: [1.505]                        # 参考标记（tag36h11 ID 0，x = 8.42），与单面墙任务相同
+    obstacles:
+      - {kind: box, u: 1.480, v: 0.575, w: 0.05, h: 0.05, label: 黄色定位标记}
+    tasks:
+      - {start: [1.20, 0.34], start_label: 已有插座A, goal: [2.30, 0.34], goal_label: 新插座A}
+      - {start: [2.45, 0.72], start_label: 已有插座B, goal: [1.75, 0.72], goal_label: 书桌插座B}
+  - name: east
+    wall: {frame_id: map, left_end: [9.925, 3.925], right_end: [9.925, -3.925], height: 2.0,
+           load_bearing: true}              # 承重墙：只允许竖槽
+    markers: [1.2, 1.8, 2.4, 3.0, 3.6, 4.2, 4.8, 5.4, 6.0, 6.6]
+    obstacles: []
+    tasks:
+      - {start: [2.60, 0.34], start_label: 已有插座C, goal: [2.60, 0.68], goal_label: 床头插座C}
+      - {start: [4.40, 0.34], start_label: 已有插座D, goal: [4.40, 0.72], goal_label: 床头插座D}
+  - name: north
+    wall: {frame_id: map, left_end: [5.075, 3.925], right_end: [9.925, 3.925], height: 2.0,
+           load_bearing: false}
+    markers: [0.6, 1.2, 1.8, 4.2]           # 设备柜前（u ≈ 1.9–3.9）的标记前方站不了
+    obstacles: []
+    tasks:
+      - {start: [0.80, 0.34], start_label: 已有插座E, goal: [1.70, 0.55], goal_label: 电视柜插座E}
+
+# 跨墙角回路：东墙靠近东南角的已有插座 → 南墙上的新点位。东墙为承重墙，不能开横槽，
+# 规划器会改为两端各开竖槽、线管走地面垫层。
+links:
+  - from: {wall: east, box: [6.85, 0.34], label: 已有插座F}
+    to: {wall: south, box: [0.80, 0.55], label: 电视柜插座F}
+    circuit: strong
+
+options:
+  time_model: traj_v1
