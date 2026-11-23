@@ -10,8 +10,11 @@
 // 切削状态的来源：
 //   进给方向与速度  刀片只能沿自身平面切削：刀片方向取刀片关节（blade_joint，默认 joint4）
 //                   的转角 θ，在墙面内为 (sin θ, cos θ)（θ = 0 沿 z 竖切，90° 沿 y 横切）；
-//                   进给速度取刀具相对底盘的速度（位置差分 + 低通 velocity_tau）在该方向上
-//                   的分量；
+//                   进给速度取刀片中心在世界系中的速度（位置差分 + 低通 velocity_tau）在
+//                   该方向上的分量。必须用相对墙面（世界系）的速度：切削力取决于刀片
+//                   相对墙体的运动。若用刀具相对底盘的速度，底盘被切削力推得偏航时刀具
+//                   因惯性滞后，相对底盘的“进给”反而变大、切削力随之变大，形成正反馈，
+//                   Gazebo 中实测切削力在几秒内发散到限幅值；
 //   切深            <engagement>topic</engagement>：话题 cutting_force/engagement
 //                   （std_msgs/Float64，米，0 = 未切入；超过 engagement_timeout 没有新消息
 //                   则视为 0，timeout = 0 表示一直保持）；
@@ -86,7 +89,7 @@ public:
     wall_point_ = sdf->Get<Vector3d>("wall_point", Vector3d::Zero).first;
     wall_normal_ = sdf->Get<Vector3d>("wall_normal", Vector3d(1, 0, 0)).first.Normalized();
     engagement_timeout_ = sdf->Get<double>("engagement_timeout", 0.0).first;
-    velocity_tau_ = std::max(1e-3, sdf->Get<double>("velocity_tau", 0.1).first);
+    velocity_tau_ = std::max(1e-3, sdf->Get<double>("velocity_tau", 0.25).first);
     min_feed_ = sdf->Get<double>("min_feed", 0.0005).first;
     scale_ = sdf->Get<double>("scale", 1.0).first;
     max_force_ = sdf->Get<double>("max_force", 300.0).first;
@@ -164,12 +167,17 @@ private:
     if (!have_prev_ || dt <= 0.0) {
       have_prev_ = true;
       prev_time_ = now;
-      prev_p_ = p;
+      prev_p_ = base_pose.Pos() +
+        base_pose.Rot().RotateVector(tip - Vector3d(blade_.radius(), 0.0, 0.0));
       return;
     }
-    // 刀具相对底盘的速度（位置差分 + 低通）；朝墙面方向的分量为下刀速度
+    // 刀片中心在世界系中的速度（位置差分 + 低通），表示到 base_link 系；gap 模式下朝墙面
+    // 方向的分量为下刀速度
     const double a = dt / (velocity_tau_ + dt);
-    vel_ += a * ((p - prev_p_) / dt - vel_);
+    const Vector3d centre_world =
+      base_pose.Pos() + base_pose.Rot().RotateVector(tip - Vector3d(blade_.radius(), 0.0, 0.0));
+    vel_world_ += a * ((centre_world - prev_p_) / dt - vel_world_);
+    const Vector3d vel_ = base_pose.Rot().RotateVectorReverse(vel_world_);
     depth_rate_ += a * ((depth - prev_depth_) / dt - depth_rate_);
     prev_depth_ = depth;
     const double plunge = std::max(gap_mode_ ? vel_.X() : depth_rate_, 0.0);
@@ -178,7 +186,7 @@ private:
     const double feed_signed = vel_.Y() * blade_dir[1] + vel_.Z() * blade_dir[2];
     const double feed = std::abs(feed_signed);
     prev_time_ = now;
-    prev_p_ = p;
+    prev_p_ = centre_world;
 
     Vector3d force(0, 0, 0), torque(0, 0, 0);      // base_link 系；force 作用在刀片中心
     const Vector3d centre = tip - Vector3d(blade_.radius(), 0.0, 0.0);
@@ -201,6 +209,8 @@ private:
         force *= max_force_ / norm;
         torque *= max_force_ / norm;
       }
+    } else {
+      feed_sign_ = 1.0;       // 一刀结束：下一刀下刀时的方向符号回到默认值
     }
 
     const auto & rot = base_pose.Rot();
@@ -248,7 +258,7 @@ private:
   bool apply_to_base_{false}, gap_mode_{false};
   double tip_offset_{0.1594}, depth_{0.035}, dry_run_gap_{0.010}, plunge_ramp_{0.008};
   Vector3d wall_point_, wall_normal_{1, 0, 0};
-  double engagement_timeout_{0.0}, velocity_tau_{0.1}, min_feed_{0.0005};
+  double engagement_timeout_{0.0}, velocity_tau_{0.25}, min_feed_{0.0005};
   double scale_{1.0}, max_force_{300.0};
   double publish_period_{0.02}, last_publish_{-1e9};
   std::string base_frame_{"base_link"};
@@ -259,7 +269,7 @@ private:
 
   bool have_prev_{false};
   double prev_time_{0.0};
-  Vector3d prev_p_, vel_;
+  Vector3d prev_p_, vel_world_;
   double prev_depth_{0.0}, depth_rate_{0.0};
   double last_gain_{1.0}, feed_sign_{1.0};
 };
