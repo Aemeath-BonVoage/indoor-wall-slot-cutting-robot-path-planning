@@ -32,7 +32,9 @@
 | 停靠站优化 | 动态规划划分 + 最优扫掠顺序，Gazebo 中总耗时 283 s → 250 s（−11.8 %） | [多站执行](docs/experiments/slot_execution/README.md) |
 | 任务级联合规划 | 槽线走向与停靠站联合优化：400 面随机住宅墙上从不比分步方法慢，非承重墙预测执行时间再省 3.5 %（95 % CI [3.0, 3.9] %，Wilcoxon p < 1e-10，时间模型按当前执行路径标定），下界证书证明 92 % 的墙已达最优；**Gazebo 实测确认**：示例任务联合规划 228 s、规则路线 246 s，节省 7.3 %（预测 6.6 %，时间模型样本外误差 ≤ 0.7 %）。以上为机械臂逐点执行时的数字；改为连续轨迹后每多一个小段的代价由 8.1 s 降到 2.0 s，非承重墙上的节省缩小到 1.2 %（95 % CI [1.0, 1.3] %），示例任务实测 160 s 对 165 s | [联合规划](docs/experiments/task_planning/README.md)、[Gazebo 验证](docs/experiments/plan_validation/README.md) |
 | 机械臂连续轨迹 | 每站的机械臂点作为一条轨迹执行：切割段按进给速度、空行程按各轴限值做 S 形时间参数化，拐点精确停止。Gazebo 中 11 个停靠站的耗时 228 → 160 s（−30 %），非切割运动 122 → 37 s，刀尖轨迹误差平均值不变（0.18–0.20 mm）；时间模型增加切割长度项（`traj_v1`），样本外误差 ≤ 1.0 s | [机械臂连续轨迹](docs/experiments/arm_trajectory/README.md) |
-| 切割力与定点保持（离线分析） | 按比切削能建立切割力模型，换算为底盘受到的力旋量：竖槽可行；横槽低进给可行，满功率时所需摩擦系数约 0.49，需限制进给或加支撑。现有比例保持在受力时刀尖柔度 4.7 mm/N；对比 P / PI / PID / 扰动观测器的裕度与抗扰性能，扰动观测器 + 前馈把烧结砖横槽（5 mm/s）的刀尖偏移峰值降到 1.6 mm。力的数值多为假设，尚未在 Gazebo 中验证 | [切割力与抗扰保持](docs/experiments/cutting_force/README.md) |
+| 切割力与定点保持 | 按比切削能建立切割力模型，换算为底盘受到的力旋量，并在 Gazebo 中带切割力执行整面墙（烧结砖，11 站）：现有比例保持失效，横槽刀尖被推开 81–85 mm，槽线覆盖率 40 %；扰动观测器 8.3–9.0 mm，加 70 % 前馈 5.0–6.2 mm（均方根 1.2 mm，n = 4），覆盖率 100 %，约为离线预测的两倍，未达到 1 mm。对象模型的阶跃响应与 Gazebo 相差 6 % 以内（14 次中 12 次）。进给上限由轮地摩擦而不是主轴功率决定：烧结砖 5.5 mm/s（μ = 0.3，安全系数 1.5）。力的数值多为假设 | [切割力与抗扰保持](docs/experiments/cutting_force/README.md) |
+| 进给受力限制后的规划收益 | 在 5.5 mm/s 下重新标定时间模型（`cut_brick_v1`，样本外误差 ≤ 0.7 %）：示例墙 11 站由空切的 160 s 变为 979 s，每个机械臂点的代价由 0.5 s 升到 5.1 s。400 面随机墙上联合规划在非承重墙的预测节省为 22.6 s（2.3 %，95 % CI [2.0, 2.6] %），空切模型下为 2.3 s（1.2 %）；停靠站合并的相对收益由 10 % 降到 3.3 % | [切割力与抗扰保持 11 节](docs/experiments/cutting_force/README.md#11-进给速度的依据与规划收益) |
+| 房间级规划与替代方案（离线） | 联合规划无解的 106 面墙，冲突都集中在一对槽上；不放松开槽规范、只改任务（换引线点、改走地面），102 面得到合规方案，独立检查 0 违规。多面墙的访问顺序与方向用子集动态规划精确求解：200 个随机房间上比固定顺序快 1.4 %（95 % CI [1.3, 1.6] %），墙上作业占预测时间的 81 %，顺序的优化空间有限。未在 Gazebo 中执行 | [房间级规划](docs/experiments/room_planning/README.md) |
 | 系统层 | 任务改由 BehaviorTree.CPP 编排 6 个技能 action（含重试与重新对位）；Nav2 换用 Smac 2D + MPPI：到达 18 / 18（NavFn + DWB 15 / 18），最小离障间隙 183 mm（5 mm），控制器 CPU 9.7 %（45.5 %）；底盘接入 ros2_control | [系统层现代化](docs/experiments/system_modernization/README.md) |
 | 定位融合 | 编码器误差模型 + 陀螺 + robot_localization EKF：129 m 路线上里程计漂移 1.4–1.6 % → 0.14–0.26 % | [系统层现代化](docs/experiments/system_modernization/README.md#44-定位漂移) |
 | 仿真保真度 | 定位并修复底盘旋转失真的两层根因，转速比 18–37 % → 0.99–1.01 | [项目演进](docs/EVOLUTION.md#4-仿真保真度底盘漂移与旋转失真) |
@@ -91,7 +93,7 @@ flowchart TB
 | [`scr_task`](src/scr_task/README.md) | BehaviorTree.CPP 任务执行器：多站开槽与单站任务的行为树 |
 | [`scr_interfaces`](src/scr_interfaces/README.md) | 任务与技能的 action / 消息定义 |
 | [`scr_base_control`](src/scr_base_control/README.md) | ros2_control 麦克纳姆底盘控制器、编码器误差模型、Gazebo 仿真硬件接口 |
-| [`scr_planner`](src/scr_planner/README.md) | C++ 开槽规划器、施工规范、停靠站划分与顺序优化、执行实验记录 |
+| [`scr_planner`](src/scr_planner/README.md) | C++ 开槽规划器、施工规范、停靠站划分与顺序优化、房间级规划与替代方案、执行实验记录 |
 | [`scr_viz`](src/scr_viz/README.md) | RViz 开槽可视化、Gazebo 墙面实体、演示录制 |
 | [`path_planning`](src/path_planning/README.md) | 第一版规划器（Python 原型）：标准 / 改进 / 增强 A\* 对比 |
 
@@ -179,8 +181,9 @@ docker compose -f docker/docker-compose.yml exec sim bash   # 进入容器后执
   - [多站沿墙精度：多标记地图与横移比例在线估计](docs/experiments/along_wall_accuracy/README.md)
   - [规划验证：时间模型重标定与联合规划的 Gazebo 执行](docs/experiments/plan_validation/README.md)
   - [机械臂连续轨迹：进给与空行程分离的时间参数化、时间模型的切割长度项](docs/experiments/arm_trajectory/README.md)
-  - [切割力扰动与抗扰定点保持：力模型、平台可行性、控制律对比（离线）](docs/experiments/cutting_force/README.md)
+  - [切割力扰动与抗扰定点保持：力模型、平台可行性、控制律对比、Gazebo 验证、进给上限](docs/experiments/cutting_force/README.md)
   - [任务级联合规划：槽线走向 + 停靠站](docs/experiments/task_planning/README.md)
+  - [房间级规划与无合规方案墙面的替代方案](docs/experiments/room_planning/README.md)
   - [视觉伺服方法对比：PBVS / IBVS / 2.5D 混合](docs/experiments/ibvs_vs_pbvs/README.md)
   - [可视化与演示](docs/experiments/demo/README.md)
 

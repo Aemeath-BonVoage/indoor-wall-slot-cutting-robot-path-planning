@@ -186,6 +186,30 @@
 - 说明：(a) 非承重墙上每面墙的预测时间节省（按槽数分组，黑横线为均值）；(b) 与下界差距的累积分布，0 处的阶跃高度即被证明最优的比例；(c) 得到合规方案的墙数；(d) 规划耗时（点为中位数，竖线为 5–95 分位）。灰为逐槽划分，朱红为规则路线 + DP，蓝为联合规划。
 - 要点：联合规划从不比规则路线慢，非承重墙上平均再省 3.5 %（95 % CI [3.1, 4.0] %，n = 156），相对逐槽划分共省 11.9 %；92 % 的墙被下界证明最优。代价是规划耗时中位数由 25 ms 增加到 0.40 s。
 
+### 2.8 无合规方案的墙：诊断与替代方案
+
+<a href="experiments/room_planning/fig_fallback.png"><img src="experiments/room_planning/fig_fallback.png" width="640" alt="诊断与替代方案"></a>
+
+- 报告：[房间级规划与替代方案](experiments/room_planning/README.md#a4-结果) · [PDF](experiments/room_planning/fig_fallback.pdf)；示例墙：[PNG](experiments/room_planning/fig_fallback_example.png) · [PDF](experiments/room_planning/fig_fallback_example.pdf)
+- 说明：106 面联合规划无解的墙。(a) 约束性规则的归类，按槽数堆叠；(b) 各级替代方案各自能解出的墙数，Any 为至少一级可行；(c) 各级排序第一的方案的代价（对数轴，单价为假设）。
+- 要点：不放松规范，102 面得到合规方案：70 面换引线点，32 面改走地面；走顶棚与移动线盒从未成为首选。
+
+### 2.9 房间级规划：示例房间
+
+<a href="experiments/room_planning/fig_room_example.png"><img src="experiments/room_planning/fig_room_example.png" width="640" alt="房间的访问顺序"></a>
+
+- 报告：[房间级规划与替代方案](experiments/room_planning/README.md) · [PDF](experiments/room_planning/fig_room_example.pdf)；转场时间模型：[PNG](experiments/room_planning/fig_transit_model.png) · [PDF](experiments/room_planning/fig_transit_model.pdf)
+- 说明：一个随机 L 形房间（4 面墙有任务）的俯视图。(a) 按列出顺序、一律从左到右；(b) 子集动态规划的最优顺序与方向。橙色粗线为槽线的沿墙范围，绿色方块为入口定位标记，带编号的折线为各段导航。
+- 要点：墙上的作业相同，转场由 98 s 降到 79 s。
+
+### 2.10 房间级规划：200 个随机房间
+
+<a href="experiments/room_planning/fig_room_results.png"><img src="experiments/room_planning/fig_room_results.png" width="640" alt="房间级规划结果"></a>
+
+- 报告：[房间级规划与替代方案](experiments/room_planning/README.md#b-部分200-个随机房间) · [PDF](experiments/room_planning/fig_room_results.pdf)
+- 说明：(a) 固定顺序与最近邻比最优方案多用的时间，按有任务的墙数分组；(b) 最优方案预测时间的构成；(c) 各方法与最优的差距的累积分布；(d) 规划耗时的三个部分（对数轴）。
+- 要点：比固定顺序快 1.44 %，比最近邻快 0.36 %；墙上作业占 81 %，首次精对位占 13 %，导航占 6 %。访问顺序的优化空间有限。
+
 ## 三、执行
 
 ### 3.1 两条槽的多站执行
@@ -339,6 +363,30 @@
 - 报告：[切割力扰动与抗扰定点保持](experiments/cutting_force/README.md#63-里程计看不到打滑时) · [PDF](experiments/cutting_force/fig_slip.pdf)
 - 说明：轮地接触底盘上的横槽切割（烧结砖，5 mm/s）。(a) 底盘真实朝向偏差；(b) 刀尖沿墙偏移；(c) 真实朝向与里程计报告的朝向。七种反馈方式：里程计、现有墙面 EKF、卡尔曼形式的扰动观测器，依次加入定位标记与陀螺。
 - 要点：只用里程计时底盘真实转过几度而里程计读数为零，任何控制律都不动作；激光能保持朝向与离墙距离，沿墙位置只有定位标记能看到；加入陀螺后刀尖偏移峰值约 2 mm（均方根 0.8 mm）。
+
+### 3.20 Gazebo 阶跃试验与离线模型
+
+<a href="experiments/cutting_force/fig_gazebo_step.png"><img src="experiments/cutting_force/fig_gazebo_step.png" width="640" alt="Gazebo 阶跃试验"></a>
+
+- 报告：[切割力扰动与抗扰定点保持](experiments/cutting_force/README.md#103-阶跃外力稳态与各控制律的瞬态) · [PDF](experiments/cutting_force/fig_gazebo_step.pdf)
+- 说明：(a) 2 N·m 偏航力矩阶跃下各控制律的刀尖偏移，彩色线为 Gazebo 真值，黑色细点线为模型；(b) 14 次试验的峰值，预测对实测；(c) 8.6 N·m、默认限幅下的响应（对数刻度）。每个工况 n = 1。
+- 要点：修正里程计的积分方式后，12 次试验的峰值误差在 6 % 以内；扰动观测器的峰值约为 PI 的一半，与预测一致。
+
+### 3.21 带切割力的整墙试验
+
+<a href="experiments/cutting_force/fig_gazebo_stations.png"><img src="experiments/cutting_force/fig_gazebo_stations.png" width="640" alt="带切割力的整墙试验"></a>
+
+- 报告：[切割力扰动与抗扰定点保持](experiments/cutting_force/README.md#105-带切割力的整面墙) · [PDF](experiments/cutting_force/fig_gazebo_stations.pdf)
+- 说明：烧结砖，进给 5.5 mm/s。(a) 一个停靠站上作用在底盘的偏航力矩，实际施加值与名义值；(b) 同一站在三种保持方式下的刀尖偏移（对数刻度，黑点线为 1 mm）；(c) 各配置每次运行的横槽刀尖偏移，实心为峰值，空心为均方根。
+- 要点：比例保持 81–85 mm、覆盖率 40 %；扰动观测器 8.3–9.0 mm；加前馈 5.0–6.2 mm（均方根 1.2 mm），约为离线预测的两倍。
+
+### 3.22 进给上限与规划收益
+
+<a href="experiments/cutting_force/fig_feed_limit.png"><img src="experiments/cutting_force/fig_feed_limit.png" width="640" alt="进给上限与规划收益"></a>
+
+- 报告：[切割力扰动与抗扰定点保持](experiments/cutting_force/README.md#11-进给速度的依据与规划收益) · [PDF](experiments/cutting_force/fig_feed_limit.pdf)；400 面墙的结果图：[PNG](experiments/cutting_force/benchmark/fig_results.png)
+- 说明：(a) 横槽的偏航力矩随进给的变化，标记为功率 67 %、μ = 0.3、安全系数 1.5 下的进给上限；(b) 三个时间模型下 400 面随机墙的平均预测时间节省。
+- 要点：进给上限由轮地摩擦决定（烧结砖 5.5 mm/s）；在该进给下联合规划的节省为 22.6 s（2.3 %），停靠站合并的相对收益降到 3.3 %。
 
 ## 四、系统
 
@@ -582,11 +630,13 @@
 | 2.1–2.2 | `cd src/path_planning && python3 wall_cutting_planner.py` |
 | 2.3–2.4 | `cd src/path_planning && python3 improved_astar.py` |
 | 2.5 | `python3 src/scr_planner/scripts/wall_benchmark.py --plot-only` |
+| 2.8–2.10 | `python3 src/scr_planner/scripts/room_planning_report.py`（见 [复现](experiments/room_planning/README.md#复现)） |
 | 2.6–2.7 | `python3 src/scr_planner/scripts/task_planning_report.py <data> <out> --time-model=<预设>`（见 [复现](experiments/task_planning/README.md#复现)） |
 | 3.2 | `python3 src/scr_planner/scripts/plot_station_order.py <基线运行> <优化运行> <results.csv> <out.png>` |
 | 3.3–3.6 | `python3 docs/experiments/along_wall_accuracy/make_report.py` |
 | 3.7–3.11 | `python3 docs/experiments/arm_trajectory/make_report.py`（3.8 的数据由 `extract_profile.py` 从数据包导出，已提交；3.11 另需 `benchmark/data/`，见 [复现](experiments/arm_trajectory/README.md#8-复现)） |
 | 3.12–3.19 | `python3 docs/experiments/cutting_force/analysis.py` |
+| 3.20–3.22 | `python3 docs/experiments/cutting_force/gazebo_analysis.py` |
 | 4.1、5.3 | `python3 docs/report/make_figures.py` |
 | 4.2–4.4 | `python3 docs/experiments/system_modernization/make_report.py` |
 | 5.1–5.2 | `python3 docs/experiments/plan_validation/make_report.py` |

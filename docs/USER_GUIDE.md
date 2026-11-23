@@ -140,7 +140,7 @@ ros2 launch scr_bringup sim_nav.launch.py base_control:=plugin  # 早期配置�
 
 ### 2.5 切割力与抗扰定点保持（实验，默认关闭）
 
-仿真中的切割默认是空切，不施加切割力。切割力插件与定点保持的其他控制律已实现但默认关闭，还没有在 Gazebo 中验证（设计与离线结果见 [报告](experiments/cutting_force/README.md)，验证步骤见其第 10 节）。
+仿真中的切割默认是空切，不施加切割力。切割力插件与定点保持的其他控制律默认关闭，模型、离线分析与 Gazebo 中的验证见 [报告](experiments/cutting_force/README.md)。
 
 | 启动参数 | 默认 | 说明 |
 |---|---|---|
@@ -148,9 +148,19 @@ ros2 launch scr_bringup sim_nav.launch.py base_control:=plugin  # 早期配置�
 | `cutting_force_params` | 空 | 插件参数，形式为 `"键=值;键=值"`，例如 `"specific_energy=1.5e9;apply_to=base"` |
 | `base_max_accel` / `base_max_ang_accel` | 空 | 力控底盘的驱动力 / 力矩上限（以加速度给出）；空 = 5 m/s²、10 rad/s² |
 
-插件的话题：`cutting_force/engagement`（切深，`std_msgs/Float64`）、`cutting_force/test_wrench`（直接给定外力，用于阶跃试验）、`cutting_force/wrench`（实际施加的力旋量）。
+插件的话题：`cutting_force/engagement`（切深，`std_msgs/Float64`，执行器按轨迹时间表发布）、`cutting_force/expected_wrench`（执行器按名义模型预计的力旋量，用作前馈）、`cutting_force/test_wrench`（直接给定外力，用于阶跃试验）、`cutting_force/wrench`（实际施加的力旋量）。
 
 定点保持的控制律由 `base_hold` 节点的参数 `hold.mode` 选择：`p`（默认，现有的比例保持）、`pi`、`pid`、`dob`（扰动观测器）、`lqg`；另有 `hold.max_lin`、`hold.max_ang`、`hold.observer_bandwidth`、`hold.delay_steps`、`hold.feedforward_topic`、`hold.feedforward_gain`。
+
+带切割力执行多站任务时用 [`arm_motion_cutting.yaml`](../src/scr_arm_controller/config/arm_motion_cutting.yaml)：进给由切割力模型给出上限（烧结砖 5.5 mm/s），定点保持为扰动观测器 + 前馈，并放宽保持限幅。比例保持在带力切割下会被推开数厘米，不要与 `cutting_force:=true` 一起使用。
+
+```bash
+ros2 launch scr_bringup sim_nav.launch.py gui:=false rviz:=false cutting_force:=true base_max_ang_accel:=75 \
+    arm_motion_params:=$(ros2 pkg prefix scr_arm_controller)/share/scr_arm_controller/config/arm_motion_cutting.yaml \
+    cutting_force_params:="apply_to=base;engagement=topic;tip_offset=0.2044"
+```
+
+这组参数下示例墙 11 站约需 16 分钟（仿真时间）。报告中的整墙运行用同样的参数值经 `run_station_test.py` 传入；直接以该文件启动的方式没有单独跑过。
 
 ---
 
@@ -531,6 +541,12 @@ ros2 bag record -o ~/scr_bags/run1 --use-sim-time \
 | `rot_speed` / `rot_accel` | 2.5 rad/s / 12 rad/s² | 刀片转向 |
 | `jerk_time` | 0.05 s | 加速度升到上限的时间，0 = 梯形速度曲线 |
 | `dwell` | 0.2 s | 下刀到位后、开始进给前的等待 |
+| `feed_ramp_time` | 0 | 进给 / 下刀速度从 0 升到设定值的最短时间，0 = 只受 `feed_accel` 限制 |
+| `cut_dwell` | 0 | 一刀切完后、退刀前的等待 |
+| `split_plunge` | `false` | 下刀段在刀尖接触墙面处先停一下 |
+| `scale_dry_plunge` | `false` | 空切时把下刀速度按行程比例折算，使下刀时间与真实切深一致 |
+| `feed_basis` | `fixed` | `fixed`：直接取 `feed_rate` / `plunge_rate`；`force_limit`：取切割力模型给出的上限，`feed_rate` / `plunge_rate` 仍作为上限 |
+| `material`、`slot_depth`、`power_fraction`、`friction_mu`、`friction_margin` | `brick`、0.035 m、0.67、0.3、1.5 | `force_limit` 所用的材料、切深、功率余量、轮地摩擦系数与安全系数（[依据](experiments/cutting_force/README.md#111-进给上限)） |
 
 ```bash
 ros2 launch scr_bringup sim_nav.launch.py arm_motion_params:=/path/to/arm_motion.yaml   # 启动时换一组参数
@@ -546,6 +562,7 @@ ros2 param set /task_skills arm_motion.mode point_to_point                      
 | 预设 | 对应的执行路径 | 标定方法 | `t_settle` | `v_strafe` | `t_point` |
 |---|---|---|---|---|---|
 | `traj_v1`（默认） | 当前默认：同 `align_v3`，机械臂为连续轨迹，`v_feed` = 0.05 m/s（44 站，每站 RMSE 0.31 s） | `traj` | 4.77 s | 0.1036 m/s | 0.501 s |
+| `cut_brick_v1` | 带切割力的参数（`arm_motion_cutting.yaml`，烧结砖，`v_feed` = 0.0055 m/s；44 站，每站 RMSE 0.54 s）。不是默认值 | `traj` | 4.86 s | 0.0972 m/s | 5.134 s |
 | `align_v3` | 行为树任务层，标记地图 + 横移比例估计，横移前回观测位姿，机械臂逐点执行（44 站，每站 RMSE 0.22 s） | `phases-reg` | 4.70 s | 0.0971 m/s | 2.030 s |
 | `align_v2` | 行为树改造之前、精对位第二版、单标记，`/odom` 为真值 | `phases` | 2.83 s | 0.0984 m/s | 2.049 s |
 | `align_v1` | 第一版精对位，用于复现早期报告的数字 | `joint` | 4.40 s | 0.0945 m/s | 2.034 s |
@@ -569,6 +586,24 @@ python3 src/scr_planner/scripts/calibrate_time_model.py /tmp/run_a /tmp/run_b \
 | `--loo` | 逐次运行留一交叉验证的每站 RMSE |
 
 `align_v3` 改用 `phases-reg` 的原因：每站切割阶段开始时有约 1.0 s 与点数无关的固定开销（到站残差测量）。比值估计把它摊进 `t_point`（2.152 s，偏大 6 %），会高估“每少一个点省多少时间”，每站 RMSE 0.55 s；回归后 `t_point` = 2.030 s，每站 RMSE 0.22 s，与整体最小二乘一致。执行路径或仿真配置改变后应重新标定。
+
+### 7.6 房间级规划与替代方案
+
+一个房间有几面墙要开槽时，`plan_room.py` 先为每面墙规划，再求墙的访问顺序与每面墙的扫掠方向（方法与实验见 [报告](experiments/room_planning/README.md)；离线工具，房间任务还没有在 Gazebo 中执行过）：
+
+```bash
+python3 src/scr_planner/scripts/plan_room.py src/scr_planner/config/room_task_room3.yaml /tmp/room3
+python3 src/scr_planner/scripts/plan_room.py --generate=177 /tmp/room_177.yaml     # 按种子生成一个随机房间任务
+```
+
+| 选项 | 说明 |
+|---|---|
+| `--method=optimal`（默认）/ `nearest` / `fixed` | 子集动态规划的精确最优 / 最近邻 / 按列出顺序、一律从左到右 |
+| `--time-model=<预设>` | 墙上作业的时间模型，默认 `traj_v1` |
+
+输出目录中 `room_plan.yaml` 记录访问顺序、每面墙的扫掠方向与入口标记、转场与作业的预测时间、各基线的总时间、对施工的改动；`wall_<名称>.yaml` 是每面墙的规划文件，格式与 `plan_wall_slots.py` 的输出相同，可逐面墙交给执行器（执行前把定位标记参数设为该墙的入口标记）。房间任务文件的格式见 [`room_task_room3.yaml`](../src/scr_planner/config/room_task_room3.yaml)：每面墙是一个单面墙任务，另有 map 中的两个端点、名称与定位标记的沿墙位置，房间还给出地面边界、地面障碍、起始位姿与跨墙角回路。room3 的三面墙中只有南墙布置了定位标记，东墙、北墙的规划文件目前不能直接执行。
+
+联合规划无解的墙由 `plan_alternatives.plan_with_fallback` 处理：先做联合规划，无解时在不放松开槽规范的前提下给出改动最小的替代方案（换引线点、改走地面或顶棚、移动线盒），`plan_room.py` 对每面墙都走这个入口。替代方案的排序代价中的单价是假设值。
 
 ---
 
@@ -670,7 +705,8 @@ colcon test --packages-select scr_planner     # 只测单个包
 | 行为树编排、Nav2 MPPI / Smac、定位融合、底盘 ros2_control | 是 | [system_modernization](experiments/system_modernization/README.md) |
 | 多站沿墙精度：标记地图、横移比例估计、按行程重新对位 | 是 | [along_wall_accuracy](experiments/along_wall_accuracy/README.md) |
 | 机械臂连续轨迹与逐点执行的对比、参数扫描、时间模型 `traj_v1` | 标定与出图部分否 | [arm_trajectory](experiments/arm_trajectory/README.md) |
-| 切割力模型、平台可行性、定点保持控制律（离线分析与仿真） | 否 | [cutting_force](experiments/cutting_force/README.md) |
+| 切割力模型、平台可行性、定点保持控制律（离线）；Gazebo 阶跃试验与带力整墙运行；进给上限、时间模型 `cut_brick_v1` | 第 10 节与标定数据是，其余否 | [cutting_force](experiments/cutting_force/README.md) |
+| 无合规方案墙面的替代方案；房间级规划（200 个随机房间） | 否 | [room_planning](experiments/room_planning/README.md) |
 | 时间模型 `align_v3` 标定；联合规划与规则路线的 Gazebo 执行 | 标定部分否 | [plan_validation](experiments/plan_validation/README.md) |
 
 注意各报告所用的仿真配置：系统层现代化之前的实验（精对位、多站执行、时间模型）在早期配置（`base_control:=plugin`，`/odom` 为真值，NavFn + DWB）下取得，复现时按 [2.4](#24-底盘里程计与定位) 设置启动参数；沿墙精度实验之前的多站数据还要用早期的站间语义（单标记、站间只用里程计，[6.4](#64-定位标记地图与横移比例估计)）。各报告的“复现”一节给出了对应的命令。
