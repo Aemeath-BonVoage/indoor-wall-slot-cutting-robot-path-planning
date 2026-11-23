@@ -5,8 +5,11 @@
 实测机械臂动作时一站内可漂移约 10 cm。切割 / 扫描期间需要把底盘闭环保持在到位位姿。
 
 机械臂控制器在执行动作时会阻塞主节点的回调，因此本模块使用独立节点和独立线程运行：
-- 以 50 Hz 用里程计做 P 控制，把底盘保持在 hold() 时的位姿（局部闭环，用轮式里程计：
-  融合后的 /odom 在 mm/s 级的慢速运动下明显偏小，见 docs/experiments/system_modernization）；
+- 每收到一帧里程计（50 Hz）做一次 P 控制，把底盘保持在 hold() 时的位姿（局部闭环，用
+  轮式里程计：融合后的 /odom 在 mm/s 级的慢速运动下明显偏小，见
+  docs/experiments/system_modernization）。控制由里程计消息驱动而不是定时器：节点用仿真
+  时钟，Gazebo 以 10 Hz 发布 /clock，按仿真时间计时的 50 Hz 定时器实际每 0.1 s 连续触发
+  两次，控制周期既不均匀也不是 20 ms（见 docs/experiments/cutting_force 的 Gazebo 验证）；
 - 同时订阅 Gazebo 真值（/gazebo/model_states），记录保持期间底盘偏离起点的最大距离与角度。
 
 抗扰保持（可选）：节点参数 hold.mode 选择控制律，默认 'p' 即上述比例控制，行为不变；
@@ -58,6 +61,8 @@ class BaseHold:
         mass, inertia = float(param('hold.mass', 30.5)), float(param('hold.inertia', 0.92))
         delay_steps = int(param('hold.delay_steps', 1))
         ff_topic = param('hold.feedforward_topic', '')
+        # 速度环可抵消的偏航力矩：指令限幅对应 I_z·k_in·max_ang；按整定规则留 1.3 倍裕量
+        self._yaw_authority = inertia * k_in * max_ang / 1.3
         if mode != 'p':
             self._law = PlanarHold(
                 mode, dt=1.0 / rate_hz, kp=(k_lin, k_lin, k_ang),
@@ -68,6 +73,12 @@ class BaseHold:
                 self.node.create_subscription(WrenchStamped, ff_topic, self._on_ff, 10)
         self.enabled = True             # False 时只测量漂移、不发控制（用于对比实验）
         self._odom = None
+        self._odom_stamp = None         # 最新里程计的时间戳（秒，仿真时间，分辨率不受 /clock 限制）
+        self._period = 1.0 / rate_hz
+        self._period_warned = False
+        # 每帧里程计调用一次的回调 f(时间戳)：需要 50 Hz、按仿真时间均匀执行的后台任务
+        # （例如切削状态的发布）挂在这里，不用仿真时钟的定时器
+        self.tick_callbacks = []
         self._gt = None
         self._target = None             # 里程计系中的保持目标 (x, y, yaw)
         self._gt_ref = None             # 真值起点
@@ -79,7 +90,6 @@ class BaseHold:
         self.node.create_subscription(Odometry, odom_topic, self._on_odom, 20)
         self.node.create_subscription(ModelStates, '/gazebo/model_states', self._on_gt, 10)
         self._pub = self.node.create_publisher(Twist, '/cmd_vel', 10)
-        self.node.create_timer(1.0 / rate_hz, self._step)
         self._exec = SingleThreadedExecutor()
         self._exec.add_node(self.node)
         self._thread = threading.Thread(target=self._exec.spin, daemon=True)
@@ -88,7 +98,19 @@ class BaseHold:
     # ---------- 回调 ----------
     def _on_odom(self, msg):
         p = msg.pose.pose
+        stamp = msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9
+        if self._odom_stamp is not None and self._target is not None and not self._period_warned:
+            dt = stamp - self._odom_stamp
+            if dt > 0.0 and abs(dt - self._period) > 0.5 * self._period:
+                self._period_warned = True
+                self.node.get_logger().warn(
+                    f'里程计周期 {dt * 1e3:.0f} ms 与定点保持的设计周期 '
+                    f'{self._period * 1e3:.0f} ms 不符，控制律的增益按设计周期整定')
+        self._odom_stamp = stamp
         self._odom = (p.position.x, p.position.y, _yaw(p.orientation))
+        for cb in self.tick_callbacks:
+            cb(stamp)
+        self._step()
 
     def _on_gt(self, msg):
         try:
@@ -106,7 +128,11 @@ class BaseHold:
 
     def _on_ff(self, msg):
         w = msg.wrench
-        self._ff = tuple(self._ff_gain * v for v in (w.force.x, w.force.y, w.torque.z))
+        self.set_feedforward((w.force.x, w.force.y, w.torque.z))
+
+    def set_feedforward(self, wrench):
+        """预计的外力 (F_x, F_y, M_z)（base_link 系）；None = 没有前馈."""
+        self._ff = None if wrench is None else tuple(self._ff_gain * v for v in wrench)
 
     def _step(self):
         if self._target is None or self._odom is None or not self.enabled:
@@ -142,6 +168,15 @@ class BaseHold:
             self.generation += 1
             self._max_drift = 0.0
             self._max_yaw = 0.0
+
+    def yaw_authority(self):
+        """定点保持可抵消的偏航力矩（N·m）：I_z·k_in·max_ang / 1.3（指令限幅留 30 % 裕量）."""
+        return self._yaw_authority
+
+    @property
+    def stamp(self):
+        """最新里程计的时间戳（秒）；没有里程计时为 None."""
+        return self._odom_stamp
 
     @property
     def active(self):
