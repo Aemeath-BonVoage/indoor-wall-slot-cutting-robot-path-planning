@@ -12,6 +12,7 @@
 - [8. 可视化与演示录制](#8-可视化与演示录制)
 - [9. 测试与实验复现](#9-测试与实验复现)
 - [10. 故障排查](#10-故障排查)
+- [11. Docker 复现](#11-docker-复现)
 - [附录：坐标系、话题与机器人参数](#附录坐标系话题与机器人参数)
 
 ---
@@ -51,25 +52,7 @@ sudo apt install ros-humble-navigation2 ros-humble-nav2-bringup ros-humble-slam-
 
 ### 1.3 Docker（可选）
 
-`docker/` 中提供基于 `osrf/ros:humble-desktop-full` 的开发镜像，`src/` 挂载到容器内的 `/workspace/src`：
-
-```bash
-cd docker
-./build.sh
-./start.sh
-docker exec -it ros2-humble-container bash
-```
-
-在容器内：
-
-```bash
-cd /workspace
-rosdep update && rosdep install --from-paths src --ignore-src -r -y
-colcon build --symlink-install
-source install/setup.bash
-```
-
-容器内 RViz 出现 GLSL 着色器报错时见 [10.6](#106-docker-中-rviz-报-glsl-错误)。
+不在本机安装 ROS 2 与 Gazebo 时，可以用 `docker/` 中的镜像：依赖由 rosdep 安装，工作空间在镜像内编译好，无界面或带窗口运行整个系统。构建、运行多站开槽任务和测试的命令见 [第 11 节](#11-docker-复现)。
 
 ---
 
@@ -714,7 +697,7 @@ ros2 run tf2_ros tf2_echo base_link camera_optical_link
 export LIBGL_ALWAYS_SOFTWARE=1
 ```
 
-`docker/start.sh` 已默认设置该变量。
+`docker/docker-compose.yml` 的 `gui` 服务已默认设置该变量（[11.5](#115-图形界面可选)）。
 
 ### 10.7 多个仿真互相干扰
 
@@ -761,6 +744,91 @@ fastdds shm clean
 ### 10.12 机械臂动作时底盘缓慢转动或漂移（早期配置）
 
 Gazebo 中底盘有一部分转动（零速度指令下约 0.08°/s）只出现在位姿里、不出现在连杆速度里。默认的 ros2_control 底盘用位姿差分得到的实际速度做速度闭环、生成编码器与陀螺读数，因而不受影响；早期配置（`base_control:=plugin`）仍有这一现象，由定点保持在位置环中修正。排查过程见 [系统层现代化报告](experiments/system_modernization/README.md#24-轮式里程计陀螺与-ekf) 2.4 节。
+
+---
+
+## 11. Docker 复现
+
+不在本机安装 ROS 2 与 Gazebo 时，用 `docker/` 中的镜像复现。需要 Docker Engine 与 Compose 插件（`docker compose`）；以下命令都在仓库根目录执行。
+
+### 11.1 镜像内容
+
+| 文件 | 作用 |
+|---|---|
+| [`docker/Dockerfile`](../docker/Dockerfile) | 基于官方镜像 `ros:humble`。依赖由各包的 `package.xml` 经 rosdep 安装（与 GitHub Actions 中相同的一组），随后 `colcon build`。依赖层只依赖 `package.xml`，修改源码后重新构建时不会重装依赖 |
+| [`docker/entrypoint.sh`](../docker/entrypoint.sh) | 容器入口：加载 ROS 2 与工作空间的环境；没有 `DISPLAY` 时启动虚拟显示 Xvfb |
+| [`docker/docker-compose.yml`](../docker/docker-compose.yml) | 两个服务：`sim`（无界面）与 `gui`（Gazebo 与 RViz 窗口） |
+| `.dockerignore` | 构建上下文只包含 `src/`、`docs/` 与入口脚本 |
+
+工作空间在容器内的 `/ws`：源码 `/ws/src`，编译结果 `/ws/build`、`/ws/install`，实验数据与脚本 `/ws/docs`（部分单元测试读取 `docs/experiments` 中的执行记录）。容器的工作目录是 `/ws`，本指南中以 `src/...`、`docs/...` 开头的相对路径在容器内可以直接使用。
+
+rosdep 之外只安装了 `xvfb`：Gazebo Classic 用 OGRE 渲染相机图像，即使不开 Gazebo 窗口也需要一个 X 显示；容器里没有显示时，前视相机不发布图像，精对位看不到定位标记。入口脚本因此在没有 `DISPLAY` 时启动 Xvfb，由 Mesa 软件渲染。环境变量 `SCR_XVFB=0` 可关闭这一行为。
+
+### 11.2 构建
+
+```bash
+docker compose -f docker/docker-compose.yml build
+```
+
+得到镜像 `scr-sim:humble`。等价的命令是 `docker build -f docker/Dockerfile -t scr-sim:humble .`（构建上下文必须是仓库根目录）。首次构建需要下载 Gazebo、Nav2、RViz 等依赖；修改 `src/` 后重新构建只重新执行 `colcon build`。
+
+### 11.3 无界面运行多站开槽任务
+
+```bash
+docker compose -f docker/docker-compose.yml up -d sim        # 仿真 + Nav2 + 任务层，无窗口
+docker compose -f docker/docker-compose.yml exec sim bash    # 进入容器，环境已加载
+```
+
+`sim` 服务执行的是 `ros2 launch scr_bringup sim_nav.launch.py gui:=false rviz:=false`（[2.1](#21-一键启动推荐)）。在容器内执行与 [第 7 节](#7-多站开槽离线规划--逐站执行) 相同的命令：
+
+```bash
+python3 src/scr_planner/scripts/plan_wall_slots.py src/scr_planner/config/wall_task_room3_south.yaml /tmp/plan.yaml
+ros2 run scr_arm_controller navigation_cutting_task /tmp/plan.yaml --dry-run-gap=0.01
+```
+
+客户端先等待行为树执行器就绪（Nav2 激活之后），再执行 11 个停靠站并打印每站记录；任务成功时退出码为 0。单站任务同理：`ros2 run scr_arm_controller navigation_cutting_task task_at_target.yaml`。
+
+查看仿真侧的日志与结束：
+
+```bash
+docker compose -f docker/docker-compose.yml logs -f sim
+docker compose -f docker/docker-compose.yml down
+```
+
+不进入容器、直接执行单条命令时，在命令前加入口脚本以加载环境：
+
+```bash
+docker compose -f docker/docker-compose.yml exec sim /ros_entrypoint.sh ros2 action list
+```
+
+### 11.4 运行测试
+
+```bash
+docker compose -f docker/docker-compose.yml run --rm sim bash -c "colcon test && colcon test-result --verbose"
+```
+
+与 [第 9 节](#9-测试与实验复现) 相同的全部测试，在镜像内已编译的工作空间上运行，不启动 Gazebo。
+
+### 11.5 图形界面（可选）
+
+`gui` 服务启动完整界面（`ros2 launch scr_bringup sim_nav.launch.py`），把 Gazebo 与 RViz 的窗口显示到宿主机的 X 服务器上：
+
+```bash
+xhost +local:docker                                                   # 允许容器连接 X 服务器
+docker compose -f docker/docker-compose.yml --profile gui up gui
+docker compose -f docker/docker-compose.yml --profile gui down        # 结束后
+xhost -local:docker
+```
+
+- **X11**：服务挂载 `/tmp/.X11-unix` 并传入宿主机的 `DISPLAY`（未设置时取 `:0`）。
+- **Wayland**：Gazebo Classic 与 RViz 都是 X11 程序，在 Wayland 桌面上经 XWayland 显示；`DISPLAY` 由 XWayland 设置，命令与 X11 相同。
+- **渲染**：默认 `LIBGL_ALWAYS_SOFTWARE=1`（软件渲染，任何宿主机都可用）。要用宿主机的显卡时，以 `LIBGL_ALWAYS_SOFTWARE=0` 启动，并取消 compose 文件中 `/dev/dri` 一段的注释。
+- 在该服务中执行任务：`docker compose -f docker/docker-compose.yml exec gui bash`，命令与 11.3 相同。
+- `sim` 与 `gui` 各自都是完整的系统，一次只启动其中一个；`gui` 使用 `ROS_DOMAIN_ID=1`，两者同时运行时话题也不会互相串扰。
+
+### 11.6 持续集成中的镜像检查
+
+GitHub Actions 的 `Docker` 工作流（`.github/workflows/docker.yml`）在 `src/` 或 `docker/` 变化时构建镜像（各层缓存在 Actions 缓存中），并在容器内依次执行：compose 文件检查、11.4 的全部测试、一次无界面启动（等到前视相机发布一帧图像、任务 action `/execute_slot_plan` 出现）。手动触发该工作流并勾选 `demo` 时，另外执行 11.3 的完整多站开槽任务。
 
 ---
 
