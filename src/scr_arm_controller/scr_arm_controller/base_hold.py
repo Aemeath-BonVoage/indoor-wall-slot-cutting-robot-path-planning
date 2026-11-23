@@ -8,16 +8,26 @@
 - 以 50 Hz 用里程计做 P 控制，把底盘保持在 hold() 时的位姿（局部闭环，用轮式里程计：
   融合后的 /odom 在 mm/s 级的慢速运动下明显偏小，见 docs/experiments/system_modernization）；
 - 同时订阅 Gazebo 真值（/gazebo/model_states），记录保持期间底盘偏离起点的最大距离与角度。
+
+抗扰保持（可选）：节点参数 hold.mode 选择控制律，默认 'p' 即上述比例控制，行为不变；
+'pi' / 'pid' / 'dob' / 'lqg' 使用 disturbance_observer.PlanarHold（切割力作用下比例保持
+有稳态偏差，见 docs/experiments/cutting_force）。其余参数：hold.max_lin、hold.max_ang
+（指令限幅）、hold.observer_bandwidth、hold.delay_steps（测量到指令生效的整拍延迟）、
+hold.velocity_loop_gain、hold.mass、hold.inertia，
+以及前馈 hold.feedforward_topic（geometry_msgs/WrenchStamped，base_link 系下预计的外力，
+空字符串 = 不用）与 hold.feedforward_gain。
 """
 import math
 import threading
 
 import rclpy
 from gazebo_msgs.msg import ModelStates
-from geometry_msgs.msg import Twist
+from geometry_msgs.msg import Twist, WrenchStamped
 from nav_msgs.msg import Odometry
 from rclpy.executors import SingleThreadedExecutor
 from rclpy.parameter import Parameter
+
+from scr_arm_controller.disturbance_observer import PlanarHold
 
 
 def _yaw(q):
@@ -27,11 +37,35 @@ def _yaw(q):
 class BaseHold:
     # 增益按力控底盘（scr_planar_move，速度环带宽约 20 rad/s）整定：外环位置 P 增益取其 1/4–1/3
     def __init__(self, entity='scr_robot_gazebo', rate_hz=50.0,
-                 k_lin=5.0, k_ang=6.0, max_lin=0.1, max_ang=0.5, odom_topic='/odom'):
+                 k_lin=5.0, k_ang=6.0, max_lin=0.1, max_ang=0.5, odom_topic='/odom',
+                 mode=None):
         sim_time = Parameter('use_sim_time', Parameter.Type.BOOL, True)
         self.node = rclpy.create_node('base_hold', parameter_overrides=[sim_time])
         self.entity = entity
+
+        def param(name, default):
+            return self.node.declare_parameter(name, default).value
+        mode = mode or param('hold.mode', 'p')
+        max_lin = float(param('hold.max_lin', max_lin))
+        max_ang = float(param('hold.max_ang', max_ang))
         self.k_lin, self.k_ang, self.max_lin, self.max_ang = k_lin, k_ang, max_lin, max_ang
+        # 抗扰控制律；None = 现有的比例保持（默认）
+        self._law = None
+        self._ff = None                 # 预计的外力 (F_x, F_y, M_z)，base_link 系
+        self._ff_gain = float(param('hold.feedforward_gain', 1.0))
+        k_in = float(param('hold.velocity_loop_gain', 20.0))
+        bandwidth = float(param('hold.observer_bandwidth', 40.0))
+        mass, inertia = float(param('hold.mass', 30.5)), float(param('hold.inertia', 0.92))
+        delay_steps = int(param('hold.delay_steps', 1))
+        ff_topic = param('hold.feedforward_topic', '')
+        if mode != 'p':
+            self._law = PlanarHold(
+                mode, dt=1.0 / rate_hz, kp=(k_lin, k_lin, k_ang),
+                limits=(max_lin, max_lin, max_ang), k_in=(k_in, k_in, k_in), mass=mass,
+                inertia=inertia, observer_bandwidth=bandwidth, delay_steps=delay_steps)
+            self.node.get_logger().info(f'定点保持控制律：{mode}')
+            if ff_topic:
+                self.node.create_subscription(WrenchStamped, ff_topic, self._on_ff, 10)
         self.enabled = True             # False 时只测量漂移、不发控制（用于对比实验）
         self._odom = None
         self._gt = None
@@ -70,6 +104,10 @@ class BaseHold:
                 dyaw = math.atan2(math.sin(self._gt[2] - gyaw), math.cos(self._gt[2] - gyaw))
                 self._max_yaw = max(self._max_yaw, abs(dyaw))
 
+    def _on_ff(self, msg):
+        w = msg.wrench
+        self._ff = tuple(self._ff_gain * v for v in (w.force.x, w.force.y, w.torque.z))
+
     def _step(self):
         if self._target is None or self._odom is None or not self.enabled:
             return
@@ -78,6 +116,15 @@ class BaseHold:
         ex, ey = tx - x, ty - y
         c, s = math.cos(yaw), math.sin(yaw)
         cmd = Twist()
+        if self._law is not None:
+            # 偏差 = 当前位姿 − 保持点（机体系），与下面比例保持的误差反号
+            dyaw = math.atan2(math.sin(yaw - tyaw), math.cos(yaw - tyaw))
+            with self._lock:
+                vx, vy, wz = self._law.update(
+                    (-(c * ex + s * ey), s * ex - c * ey, dyaw), self._ff)
+            cmd.linear.x, cmd.linear.y, cmd.angular.z = vx, vy, wz
+            self._pub.publish(cmd)
+            return
         cmd.linear.x = max(-self.max_lin, min(self.max_lin, self.k_lin * (c * ex + s * ey)))
         cmd.linear.y = max(-self.max_lin, min(self.max_lin, self.k_lin * (-s * ex + c * ey)))
         eyaw = math.atan2(math.sin(tyaw - yaw), math.cos(tyaw - yaw))
@@ -88,6 +135,8 @@ class BaseHold:
     def hold(self):
         """从当前位姿开始保持（并开始记录真值漂移）."""
         with self._lock:
+            if self._law is not None:
+                self._law.reset()
             self._target = self._odom
             self._gt_ref = self._gt
             self.generation += 1
@@ -105,6 +154,10 @@ class BaseHold:
             return None
         dyaw = math.atan2(math.sin(odom[2] - target[2]), math.cos(odom[2] - target[2]))
         return math.hypot(odom[0] - target[0], odom[1] - target[1]), dyaw
+
+    def disturbance_estimate(self):
+        """估计的外力 (F_x, F_y, M_z)（base_link 系）；比例保持时为 None."""
+        return self._law.disturbance_estimate() if self._law is not None else None
 
     def release(self):
         """停止保持，返回保持期间的真值最大漂移 (米, 度)；无真值时为 None."""
