@@ -1,5 +1,7 @@
 # Indoor Wall Slot-Cutting Robot
 
+[English](README.en.md) | 简体中文
+
 [![CI](https://github.com/Aemeath-BonVoage/indoor-wall-slot-cutting-robot-path-planning/actions/workflows/ci.yml/badge.svg)](https://github.com/Aemeath-BonVoage/indoor-wall-slot-cutting-robot-path-planning/actions/workflows/ci.yml)
 
 **室内墙面开槽机器人（SCR, Slot Cutting Robot）的 ROS 2 仿真系统**：麦克纳姆轮全向底盘 + 直角坐标式 4 自由度机械臂，覆盖 SLAM 建图、Nav2 导航（Smac + MPPI）、AprilTag + 激光 EKF 精对位、满足施工规范的开槽规划与任务级停靠站优化，以及由行为树编排、带定点保持的多站切割执行。
@@ -149,7 +151,15 @@ ros2 launch scr_viz plan_viz.launch.py plan_file:=/tmp/plan.yaml use_sim_time:=t
 colcon test && colcon test-result --verbose
 ```
 
-建图、导航、任务文件格式、可视化和故障排查见 [使用指南](docs/USER_GUIDE.md)。
+不在本机安装 ROS 2 时可以用 Docker（镜像内已编译好工作空间，无界面服务启动仿真、Nav2 与任务层）：
+
+```bash
+docker compose -f docker/docker-compose.yml build
+docker compose -f docker/docker-compose.yml up -d sim
+docker compose -f docker/docker-compose.yml exec sim bash   # 进入容器后执行上面的任务命令
+```
+
+建图、导航、任务文件格式、可视化、Docker 用法和故障排查见 [使用指南](docs/USER_GUIDE.md)。
 
 ## 项目演进与文档
 
