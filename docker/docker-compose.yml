@@ -1,24 +1,50 @@
-version: '3.3'
+# Compose services for the slot-cutting robot simulation. Run from the repository root:
+#
+#   docker compose -f docker/docker-compose.yml build
+#   docker compose -f docker/docker-compose.yml up -d sim            # headless
+#   docker compose -f docker/docker-compose.yml exec sim bash        # shell in the running container
+#   docker compose -f docker/docker-compose.yml --profile gui up gui # Gazebo and RViz windows
+#   docker compose -f docker/docker-compose.yml --profile gui down
+#
+# Both services run the complete system (Gazebo, Nav2, task layer); start one of them,
+# not both. See docs/USER_GUIDE.md, section 11.
+
+x-scr: &scr
+  image: scr-sim:humble
+  build:
+    context: ..
+    dockerfile: docker/Dockerfile
+  # tini as PID 1 reaps the processes started by ros2 launch and forwards signals.
+  init: true
+  # ros2 launch shuts its nodes down cleanly on SIGINT.
+  stop_signal: SIGINT
+  stop_grace_period: 30s
+  # Fast DDS uses shared-memory transport between the nodes in the container;
+  # Docker's default /dev/shm of 64 MB is too small for Gazebo + Nav2 + the task layer.
+  shm_size: 1gb
 
 services:
-  ros2-humble:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: ros2-humble-dev
-    container_name: ros2-humble-container
-    stdin_open: true
-    tty: true
-    network_mode: host
-    privileged: true
-    volumes:
-      - ../src:/workspace/src
-      - /tmp/.X11-unix:/tmp/.X11-unix:rw
-    devices:
-      - /dev/dri:/dev/dri
+  # Headless: simulation + navigation + task layer, no Gazebo window, no RViz.
+  # The entrypoint starts Xvfb so that Gazebo can render the camera sensor.
+  sim:
+    <<: *scr
+    command: ros2 launch scr_bringup sim_nav.launch.py gui:=false rviz:=false
+
+  # With Gazebo and RViz windows on the host display (X11, or XWayland on a Wayland
+  # desktop). Allow the container to connect first: xhost +local:docker
+  gui:
+    <<: *scr
+    profiles: [gui]
     environment:
-      - DISPLAY=${DISPLAY}
-      - QT_X11_NO_MITSHM=1
-      - LIBGL_ALWAYS_SOFTWARE=1
-      - LIBGL_ALWAYS_INDIRECT=0
-    command: /bin/bash
+      DISPLAY: ${DISPLAY:-:0}
+      QT_X11_NO_MITSHM: "1"
+      # Software rendering works on any host. With a working GPU driver in the
+      # container, set LIBGL_ALWAYS_SOFTWARE=0 and uncomment the device below.
+      LIBGL_ALWAYS_SOFTWARE: ${LIBGL_ALWAYS_SOFTWARE:-1}
+      # Keeps the two services apart if both are started on the compose network.
+      ROS_DOMAIN_ID: "1"
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+    # devices:
+    #   - /dev/dri:/dev/dri
+    command: ros2 launch scr_bringup sim_nav.launch.py

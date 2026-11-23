@@ -1,0 +1,97 @@
+name: Docker
+
+# Builds the image in docker/ and checks it: the unit tests inside the container,
+# and a short headless start of the simulation. Runs only when the sources or the
+# Docker files change; the build-and-test job in ci.yml covers every push.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "docker/**"
+      - ".dockerignore"
+      - ".github/workflows/docker.yml"
+  pull_request:
+    paths:
+      - "src/**"
+      - "docker/**"
+      - ".dockerignore"
+      - ".github/workflows/docker.yml"
+  workflow_dispatch:
+    inputs:
+      demo:
+        description: "Also run the full headless multi-station task"
+        type: boolean
+        default: false
+
+concurrency:
+  group: docker-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  image:
+    name: Image build, tests, headless start
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      # The image (Gazebo, Nav2, RViz and the workspace) is several GB and exists
+      # twice during the job: in the build cache and in the Docker image store.
+      - name: Free disk space
+        run: sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android
+
+      - uses: docker/setup-buildx-action@v3
+
+      # Layer cache in the GitHub Actions cache: the rosdep layer is rebuilt only
+      # when a package.xml changes, the colcon layer only when src/ changes.
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile
+          tags: scr-sim:humble
+          load: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Validate compose file
+        run: docker compose -f docker/docker-compose.yml config --quiet
+
+      - name: Test suite inside the container
+        run: |
+          docker compose -f docker/docker-compose.yml run --rm -T sim \
+            bash -c "colcon test --event-handlers console_cohesion+ && colcon test-result --verbose"
+
+      # Starts Gazebo, Nav2 and the task layer without a window. A camera frame
+      # shows that Gazebo renders under Xvfb; the task action shows that Nav2 and
+      # the behaviour-tree executor came up with every runtime dependency present.
+      - name: Headless start (camera frame, task layer ready)
+        run: |
+          docker compose -f docker/docker-compose.yml up -d sim
+          docker compose -f docker/docker-compose.yml exec -T sim /ros_entrypoint.sh \
+            timeout 180 ros2 topic echo --once --no-arr /front_camera/image_raw sensor_msgs/msg/Image
+          docker compose -f docker/docker-compose.yml exec -T sim /ros_entrypoint.sh bash -c '
+            for _ in $(seq 60); do
+              if ros2 action list | grep -qx /execute_slot_plan; then exit 0; fi
+              sleep 5
+            done
+            echo "task layer not ready after 300 s" >&2
+            exit 1'
+
+      - name: Full headless multi-station task
+        if: github.event_name == 'workflow_dispatch' && inputs.demo
+        run: |
+          docker compose -f docker/docker-compose.yml exec -T sim /ros_entrypoint.sh bash -c '
+            python3 src/scr_planner/scripts/plan_wall_slots.py \
+                src/scr_planner/config/wall_task_room3_south.yaml /tmp/plan.yaml &&
+            timeout 1500 ros2 run scr_arm_controller navigation_cutting_task /tmp/plan.yaml --dry-run-gap=0.01'
+
+      - name: Simulation log
+        if: failure()
+        run: docker compose -f docker/docker-compose.yml logs --no-color --tail 300 sim
+
+      - name: Stop simulation
+        if: always()
+        run: docker compose -f docker/docker-compose.yml down
