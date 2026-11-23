@@ -1,0 +1,22 @@
+时间模型 traj_v1：TimeModel(t_settle=4.77, v_strafe=0.1036, t_point=0.501, v_feed=0.05)
+[   0]     12 s  {'current': None, 'joint': 311.1, 'lower_bound': 281.4}
+[  20]     31 s  {'current': 20.4, 'joint': 20.4, 'lower_bound': 20.4}
+[  40]     56 s  {'current': 66.4, 'joint': 66.4, 'lower_bound': 66.4}
+[  60]     78 s  {'current': 28.8, 'joint': 28.8, 'lower_bound': 28.8}
+[  80]    113 s  {'current': 378.2, 'joint': 372.2, 'lower_bound': 372.2}
+[ 100]    144 s  {'current': 61.0, 'joint': 61.0, 'lower_bound': 61.0}
+[ 120]    179 s  {'current': 134.0, 'joint': 132.0, 'lower_bound': 132.0}
+[ 140]    216 s  {'current': 235.6, 'joint': 233.6, 'lower_bound': 233.6}
+[ 160]    244 s  {'current': None, 'joint': None, 'lower_bound': 330.2}
+[ 180]    280 s  {'current': None, 'joint': None, 'lower_bound': 313.6}
+[ 200]    314 s  {'current': 201.4, 'joint': 201.4, 'lower_bound': 201.4}
+[ 220]    343 s  {'current': 223.4, 'joint': 219.4, 'lower_bound': 219.4}
+[ 240]    365 s  {'current': None, 'joint': None, 'lower_bound': 285.5}
+[ 260]    401 s  {'current': 15.2, 'joint': 15.2, 'lower_bound': 15.2}
+[ 280]    433 s  {'current': 285.2, 'joint': 279.2, 'lower_bound': 279.2}
+[ 300]    461 s  {'current': 51.1, 'joint': 51.1, 'lower_bound': 51.1}
+[ 320]    490 s  {'current': 47.4, 'joint': 47.4, 'lower_bound': 47.4}
+[ 340]    533 s  {'current': None, 'joint': None, 'lower_bound': 190.2}
+[ 360]    564 s  {'current': 145.7, 'joint': 141.7, 'lower_bound': 141.7}
+[ 380]    595 s  {'current': None, 'joint': None, 'lower_bound': 406.7}
+400 面墙，697 s

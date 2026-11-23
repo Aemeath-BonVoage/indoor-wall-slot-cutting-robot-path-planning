@@ -1,0 +1,29 @@
+stdin is not a terminal device. Keyboard handling disabled.[INFO] [1795424960.465197616] [rosbag2_recorder]: Press SPACE for pausing/resuming
+[INFO] [1795424960.470575468] [rosbag2_storage]: Opened database '~/scr_bags/arm_trajectory/p2p_joint_s1/p2p_joint_s1_0.db3' for READ_WRITE.
+[INFO] [1795424960.474026741] [rosbag2_recorder]: Listening for topics...
+[INFO] [1795424960.474113696] [rosbag2_recorder]: Recording...
+[INFO] [1795424960.474184496] [rosbag2_recorder]: use_sim_time set, waiting for /clock before starting recording...
+[INFO] [1795424960.474187307] [rosbag2_recorder]: Event publisher thread: Starting
+[INFO] [1795424960.565825910] [rosbag2_recorder]: Sim time /clock found, starting recording.
+[INFO] [1795424960.585382453] [rosbag2_recorder]: Subscribed to topic '/robot_description'
+[INFO] [1795424960.589681634] [rosbag2_recorder]: Subscribed to topic '/arm_controller/controller_state'
+[INFO] [1795424960.593488360] [rosbag2_recorder]: Subscribed to topic '/task_skills/status'
+[INFO] [1795424960.596869579] [rosbag2_recorder]: Subscribed to topic '/tf_static'
+[INFO] [1795424960.599225603] [rosbag2_recorder]: Subscribed to topic '/tf'
+[INFO] [1795424960.599991617] [rosbag2_recorder]: Subscribed to topic '/clock'
+[INFO] [1795424960.602526103] [rosbag2_recorder]: Subscribed to topic '/ground_truth/odom'
+[INFO] [1795424960.603519512] [rosbag2_recorder]: Subscribed to topic '/task_skills/wall_estimate'
+[INFO] [1795424960.605223792] [rosbag2_recorder]: Subscribed to topic '/cmd_vel'
+[INFO] [1795424960.607028175] [rosbag2_recorder]: Subscribed to topic '/gazebo/link_states'
+[INFO] [1795424960.607918390] [rosbag2_recorder]: Subscribed to topic '/wheel/odom'
+[INFO] [1795424960.609332145] [rosbag2_recorder]: Subscribed to topic '/imu'
+[INFO] [1795424960.609975179] [rosbag2_recorder]: Subscribed to topic '/odom'
+[INFO] [1795424960.610968090] [rosbag2_recorder]: Subscribed to topic '/joint_states'
+[INFO] [1795424960.611771003] [rosbag2_recorder]: Subscribed to topic '/map'
+[INFO] [1795424960.612805588] [rosbag2_recorder]: Subscribed to topic '/plan'
+[INFO] [1795424960.613819858] [rosbag2_recorder]: Subscribed to topic '/scan'
+[INFO] [1795424966.632266824] [rosbag2_recorder]: Subscribed to topic '/task_executor/station_records'
+[INFO] [1795424966.632306808] [rosbag2_recorder]: All requested topics are subscribed. Stopping discovery...
+[INFO] [1795425254.447661615] [rosbag2_cpp]: Writing remaining messages from cache to the bag. It may take a while
+[INFO] [1795425254.451664312] [rosbag2_recorder]: Event publisher thread: Exiting
+[INFO] [1795425254.451732051] [rosbag2_recorder]: Recording stopped

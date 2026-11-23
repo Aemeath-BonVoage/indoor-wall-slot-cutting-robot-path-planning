@@ -1,0 +1,5 @@
+method,n,certified,certified_pct,gap_mean_pct,gap_median_pct,gap_p95_pct,gap_max_pct
+per_slot,275,24,8.7,13.92,9.47,42.68,107.45
+current,275,165,60.0,1.18,0.0,2.84,71.57
+joint,275,255,92.7,0.5,0.0,0.7,71.57
+joint,293,256,87.4,0.87,0.0,1.83,71.57
