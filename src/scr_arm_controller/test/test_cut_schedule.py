@@ -126,3 +126,18 @@ def test_split_plunges_inserts_a_stop_at_contact_only_when_needed():
     plunge = next(s for s in sch.traj.segments if s.kind == 'plunge')
     assert sch.state(plunge.t0).depth == pytest.approx(0.0, abs=1e-6)
     assert sch.wrench(plunge.t0 + 0.1).fx > -2.0
+
+
+def test_rapid_moves_never_engage_even_beyond_the_contact_position():
+    # 机械臂从伸出位置（比空切的最深位置还靠前）回到退刀位置：这一段不算切入
+    pts, is_cut = station(X_DRY)
+    start = joints(X_DRY + 0.006, 0.0, 0.5, math.pi / 2)
+    traj = at.plan_trajectory(start, [joints(*p) for p in pts], is_cut,
+                              at.MotionLimits(feed=0.005, plunge=0.002))
+    sch = cs.CutSchedule(traj, slot_depth=DEPTH)
+    first = traj.segments[0]
+    assert first.kind == 'rapid' and first.motion_time > 0.0
+    for k in range(11):
+        t = first.t0 + first.motion_time * k / 10.0 - 1e-6
+        assert sch.state(t).depth == 0.0
+        assert sch.wrench(t).planar == (0.0, 0.0, 0.0)

@@ -24,6 +24,7 @@ from scr_arm_controller import cutting_force as cf
 # （与 cartesian_cutting.CartesianCuttingController.inverse_kinematics 一致）
 ARM_X0, ARM_Y0, ARM_Z0 = 0.53677, -0.00015, 0.50679
 TOOL_OFFSET = 0.1594        # 刀具连杆原点到刀尖（沿 base_link x）
+MIN_FEED = 0.0005           # 低于该进给速度视为未进给（与切割力插件的 min_feed 相同）
 BASE_HEIGHT = 0.05          # base_link 原点离地高度的近似值，只影响轮压估计，不影响水平面力旋量
 
 
@@ -118,6 +119,13 @@ class CutSchedule:
         """轨迹起点后 t 秒的切削状态；轨迹之外或没有切割段时切深为 0."""
         if self.x_deep is None or t < 0.0 or t > self.traj.duration:
             return CutState()
+        # 空行程（站内换位、从别处回到退刀位置）不接触墙面，无论伸缩轴在什么位置
+        kind = 'rapid'
+        for seg in self.traj.segments:
+            if seg.t0 <= t:
+                kind = seg.kind
+        if kind == 'rapid':
+            return CutState()
         q, qd, _ = self.traj.sample(t)
         x, y, z = tool_position(q)
         scale = 1.0 / self.travel_ratio
@@ -128,7 +136,11 @@ class CutSchedule:
         vy, vz = -qd[1], qd[0]
         feed = vy * s + vz * c              # 沿刀片方向 (0, sin θ, cos θ) 的速度
         horizontal = abs(s) > abs(c)
-        if horizontal:
+        if abs(feed) < MIN_FEED:
+            # 未进给（下刀、停顿）：方向符号取默认值，即沿刀片方向 (0, sin θ, cos θ) 为正
+            # （与切割力插件的约定相同）
+            sign = (-1 if s >= 0.0 else 1) if horizontal else (1 if c >= 0.0 else -1)
+        elif horizontal:
             sign = 1 if -vy >= 0.0 else -1
         else:
             sign = 1 if vz >= 0.0 else -1
@@ -136,7 +148,7 @@ class CutSchedule:
                         orientation='horizontal' if horizontal else 'vertical',
                         feed_sign=sign, tool=(x, y, z))
 
-    def wrench(self, t, min_feed=0.0):
+    def wrench(self, t, min_feed=MIN_FEED):
         """轨迹起点后 t 秒预计的底盘力旋量 cutting_force.Wrench（名义材料，无不均匀性）."""
         st = self.state(t)
         if st.depth <= 0.0:

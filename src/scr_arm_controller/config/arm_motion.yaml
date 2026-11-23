@@ -31,8 +31,13 @@
       # 进给 / 下刀速度从 0 升到设定值的最短时间；0 = 只受 feed_accel 限制。切削力随进给
       # 增大，进给缓慢建立时定点保持才跟得上（见 docs/experiments/cutting_force）
       feed_ramp_time: 0.0         # s
+      # 一刀切完后、退刀前的等待：让底盘回到保持点、切削力消失后再退刀
+      cut_dwell: 0.0              # s
       # 下刀段在刀尖接触墙面处先停一下，切入从静止开始
       split_plunge: false
+      # 空切时下刀行程短于槽深：为 true 时下刀速度按行程比例折算，使下刀时间与切深的
+      # 变化率和真实下刀一致
+      scale_dry_plunge: false
       # 进给的依据：fixed = 直接取上面的 feed_rate / plunge_rate（空切的默认做法）；
       # force_limit = 取切割力模型给出的上限（主轴功率 × power_fraction、最不利位置所需的
       # 轮地摩擦系数 × friction_margin ≤ friction_mu、定点保持可抵消的偏航力矩），

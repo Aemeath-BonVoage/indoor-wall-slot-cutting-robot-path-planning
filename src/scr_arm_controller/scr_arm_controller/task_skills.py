@@ -1048,7 +1048,7 @@ class CuttingSkills(Node):
         c = self.cut_config
         if bool(c['split_plunge']):
             points, is_cut = split_plunges(points, is_cut, float(c['slot_depth']))
-        if str(c['feed_basis']) == 'force_limit':
+        if bool(c['scale_dry_plunge']):
             # 空切时下刀行程短于槽深：下刀速度按行程比例折算，使下刀时间与切深的变化率
             # 和真实下刀一致
             limits = replace(limits, plunge=limits.plunge * travel_ratio(

@@ -303,3 +303,15 @@ def test_feed_ramp_time_limits_cut_and_plunge_acceleration():
     # 一段 100 mm 的切割：加减速各约 2 s，总时间 ≈ 长度 / 进给 + 建立时间
     t = rest_to_rest_time(0.1, lim.path('cut'))
     assert t == pytest.approx(0.1 / 0.005 + 2.0, abs=0.1)
+
+
+def test_cut_dwell_waits_before_retracting():
+    base = plan_trajectory(START, WAYPOINTS, IS_CUT, MotionLimits(dwell=0.0))
+    held = plan_trajectory(START, WAYPOINTS, IS_CUT, MotionLimits(dwell=0.0, cut_dwell=1.0))
+    cuts = [s for s in held.segments if s.kind == 'cut']
+    assert cuts and all(s.dwell == 1.0 for s in cuts)
+    assert all(s.dwell == 0.0 for s in held.segments if s.kind != 'cut')
+    assert held.duration == pytest.approx(base.duration + len(cuts))
+    # 等待期间机械臂停在切完的位置
+    q, qd, _ = held.sample(cuts[0].t1 - 0.5)
+    assert q == pytest.approx(list(cuts[0].q1)) and qd == pytest.approx([0.0] * 4)
