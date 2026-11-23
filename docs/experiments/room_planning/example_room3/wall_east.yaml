@@ -1,0 +1,162 @@
+status: success
+frame_id: map
+wall:
+  left_end:
+  - 9.925
+  - 3.925
+  right_end:
+  - 9.925
+  - -3.925
+  length: 7.85
+  load_bearing: true
+slot_spec:
+  depth: 0.035
+  width: 0.035
+  bend_radius: 0.12
+routes: joint
+slots:
+- label: 已有插座C→床头插座C
+  status: success
+  circuit: strong
+  planner:
+    turns: 0
+    cost: 46.599206349206355
+    expansions: 13
+    time_ms: 5.783841
+  length: 0.34
+  cut_path:
+  - - 2.605
+    - 0.345
+  - - 2.605
+    - 0.685
+  conduit_display:
+  - - 2.605
+    - 0.345
+  - - 2.605
+    - 0.685
+- label: 已有插座D→床头插座D
+  status: success
+  circuit: strong
+  planner:
+    turns: 0
+    cost: 51.89087301587301
+    expansions: 16
+    time_ms: 0.05229
+  length: 0.38
+  cut_path:
+  - - 4.405
+    - 0.345
+  - - 4.405
+    - 0.725
+  conduit_display:
+  - - 4.405
+    - 0.345
+  - - 4.405
+    - 0.725
+length: 0.72
+unreachable_length: 0.0
+unreachable: []
+partition: dp
+order: sweep+
+start_u: 3.0
+prediction:
+  stations: 2
+  points: 8
+  travel_m: 2.0052
+  t_move: 28.9
+  t_cut: 18.4
+  t_total: 47.3
+robot:
+  standoff: 0.7
+  reach_band:
+  - 0.2693
+  - 0.7993
+  window_width: 0.12
+  x_cut: 0.5756
+  x_retract: 0.52
+  tool_offset: 0.1594
+stations:
+- index: 0
+  u_c: 2.6749
+  window:
+  - 2.605
+  - 2.605
+  pose:
+    x: 9.225
+    y: 1.2501
+    yaw: 0.0
+  cut_length: 0.34
+  pieces:
+  - - - 2.605
+      - 0.345
+    - - 2.605
+      - 0.685
+  points:
+  - x: 0.52
+    y: 0.06985
+    z: 0.2425
+    rotation: 0.0
+  - x: 0.5756
+    y: 0.06985
+    z: 0.2425
+    rotation: 0.0
+  - x: 0.5756
+    y: 0.06985
+    z: 0.5825
+    rotation: 0.0
+  - x: 0.52
+    y: 0.06985
+    z: 0.5825
+    rotation: 0.0
+  motion:
+    duration: 2.0
+    return_home: false
+- index: 1
+  u_c: 4.3549
+  window:
+  - 4.405
+  - 4.405
+  pose:
+    x: 9.225
+    y: -0.4299
+    yaw: 0.0
+  cut_length: 0.38
+  pieces:
+  - - - 4.405
+      - 0.345
+    - - 4.405
+      - 0.725
+  points:
+  - x: 0.52
+    y: -0.05015
+    z: 0.2425
+    rotation: 0.0
+  - x: 0.5756
+    y: -0.05015
+    z: 0.2425
+    rotation: 0.0
+  - x: 0.5756
+    y: -0.05015
+    z: 0.6225
+    rotation: 0.0
+  - x: 0.52
+    y: -0.05015
+    z: 0.6225
+    rotation: 0.0
+  motion:
+    duration: 2.0
+    return_home: false
+obstacles:
+- kind: box
+  label: 已有插座F
+  u: 6.81
+  v: 0.3
+  w: 0.09
+  h: 0.09
+- kind: strong_line
+  label: 已有插座F引线竖槽
+  u: 6.85
+  v: 0.0
+  w: 0.01
+  h: 0.3
+marker_u: 3.0

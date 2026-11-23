@@ -1,0 +1,423 @@
+status: success
+frame_id: map
+wall:
+  left_end:
+  - 5.075
+  - 3.925
+  right_end:
+  - 9.925
+  - 3.925
+  length: 4.85
+  load_bearing: false
+slot_spec:
+  depth: 0.035
+  width: 0.035
+  bend_radius: 0.12
+routes: joint
+slots:
+- label: 已有插座E→电视柜插座E
+  status: success
+  circuit: strong
+  planner:
+    turns: 3
+    cost: 92.74917513942512
+    expansions: 2479
+    time_ms: 2.859692
+  length: 1.35
+  cut_path:
+  - - 0.805
+    - 0.345
+  - - 1.225
+    - 0.345
+  - - 1.225
+    - 0.675
+  - - 1.705
+    - 0.675
+  - - 1.705
+    - 0.555
+  conduit_display:
+  - - 0.805
+    - 0.345
+  - - 1.105
+    - 0.345
+  - - 1.1361
+    - 0.3491
+  - - 1.165
+    - 0.3611
+  - - 1.1899
+    - 0.3801
+  - - 1.2089
+    - 0.405
+  - - 1.2209
+    - 0.4339
+  - - 1.225
+    - 0.465
+  - - 1.225
+    - 0.555
+  - - 1.2291
+    - 0.5861
+  - - 1.2411
+    - 0.615
+  - - 1.2601
+    - 0.6399
+  - - 1.285
+    - 0.6589
+  - - 1.3139
+    - 0.6709
+  - - 1.345
+    - 0.675
+  - - 1.585
+    - 0.675
+  - - 1.6161
+    - 0.6709
+  - - 1.645
+    - 0.6589
+  - - 1.6699
+    - 0.6399
+  - - 1.6889
+    - 0.615
+  - - 1.7009
+    - 0.5861
+  - - 1.705
+    - 0.555
+length: 1.35
+unreachable_length: 0.0
+unreachable: []
+partition: dp
+order: sweep+
+start_u: 0.6
+prediction:
+  stations: 8
+  points: 40
+  travel_m: 1.0549
+  t_move: 48.3
+  t_cut: 47.0
+  t_total: 95.4
+robot:
+  standoff: 0.7
+  reach_band:
+  - 0.2693
+  - 0.7993
+  window_width: 0.12
+  x_cut: 0.5756
+  x_retract: 0.52
+  tool_offset: 0.1594
+stations:
+- index: 0
+  u_c: 0.8749
+  window:
+  - 0.805
+  - 0.865
+  pose:
+    x: 5.9499
+    y: 3.225
+    yaw: 1.5708
+  cut_length: 0.06
+  pieces:
+  - - - 0.805
+      - 0.345
+    - - 0.865
+      - 0.345
+  points:
+  - x: 0.52
+    y: 0.06985
+    z: 0.2425
+    rotation: 90.0
+  - x: 0.5756
+    y: 0.06985
+    z: 0.2425
+    rotation: 90.0
+  - x: 0.5756
+    y: 0.00985
+    z: 0.2425
+    rotation: 90.0
+  - x: 0.52
+    y: 0.00985
+    z: 0.2425
+    rotation: 90.0
+  motion:
+    duration: 2.0
+    return_home: false
+- index: 1
+  u_c: 0.9348
+  window:
+  - 0.865
+  - 0.985
+  pose:
+    x: 6.0099
+    y: 3.225
+    yaw: 1.5708
+  cut_length: 0.12
+  pieces:
+  - - - 0.865
+      - 0.345
+    - - 0.985
+      - 0.345
+  points:
+  - x: 0.52
+    y: 0.06985
+    z: 0.2425
+    rotation: 90.0
+  - x: 0.5756
+    y: 0.06985
+    z: 0.2425
+    rotation: 90.0
+  - x: 0.5756
+    y: -0.05015
+    z: 0.2425
+    rotation: 90.0
+  - x: 0.52
+    y: -0.05015
+    z: 0.2425
+    rotation: 90.0
+  motion:
+    duration: 2.0
+    return_home: false
+- index: 2
+  u_c: 1.0549
+  window:
+  - 0.985
+  - 1.105
+  pose:
+    x: 6.1299
+    y: 3.225
+    yaw: 1.5708
+  cut_length: 0.12
+  pieces:
+  - - - 0.985
+      - 0.345
+    - - 1.105
+      - 0.345
+  points:
+  - x: 0.52
+    y: 0.06985
+    z: 0.2425
+    rotation: 90.0
+  - x: 0.5756
+    y: 0.06985
+    z: 0.2425
+    rotation: 90.0
+  - x: 0.5756
+    y: -0.05015
+    z: 0.2425
+    rotation: 90.0
+  - x: 0.52
+    y: -0.05015
+    z: 0.2425
+    rotation: 90.0
+  motion:
+    duration: 2.0
+    return_home: false
+- index: 3
+  u_c: 1.1748
+  window:
+  - 1.105
+  - 1.225
+  pose:
+    x: 6.2499
+    y: 3.225
+    yaw: 1.5708
+  cut_length: 0.12
+  pieces:
+  - - - 1.105
+      - 0.345
+    - - 1.225
+      - 0.345
+  points:
+  - x: 0.52
+    y: 0.06985
+    z: 0.2425
+    rotation: 90.0
+  - x: 0.5756
+    y: 0.06985
+    z: 0.2425
+    rotation: 90.0
+  - x: 0.5756
+    y: -0.05015
+    z: 0.2425
+    rotation: 90.0
+  - x: 0.52
+    y: -0.05015
+    z: 0.2425
+    rotation: 90.0
+  motion:
+    duration: 2.0
+    return_home: false
+- index: 4
+  u_c: 1.2949
+  window:
+  - 1.225
+  - 1.345
+  pose:
+    x: 6.3699
+    y: 3.225
+    yaw: 1.5708
+  cut_length: 0.45
+  pieces:
+  - - - 1.225
+      - 0.345
+    - - 1.225
+      - 0.675
+    - - 1.345
+      - 0.675
+  points:
+  - x: 0.52
+    y: 0.06985
+    z: 0.2425
+    rotation: 0.0
+  - x: 0.5756
+    y: 0.06985
+    z: 0.2425
+    rotation: 0.0
+  - x: 0.5756
+    y: 0.06985
+    z: 0.5725
+    rotation: 0.0
+  - x: 0.52
+    y: 0.06985
+    z: 0.5725
+    rotation: 0.0
+  - x: 0.52
+    y: 0.06985
+    z: 0.5725
+    rotation: 90.0
+  - x: 0.5756
+    y: 0.06985
+    z: 0.5725
+    rotation: 90.0
+  - x: 0.5756
+    y: -0.05015
+    z: 0.5725
+    rotation: 90.0
+  - x: 0.52
+    y: -0.05015
+    z: 0.5725
+    rotation: 90.0
+  motion:
+    duration: 2.0
+    return_home: false
+- index: 5
+  u_c: 1.4148
+  window:
+  - 1.345
+  - 1.465
+  pose:
+    x: 6.4899
+    y: 3.225
+    yaw: 1.5708
+  cut_length: 0.12
+  pieces:
+  - - - 1.345
+      - 0.675
+    - - 1.465
+      - 0.675
+  points:
+  - x: 0.52
+    y: 0.06985
+    z: 0.5725
+    rotation: 90.0
+  - x: 0.5756
+    y: 0.06985
+    z: 0.5725
+    rotation: 90.0
+  - x: 0.5756
+    y: -0.05015
+    z: 0.5725
+    rotation: 90.0
+  - x: 0.52
+    y: -0.05015
+    z: 0.5725
+    rotation: 90.0
+  motion:
+    duration: 2.0
+    return_home: false
+- index: 6
+  u_c: 1.5349
+  window:
+  - 1.465
+  - 1.585
+  pose:
+    x: 6.6098
+    y: 3.225
+    yaw: 1.5708
+  cut_length: 0.12
+  pieces:
+  - - - 1.465
+      - 0.675
+    - - 1.585
+      - 0.675
+  points:
+  - x: 0.52
+    y: 0.06985
+    z: 0.5725
+    rotation: 90.0
+  - x: 0.5756
+    y: 0.06985
+    z: 0.5725
+    rotation: 90.0
+  - x: 0.5756
+    y: -0.05015
+    z: 0.5725
+    rotation: 90.0
+  - x: 0.52
+    y: -0.05015
+    z: 0.5725
+    rotation: 90.0
+  motion:
+    duration: 2.0
+    return_home: false
+- index: 7
+  u_c: 1.6548
+  window:
+  - 1.585
+  - 1.705
+  pose:
+    x: 6.7298
+    y: 3.225
+    yaw: 1.5708
+  cut_length: 0.24
+  pieces:
+  - - - 1.585
+      - 0.675
+    - - 1.705
+      - 0.675
+    - - 1.705
+      - 0.555
+  points:
+  - x: 0.52
+    y: 0.06985
+    z: 0.5725
+    rotation: 90.0
+  - x: 0.5756
+    y: 0.06985
+    z: 0.5725
+    rotation: 90.0
+  - x: 0.5756
+    y: -0.05015
+    z: 0.5725
+    rotation: 90.0
+  - x: 0.52
+    y: -0.05015
+    z: 0.5725
+    rotation: 90.0
+  - x: 0.52
+    y: -0.05015
+    z: 0.5725
+    rotation: 0.0
+  - x: 0.5756
+    y: -0.05015
+    z: 0.5725
+    rotation: 0.0
+  - x: 0.5756
+    y: -0.05015
+    z: 0.4525
+    rotation: 0.0
+  - x: 0.52
+    y: -0.05015
+    z: 0.4525
+    rotation: 0.0
+  motion:
+    duration: 2.0
+    return_home: false
+obstacles: []
+marker_u: 0.6
