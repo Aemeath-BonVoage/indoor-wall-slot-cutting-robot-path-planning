@@ -28,12 +28,14 @@
 执行器由 `scr_bringup/sim_nav.launch.py` 启动（`task:=true`，默认），也可单独启动任务层：
 
 ```bash
-ros2 launch scr_task task.launch.py [alignment_params:=<yaml>] [odom_topic:=/wheel/odom] [executor_params:=<yaml>]
+ros2 launch scr_task task.launch.py [alignment_params:=<yaml>] [arm_motion_params:=<yaml>] \
+    [odom_topic:=/wheel/odom] [executor_params:=<yaml>]
 ```
 
 | 参数 | 默认 | 说明 |
 |---|---|---|
 | `alignment_params` | `scr_arm_controller/config/fine_alignment.yaml` | 技能服务器的精对位参数（`alignment.*`） |
+| `arm_motion_params` | `scr_arm_controller/config/arm_motion.yaml` | 切割时的机械臂运动参数（`arm_motion.*`）；`alignment_params` 指向的文件里若带 `arm_motion` 段，以它为准 |
 | `odom_topic` | `/odom` | 技能局部闭环使用的里程计；融合定位时应为 `/wheel/odom`（`sim_nav.launch.py` 自动设置） |
 | `executor_params` | `config/task_executor.yaml` | 行为树执行器参数 |
 

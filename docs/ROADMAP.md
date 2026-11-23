@@ -6,6 +6,18 @@
 
 ## 进行中与计划
 
+### 0. 切割过程
+
+机械臂连续轨迹（[报告](experiments/arm_trajectory/README.md)）与切割力的离线分析（[报告](experiments/cutting_force/README.md)）已完成，两者之间和各自留下的问题：
+
+- [ ] 进给速度没有统一依据：连续轨迹的默认进给 0.05 m/s 是假设值，而切割力模型给出的 820 W 功率上限在烧结砖上约为 16 mm/s、混凝土约 2.7 mm/s。按力模型给进给定上限，重新标定时间模型，并重新评估联合规划的收益（进给越低，切割时间占比越大）
+- [ ] 在 Gazebo 中验证切割力插件与抗扰定点保持：按报告第 10 节的步骤核对外力阶跃响应、限幅、各控制律的刀尖偏移，以及机械臂关节柔度的影响
+- [ ] 执行器在切割段发布切深与预计的力旋量（前馈），下刀与进给按斜坡切入
+- [ ] 定点保持使用相对墙面的测量（激光 + 标记 + 陀螺）：轮子打滑时里程计看不到底盘的偏移
+- [ ] 横向换位时机械臂的反作用使底盘偏航 0.4°，目前靠下刀后等待 0.2 s 衰减；每站固定开销 4.8 s 成为耗时的主要部分
+- [ ] 单站任务仍是逐点执行；`joint_state_broadcaster` 实际以 1 kHz 发布（配置为 50 Hz）
+- [ ] 切割力的数值多为假设（比切削能、法向 / 切向力比），需要对照文献全文或实测数据
+
 ### 1. 沿墙精度的后续工作
 
 多标记地图 + 横移比例在线估计已把 11 站开槽的最大沿墙误差降到 1.5 mm（[报告](experiments/along_wall_accuracy/README.md)），留下的问题：
@@ -57,6 +69,9 @@
 | 系统层现代化：行为树任务编排、Nav2 Smac 2D + MPPI、编码器误差模型 + 陀螺 + EKF、底盘 ros2_control | [演进 10](EVOLUTION.md#10-系统层现代化)、[报告](experiments/system_modernization/README.md) |
 | 多站沿墙精度：多标记地图、横移比例在线估计、按行程重新对位的对比 | [演进 11](EVOLUTION.md#11-多站沿墙精度标记地图与横移比例估计)、[报告](experiments/along_wall_accuracy/README.md) |
 | 时间模型按当前执行路径重新标定（`align_v3`，样本外误差 ≤ 0.7 %）；联合规划在 Gazebo 中实测节省 7.3 %；多站开槽演示 GIF | [演进 12](EVOLUTION.md#12-规划预测的-gazebo-验证与演示)、[规划验证](experiments/plan_validation/README.md)、[演示](experiments/demo/README.md) |
+| 机械臂连续轨迹（11 站 228 → 160 s）；时间模型增加切割长度项（`traj_v1`） | [演进 13](EVOLUTION.md#13-机械臂连续轨迹)、[报告](experiments/arm_trajectory/README.md) |
+| 切割力模型、平台可行性、定点保持控制律的离线对比；切割力插件与抗扰保持（默认关闭） | [演进 14](EVOLUTION.md#14-切割力与抗扰定点保持离线分析)、[报告](experiments/cutting_force/README.md) |
+| 英文 README 与技术概览；Docker 镜像与镜像检查工作流 | [English README](../README.en.md)、[使用指南 11](USER_GUIDE.md#11-docker-复现) |
 | 时间模型按精对位第二版重新标定（`align_v2`）；技术报告与英文摘要 | [演进 10](EVOLUTION.md#10-系统层现代化)、[技术报告](report/README.md) |
 | PBVS / IBVS / 2.5D 混合伺服离线对比 | [演进 7](EVOLUTION.md#7-方法对比与可视化)、[报告](experiments/ibvs_vs_pbvs/README.md) |
 | RViz 开槽可视化、墙面实体、演示录制工具 | [演进 7](EVOLUTION.md#7-方法对比与可视化)、[说明](experiments/demo/README.md) |

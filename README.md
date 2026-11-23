@@ -30,7 +30,9 @@
 | 开槽规划 | C++ 方向感知增强 A\* 把施工规范作为硬约束并保持最优；140 面随机墙上 0 条违规路线，第一版规划器在 106 面上违规 | [规划与规范](docs/experiments/cpp_planner/README.md) |
 | 多站执行 | 两条槽 11 个停靠站全部完成；精对位升级并以标记估计位置为墙面原点后，每次运行的常值横向偏差 +0.65–1.26 → −0.18–+0.24 mm，刀尖轨迹误差最大 0.9 mm，总耗时 250 → 233 s。换成含打滑与噪声的编码器模型后，沿墙误差曾随离标记的距离累积到 25 mm；按 0.6 m 间距布置 AprilTag 并在 EKF 中在线估计里程计横移比例后，最大沿墙误差 24.7 → 1.5 mm | [多站执行](docs/experiments/slot_execution/README.md)、[沿墙精度](docs/experiments/along_wall_accuracy/README.md) |
 | 停靠站优化 | 动态规划划分 + 最优扫掠顺序，Gazebo 中总耗时 283 s → 250 s（−11.8 %） | [多站执行](docs/experiments/slot_execution/README.md) |
-| 任务级联合规划 | 槽线走向与停靠站联合优化：400 面随机住宅墙上从不比分步方法慢，非承重墙预测执行时间再省 3.5 %（95 % CI [3.0, 3.9] %，Wilcoxon p < 1e-10，时间模型按当前执行路径标定），下界证书证明 92 % 的墙已达最优；**Gazebo 实测确认**：示例任务联合规划 228 s、规则路线 246 s，节省 7.3 %（预测 6.6 %，时间模型样本外误差 ≤ 0.7 %） | [联合规划](docs/experiments/task_planning/README.md)、[Gazebo 验证](docs/experiments/plan_validation/README.md) |
+| 任务级联合规划 | 槽线走向与停靠站联合优化：400 面随机住宅墙上从不比分步方法慢，非承重墙预测执行时间再省 3.5 %（95 % CI [3.0, 3.9] %，Wilcoxon p < 1e-10，时间模型按当前执行路径标定），下界证书证明 92 % 的墙已达最优；**Gazebo 实测确认**：示例任务联合规划 228 s、规则路线 246 s，节省 7.3 %（预测 6.6 %，时间模型样本外误差 ≤ 0.7 %）。以上为机械臂逐点执行时的数字；改为连续轨迹后每多一个小段的代价由 8.1 s 降到 2.0 s，非承重墙上的节省缩小到 1.2 %（95 % CI [1.0, 1.3] %），示例任务实测 160 s 对 165 s | [联合规划](docs/experiments/task_planning/README.md)、[Gazebo 验证](docs/experiments/plan_validation/README.md) |
+| 机械臂连续轨迹 | 每站的机械臂点作为一条轨迹执行：切割段按进给速度、空行程按各轴限值做 S 形时间参数化，拐点精确停止。Gazebo 中 11 个停靠站的耗时 228 → 160 s（−30 %），非切割运动 122 → 37 s，刀尖轨迹误差平均值不变（0.18–0.20 mm）；时间模型增加切割长度项（`traj_v1`），样本外误差 ≤ 1.0 s | [机械臂连续轨迹](docs/experiments/arm_trajectory/README.md) |
+| 切割力与定点保持（离线分析） | 按比切削能建立切割力模型，换算为底盘受到的力旋量：竖槽可行；横槽低进给可行，满功率时所需摩擦系数约 0.49，需限制进给或加支撑。现有比例保持在受力时刀尖柔度 4.7 mm/N；对比 P / PI / PID / 扰动观测器的裕度与抗扰性能，扰动观测器 + 前馈把烧结砖横槽（5 mm/s）的刀尖偏移峰值降到 1.6 mm。力的数值多为假设，尚未在 Gazebo 中验证 | [切割力与抗扰保持](docs/experiments/cutting_force/README.md) |
 | 系统层 | 任务改由 BehaviorTree.CPP 编排 6 个技能 action（含重试与重新对位）；Nav2 换用 Smac 2D + MPPI：到达 18 / 18（NavFn + DWB 15 / 18），最小离障间隙 183 mm（5 mm），控制器 CPU 9.7 %（45.5 %）；底盘接入 ros2_control | [系统层现代化](docs/experiments/system_modernization/README.md) |
 | 定位融合 | 编码器误差模型 + 陀螺 + robot_localization EKF：129 m 路线上里程计漂移 1.4–1.6 % → 0.14–0.26 % | [系统层现代化](docs/experiments/system_modernization/README.md#44-定位漂移) |
 | 仿真保真度 | 定位并修复底盘旋转失真的两层根因，转速比 18–37 % → 0.99–1.01 | [项目演进](docs/EVOLUTION.md#4-仿真保真度底盘漂移与旋转失真) |
@@ -176,6 +178,8 @@ docker compose -f docker/docker-compose.yml exec sim bash   # 进入容器后执
   - [系统层现代化：行为树、Nav2 MPPI / Smac、定位融合、ros2_control](docs/experiments/system_modernization/README.md)
   - [多站沿墙精度：多标记地图与横移比例在线估计](docs/experiments/along_wall_accuracy/README.md)
   - [规划验证：时间模型重标定与联合规划的 Gazebo 执行](docs/experiments/plan_validation/README.md)
+  - [机械臂连续轨迹：进给与空行程分离的时间参数化、时间模型的切割长度项](docs/experiments/arm_trajectory/README.md)
+  - [切割力扰动与抗扰定点保持：力模型、平台可行性、控制律对比（离线）](docs/experiments/cutting_force/README.md)
   - [任务级联合规划：槽线走向 + 停靠站](docs/experiments/task_planning/README.md)
   - [视觉伺服方法对比：PBVS / IBVS / 2.5D 混合](docs/experiments/ibvs_vs_pbvs/README.md)
   - [可视化与演示](docs/experiments/demo/README.md)

@@ -19,7 +19,10 @@
 | `teach_alignment_offset.py` | 示教零位标定：在真值参考位姿处求估计器的静态偏置，输出 ROS 参数文件 | 是 |
 | `visual_servo.py` | 纯算法（第一版精对位，保留为基线）：HSV 定位标记检测、激光墙面拟合（总体最小二乘 + 离群点剔除）、像素反投影、射线与墙面求交、PBVS 误差与全向底盘速度指令 | 否 |
 | `visual_servo_ros.py` | `WallMarkerServo`：订阅激光、图像、相机内参，查询 TF，输出滤波后的墙面与标记测量（检测画面中全部地图内 ID）；包含主点修正 | 是 |
-| `base_hold.py` | `BaseHold`：50 Hz 里程计 P 控制保持底盘位姿，并用真值记录保持期间的最大漂移 | 是 |
+| `base_hold.py` | `BaseHold`：50 Hz 里程计 P 控制保持底盘位姿，并用真值记录保持期间的最大漂移；参数 `hold.mode` 可换用 `pi` / `pid` / `dob` / `lqg`（默认 `p`，其余尚未在 Gazebo 中验证） | 是 |
+| `arm_trajectory.py` | 整站机械臂连续轨迹的时间参数化：各直线段为静止到静止的 S 形（或梯形）速度曲线，切割段按进给、空行程按各轴限值，下刀后等待（[报告](../../docs/experiments/arm_trajectory/README.md)） | 否 |
+| `cutting_force.py` | 切割力模型：刀片受力、底盘力旋量、轮压与所需摩擦系数（[报告](../../docs/experiments/cutting_force/README.md)） | 否 |
+| `disturbance_observer.py` | 定点保持的控制律：P / PI / PID / 扰动观测器 / LQG（`PlanarHold`）及增益设计 | 否 |
 | `ibvs.py` | IBVS 与 2.5D 混合视觉伺服（交互矩阵、`IbvsController`、`HybridController`），用于方法对比 | 否 |
 | `alignment_benchmark.py` | 对位鲁棒性实验：随机起点传送、里程计漂移与传感器噪声注入、真值评分（直接调用 `CuttingSkills`，不经过任务层） | 是 |
 | `custom_cutting.py`、`square_demo.py` | YAML 点序列执行、关节空间演示 | 是 |
@@ -43,6 +46,7 @@
 |---|---|---|
 | `odom_topic` | `/odom` | 局部闭环（精对位预测、横移外推、定点保持）使用的里程计。`sim_nav.launch.py` 在 `base_control:=ros2_control localization:=ekf` 时设为 `/wheel/odom`：`robot_localization` 的输出在 mm/s 级慢速运动下明显偏小，定点保持会被它带着漂移 |
 | `alignment.*` | `config/fine_alignment.yaml` | 精对位参数，见下节 |
+| `arm_motion.*` | `config/arm_motion.yaml` | 切割时的机械臂运动：`mode`（`continuous` 默认 / `point_to_point`）、进给与空行程限值、下刀后等待；每次执行 `CutStation` 时读取（[使用指南 7.4](../../docs/USER_GUIDE.md#74-机械臂运动方式)） |
 
 由 `scr_task/launch/task.launch.py` 启动（`sim_nav.launch.py` 默认包含）：
 

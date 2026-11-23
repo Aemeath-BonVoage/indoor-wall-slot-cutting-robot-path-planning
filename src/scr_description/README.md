@@ -70,6 +70,9 @@ ros2 run scr_description arm_demo.py                              # 机械臂关
 | `odom_error` | `true` | 编码器误差模型开关 |
 | `odom_seed` | `1` | 打滑过程的随机种子 |
 | `localization` | `ekf` | `ekf`（启动 `robot_localization`）或 `wheel` |
+| `cutting_force` | `false` | `true` 时在模型中加载切割力插件 `libscr_cutting_force.so`（[`src/scr_cutting_force.cpp`](src/scr_cutting_force.cpp)，力模型在 `include/scr_description/cutting_force_model.hpp`）；默认不加载，尚未在 Gazebo 中验证，见 [报告](../../docs/experiments/cutting_force/README.md) |
+| `cutting_force_params` | 空 | 插件参数 `"键=值;键=值"` |
+| `base_max_accel` / `base_max_ang_accel` | 空 | 力控底盘的驱动力 / 力矩上限（以加速度给出），空 = 插件默认值 |
 
 ```bash
 ros2 launch scr_description gazebo.launch.py gui:=false base_control:=plugin   # 早期配置

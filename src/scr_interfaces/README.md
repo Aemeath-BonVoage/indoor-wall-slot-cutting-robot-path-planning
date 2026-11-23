@@ -18,7 +18,7 @@
 ## 消息
 
 - `ArmPoint`：base_link 系机械臂点 `(x, y, z, rotation)` 与是否处于切深 `at_depth`。
-- `TaskStatus`：技能服务器的当前阶段（`align / move / arrived / cut / ...`）与停靠站序号，发布在 `/task_skills/status`，实验记录器据此标注真值轨迹。
+- `TaskStatus`：技能服务器的当前阶段（`align / move / arrived / cut / ...`）与停靠站序号，发布在 `/task_skills/status`，实验记录器据此标注真值轨迹。`stamp` 是阶段的生效时刻：机械臂连续轨迹的各段在轨迹开始时按时间表一次发布，`detail` 为 `scheduled`，时间戳在未来，接收方按 `stamp` 而不是到达时刻使用。
 - `StationRecord`：一个停靠站的执行记录（耗时、到站残差、补偿钳制点数、恢复次数、本站开始前是否按行程重新对位 `realigned`、到站时的无标记行程 `since_fix_m` 等），由执行器在每站结束时发布在 `/task_executor/station_records`。
 - `WallEstimate`：技能服务器的墙面相对状态估计，每个估计周期发布在 `/task_skills/wall_estimate`：`(d, u, ψ)` 与各自的 σ、是否估计横移比例 `scale_estimated` 及其估计 `lateral_scale`（真实横移 = (1 + lateral_scale) × 里程计横移）与 `sigma_scale`、`odom_since_fix`、`u_known`、`wall_ok`、`tag_state`，以及本周期画面中的地图内标记 `tag_ids`、它们在 `base_link` 中的位置 `tag_positions`（已做延迟补偿）与是否通过门限 `tag_accepted`。依赖 `std_msgs`（`Header`）。
 
