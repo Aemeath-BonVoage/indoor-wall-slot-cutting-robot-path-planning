@@ -1,0 +1,89 @@
+[INFO] [1795460057.800232177] [slot_plan_recorder]: S-1/11 NavigateToMarker
+[INFO] [1795460083.616656699] [slot_plan_recorder]: S-1/11 FineAlign
+[INFO] [1795460095.846996685] [slot_plan_recorder]: S0/11 MoveToStation
+[INFO] [1795460102.284473726] [slot_plan_recorder]: S0/11 HoldBase+CutStation
+[INFO] [1795460102.545033652] [slot_plan_recorder]: S0 到站真值误差: lateral_mm=0.45, standoff_mm=0.15, yaw_deg=0.03
+[INFO] [1795460134.109325165] [slot_plan_recorder]: S0/11 
+[INFO] [1795460134.111396571] [slot_plan_recorder]: S1/11 MoveToStation
+[INFO] [1795460138.503708315] [slot_plan_recorder]: S1/11 HoldBase+CutStation
+[INFO] [1795460138.766589288] [slot_plan_recorder]: S1 到站真值误差: lateral_mm=0.55, standoff_mm=-0.29, yaw_deg=0.02
+[INFO] [1795460186.847580262] [slot_plan_recorder]: S1/11 
+[INFO] [1795460186.849664049] [slot_plan_recorder]: S2/11 MoveToStation
+[INFO] [1795460192.042293984] [slot_plan_recorder]: S2/11 HoldBase+CutStation
+[INFO] [1795460192.314306660] [slot_plan_recorder]: S2 到站真值误差: lateral_mm=0.81, standoff_mm=0.36, yaw_deg=0.07
+[INFO] [1795460236.800397763] [slot_plan_recorder]: S2/11 
+[INFO] [1795460236.802583547] [slot_plan_recorder]: S3/11 MoveToStation
+[INFO] [1795460241.837898929] [slot_plan_recorder]: S3/11 HoldBase+CutStation
+[INFO] [1795460242.123999302] [slot_plan_recorder]: S3 到站真值误差: lateral_mm=0.12, standoff_mm=0.09, yaw_deg=0.02
+[INFO] [1795460373.494526820] [slot_plan_recorder]: S3/11 
+[INFO] [1795460373.501818229] [slot_plan_recorder]: S4/11 MoveToStation
+[INFO] [1795460378.508391545] [slot_plan_recorder]: S4/11 HoldBase+CutStation
+[INFO] [1795460378.791737198] [slot_plan_recorder]: S4 到站真值误差: lateral_mm=-1.04, standoff_mm=-0.14, yaw_deg=-0.06
+[INFO] [1795460423.606362167] [slot_plan_recorder]: S4/11 
+[INFO] [1795460423.608088636] [slot_plan_recorder]: S5/11 MoveToStation
+[INFO] [1795460428.785767798] [slot_plan_recorder]: S5/11 HoldBase+CutStation
+[INFO] [1795460429.050116357] [slot_plan_recorder]: S5 到站真值误差: lateral_mm=-0.07, standoff_mm=-0.17, yaw_deg=0.02
+[INFO] [1795460513.353741179] [slot_plan_recorder]: S5/11 
+[INFO] [1795460513.358076115] [slot_plan_recorder]: S6/11 MoveToStation
+[INFO] [1795460518.278462432] [slot_plan_recorder]: S6/11 HoldBase+CutStation
+[INFO] [1795460518.554106392] [slot_plan_recorder]: S6 到站真值误差: lateral_mm=-0.57, standoff_mm=0.46, yaw_deg=-0.04
+[INFO] [1795460605.970749669] [slot_plan_recorder]: S6/11 
+[INFO] [1795460605.973811811] [slot_plan_recorder]: S7/11 MoveToStation
+[INFO] [1795460610.994237447] [slot_plan_recorder]: S7/11 HoldBase+CutStation
+[INFO] [1795460611.277024166] [slot_plan_recorder]: S7 到站真值误差: lateral_mm=-0.11, standoff_mm=-0.25, yaw_deg=0.01
+[INFO] [1795460786.219064234] [slot_plan_recorder]: S7/11 
+[INFO] [1795460786.222026746] [slot_plan_recorder]: S8/11 MoveToStation
+[INFO] [1795460791.337021059] [slot_plan_recorder]: S8/11 HoldBase+CutStation
+[INFO] [1795460791.607821163] [slot_plan_recorder]: S8 到站真值误差: lateral_mm=0.89, standoff_mm=0.30, yaw_deg=0.05
+[INFO] [1795460880.165991607] [slot_plan_recorder]: S8/11 
+[INFO] [1795460880.168848640] [slot_plan_recorder]: S9/11 MoveToStation
+[INFO] [1795460885.150905029] [slot_plan_recorder]: S9/11 HoldBase+CutStation
+[INFO] [1795460885.421922780] [slot_plan_recorder]: S9 到站真值误差: lateral_mm=-0.56, standoff_mm=0.25, yaw_deg=-0.05
+[INFO] [1795461032.852143328] [slot_plan_recorder]: S9/11 
+[INFO] [1795461032.856065184] [slot_plan_recorder]: S10/11 MoveToStation
+[INFO] [1795461037.950884399] [slot_plan_recorder]: S10/11 HoldBase+CutStation
+[INFO] [1795461038.224799587] [slot_plan_recorder]: S10 到站真值误差: lateral_mm=-0.58, standoff_mm=0.04, yaw_deg=-0.03
+[INFO] [1795461148.329003493] [slot_plan_recorder]: S10/11 RetractAtEnd
+[INFO] [1795461150.828026385] [slot_plan_recorder]: S10/11 
+[INFO] [1795461245.952048104] [slot_plan_recorder]: 
+  trace_samples: 21355
+  cutting_samples: 11384
+  path_err_mean_mm: 0.13007060198477566
+  path_err_p95_mm: 0.1837215537403514
+  path_err_max_mm: 2.9473744096395063
+  tip_depth_mean_mm: -10.188375873625239
+  tip_depth_max_mm: -8.906217375812098
+  arm_x_mean: 0.5305162789252827
+  coverage: 1.0
+  coverage_path: 1.0
+  plan_partition: dp
+  plan_order: sweep
+  predicted_t_total: 244.3
+  stations_total_s: 1023.9
+  dry_run_gap: 0.01
+  compensation: True
+  stations: 11
+  stations_done: 11
+  all_ok: True
+  sim_time_s: 1067.1
+  wall_time_s: 1191.980700492859
+  slot_length_m: 2.7600000000000002
+  executor: behavior_tree
+  recoveries: 0
+  error: None
+  station_lateral_mm_mean_abs: 0.5207199142361391
+  station_lateral_mm_max_abs: 1.035729136712682
+  station_standoff_mm_mean_abs: 0.22837696762886575
+  station_standoff_mm_max_abs: 0.46255132864447823
+  station_yaw_deg_mean_abs: 0.03543297706950122
+  station_yaw_deg_max_abs: 0.06703625276932218
+  station_base_drift_mm_mean_abs: 0.5147633277159641
+  station_base_drift_mm_max_abs: 0.7508105739961353
+  station_sensed_yaw_deg_mean_abs: 0.017697793927400163
+  station_sensed_yaw_deg_max_abs: 0.041774768157520875
+  station_move_s_mean_abs: 4.909090909090905
+  station_move_s_max_abs: 5.999999999999993
+  stations_converged: 11
+  realignments: 0
+  final_lateral_scale: -0.029118284775433278
+  final_sigma_scale: 0.002484952380642554

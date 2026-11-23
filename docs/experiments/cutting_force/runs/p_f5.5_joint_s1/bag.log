@@ -1,0 +1,24 @@
+stdin is not a terminal device. Keyboard handling disabled.[INFO] [1795455259.586885809] [rosbag2_recorder]: Press SPACE for pausing/resuming
+[INFO] [1795455259.592516739] [rosbag2_storage]: Opened database '~/scr_bags/cutting_force/p_f5.5_joint_s1/p_f5.5_joint_s1_0.db3' for READ_WRITE.
+[INFO] [1795455259.598316294] [rosbag2_recorder]: Listening for topics...
+[INFO] [1795455259.598330748] [rosbag2_recorder]: Event publisher thread: Starting
+[INFO] [1795455259.598453992] [rosbag2_recorder]: use_sim_time set, waiting for /clock before starting recording...
+[INFO] [1795455259.598408044] [rosbag2_recorder]: Recording...
+[INFO] [1795455259.990559058] [rosbag2_recorder]: Sim time /clock found, starting recording.
+[INFO] [1795455259.997147066] [rosbag2_recorder]: Subscribed to topic '/arm_controller/controller_state'
+[INFO] [1795455259.998178914] [rosbag2_recorder]: Subscribed to topic '/clock'
+[INFO] [1795455259.999709371] [rosbag2_recorder]: Subscribed to topic '/ground_truth/odom'
+[INFO] [1795455260.001830377] [rosbag2_recorder]: Subscribed to topic '/cmd_vel'
+[INFO] [1795455260.003254860] [rosbag2_recorder]: Subscribed to topic '/cutting_force/engagement'
+[INFO] [1795455260.004432078] [rosbag2_recorder]: Subscribed to topic '/cutting_force/expected_wrench'
+[INFO] [1795455260.005721859] [rosbag2_recorder]: Subscribed to topic '/imu'
+[INFO] [1795455260.006669057] [rosbag2_recorder]: Subscribed to topic '/odom'
+[INFO] [1795455260.007532560] [rosbag2_recorder]: Subscribed to topic '/cutting_force/wrench'
+[INFO] [1795455260.010033478] [rosbag2_recorder]: Subscribed to topic '/task_skills/status'
+[INFO] [1795455260.010903891] [rosbag2_recorder]: Subscribed to topic '/wheel/odom'
+[INFO] [1795455260.012453621] [rosbag2_recorder]: Subscribed to topic '/task_skills/wall_estimate'
+[INFO] [1795455265.069287961] [rosbag2_recorder]: Subscribed to topic '/task_executor/station_records'
+[INFO] [1795455265.069332743] [rosbag2_recorder]: All requested topics are subscribed. Stopping discovery...
+[INFO] [1795456412.762152915] [rosbag2_cpp]: Writing remaining messages from cache to the bag. It may take a while
+[INFO] [1795456412.763540417] [rosbag2_recorder]: Event publisher thread: Exiting
+[INFO] [1795456412.763734225] [rosbag2_recorder]: Recording stopped

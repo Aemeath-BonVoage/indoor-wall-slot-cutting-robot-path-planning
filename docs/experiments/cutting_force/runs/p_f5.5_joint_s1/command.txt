@@ -1,0 +1,2 @@
+ros2 launch scr_bringup sim_nav.launch.py gui:=false rviz:=false odom_seed:=1 alignment_params:=docs/experiments/cutting_force/runs/p_f5.5_joint_s1/skill_params.yaml base_max_ang_accel:=75 cutting_force:=true cutting_force_params:=apply_to=base;engagement=topic;seed=1;specific_energy=4e+08;tip_offset=0.2044
+ros2 run scr_planner execute_slot_plan.py docs/experiments/plan_validation/plans/plan_joint.yaml docs/experiments/cutting_force/runs/p_f5.5_joint_s1 --dry-run-gap=0.01
