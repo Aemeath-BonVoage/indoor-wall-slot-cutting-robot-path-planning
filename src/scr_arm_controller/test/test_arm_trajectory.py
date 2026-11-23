@@ -208,6 +208,24 @@ def test_parameter_defaults_are_consistent():
     assert cfg == ARM_MOTION_PARAMS
 
 
+def test_cutting_parameter_file_is_valid_and_gives_the_documented_feed():
+    """config/arm_motion_cutting.yaml 只含已声明的参数，其约束下烧结砖的进给上限为 5.5 mm/s."""
+    from scr_arm_controller import cutting_force as cf
+    path = os.path.join(os.path.dirname(__file__), '..', 'config', 'arm_motion_cutting.yaml')
+    with open(path, encoding='utf-8') as f:
+        params = yaml.safe_load(f)['/**']['ros__parameters']
+    cfg = params['arm_motion']
+    assert set(cfg) <= set(ARM_MOTION_PARAMS)
+    assert cfg['feed_basis'] == 'force_limit'
+    assert params['hold']['mode'] == 'dob'
+    lim = cf.feed_limit(cf.BladeParams.for_material(cfg['material']), cfg['slot_depth'],
+                        power_fraction=cfg['power_fraction'], mu=cfg['friction_mu'],
+                        friction_margin=cfg['friction_margin'])
+    assert lim.binding == 'friction'
+    assert lim.feed == pytest.approx(0.0055, abs=1e-4)
+    assert lim.plunge == pytest.approx(0.0025, abs=1e-4)
+
+
 def test_repeated_point_takes_no_time():
     wps = [WAYPOINTS[0], WAYPOINTS[0], WAYPOINTS[1]]
     traj = plan_trajectory(START, wps, [False, False, True])

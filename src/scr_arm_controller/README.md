@@ -19,9 +19,10 @@
 | `teach_alignment_offset.py` | 示教零位标定：在真值参考位姿处求估计器的静态偏置，输出 ROS 参数文件 | 是 |
 | `visual_servo.py` | 纯算法（第一版精对位，保留为基线）：HSV 定位标记检测、激光墙面拟合（总体最小二乘 + 离群点剔除）、像素反投影、射线与墙面求交、PBVS 误差与全向底盘速度指令 | 否 |
 | `visual_servo_ros.py` | `WallMarkerServo`：订阅激光、图像、相机内参，查询 TF，输出滤波后的墙面与标记测量（检测画面中全部地图内 ID）；包含主点修正 | 是 |
-| `base_hold.py` | `BaseHold`：50 Hz 里程计 P 控制保持底盘位姿，并用真值记录保持期间的最大漂移；参数 `hold.mode` 可换用 `pi` / `pid` / `dob` / `lqg`（默认 `p`，其余尚未在 Gazebo 中验证） | 是 |
+| `base_hold.py` | `BaseHold`：定点保持，每收到一帧里程计（50 Hz）计算一次指令，并用真值记录保持期间的最大漂移；参数 `hold.mode` 选择控制律 `p`（默认）/ `pi` / `pid` / `dob` / `lqg`，`hold.feedforward_topic` 接收预计的切削力旋量作前馈（Gazebo 中的验证见[报告](../../docs/experiments/cutting_force/README.md)第 10 节） | 是 |
 | `arm_trajectory.py` | 整站机械臂连续轨迹的时间参数化：各直线段为静止到静止的 S 形（或梯形）速度曲线，切割段按进给、空行程按各轴限值，下刀后等待（[报告](../../docs/experiments/arm_trajectory/README.md)） | 否 |
-| `cutting_force.py` | 切割力模型：刀片受力、底盘力旋量、轮压与所需摩擦系数（[报告](../../docs/experiments/cutting_force/README.md)） | 否 |
+| `cutting_force.py` | 切割力模型：刀片受力、底盘力旋量、轮压与所需摩擦系数，以及由主轴功率、轮地摩擦与定点保持能力给出的进给上限 `feed_limit`（[报告](../../docs/experiments/cutting_force/README.md)） | 否 |
+| `cut_schedule.py` | 一个停靠站的切削状态时间表：由连续轨迹给出每个时刻的切深、进给与预计的底盘力旋量；下刀段在接触点的拆分 | 否 |
 | `disturbance_observer.py` | 定点保持的控制律：P / PI / PID / 扰动观测器 / LQG（`PlanarHold`）及增益设计 | 否 |
 | `ibvs.py` | IBVS 与 2.5D 混合视觉伺服（交互矩阵、`IbvsController`、`HybridController`），用于方法对比 | 否 |
 | `alignment_benchmark.py` | 对位鲁棒性实验：随机起点传送、里程计漂移与传感器噪声注入、真值评分（直接调用 `CuttingSkills`，不经过任务层） | 是 |
@@ -47,6 +48,9 @@
 | `odom_topic` | `/odom` | 局部闭环（精对位预测、横移外推、定点保持）使用的里程计。`sim_nav.launch.py` 在 `base_control:=ros2_control localization:=ekf` 时设为 `/wheel/odom`：`robot_localization` 的输出在 mm/s 级慢速运动下明显偏小，定点保持会被它带着漂移 |
 | `alignment.*` | `config/fine_alignment.yaml` | 精对位参数，见下节 |
 | `arm_motion.*` | `config/arm_motion.yaml` | 切割时的机械臂运动：`mode`（`continuous` 默认 / `point_to_point`）、进给与空行程限值、下刀后等待；每次执行 `CutStation` 时读取（[使用指南 7.4](../../docs/USER_GUIDE.md#74-机械臂运动方式)） |
+| `hold.*` | `mode: p` | 定点保持：控制律 `mode`、指令限幅 `max_lin` / `max_ang`、观测器带宽 `observer_bandwidth`、前馈 `feedforward_topic` / `feedforward_gain` |
+
+连续轨迹执行期间，技能服务器按轨迹时间表发布 `cutting_force/engagement`（`std_msgs/Float64`，当前切深，供 Gazebo 切割力插件使用）与 `cutting_force/expected_wrench`（`geometry_msgs/WrenchStamped`，名义切削力折算到底盘的力旋量，可作定点保持的前馈）。带切割力的一组参数（进给由切割力模型限制、扰动观测器 + 前馈、进给缓慢建立、切完后先停再退刀）在 [`config/arm_motion_cutting.yaml`](config/arm_motion_cutting.yaml)，默认不启用。
 
 由 `scr_task/launch/task.launch.py` 启动（`sim_nav.launch.py` 默认包含）：
 
