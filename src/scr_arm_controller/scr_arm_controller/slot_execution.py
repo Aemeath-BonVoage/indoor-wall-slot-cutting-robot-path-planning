@@ -85,6 +85,22 @@ def cut_phases(is_cut):
     return out
 
 
+def label_by_time(times, events, default=(-1, 'idle')):
+    """
+    按时间给样本标注 (停靠站, 阶段)：每个样本取生效时刻不晚于它的最后一个事件.
+
+    events：[(生效时刻, 停靠站, 阶段)]，可以乱序（按时间表提前发布的阶段可能晚于生效时刻
+    才送达）；同一时刻的事件保持给出的先后。第一个事件之前的样本取 default。
+    """
+    order = sorted(range(len(events)), key=lambda k: events[k][0])
+    stamps = [events[k][0] for k in order]
+    out = []
+    for t in times:
+        k = int(np.searchsorted(stamps, t, side='right')) - 1
+        out.append(default if k < 0 else tuple(events[order[k]][1:3]))
+    return out
+
+
 def residual_is_compensable(e_l, e_n, psi, lateral_max=0.02, standoff_max=0.01,
                             yaw_max=math.radians(1.5)):
     """到站残差是否在机械臂补偿可接受的范围内（横移未按判据收敛时据此决定继续或恢复）."""

@@ -20,6 +20,8 @@
   <exec_depend>geometry_msgs</exec_depend>
   <exec_depend>visualization_msgs</exec_depend>
   <exec_depend>gazebo_msgs</exec_depend>
+  <exec_depend>control_msgs</exec_depend>
+  <exec_depend>nav_msgs</exec_depend>
   <!-- execute_slot_plan.py 复用其导航 / 对位 / 切割执行 -->
   <exec_depend>scr_arm_controller</exec_depend>
   <test_depend>ament_cmake_gtest</test_depend>
