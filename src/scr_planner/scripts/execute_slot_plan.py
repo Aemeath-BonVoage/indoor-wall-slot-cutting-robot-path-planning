@@ -9,7 +9,9 @@
 summary.yaml（字段与早期版本相同，另增 recoveries、realigned、since_fix_m），以及墙面相对
 状态估计的逐周期记录 ekf_trace.csv（/task_skills/wall_estimate 与同一时刻的真值）和机械臂
 控制器的指令 / 实际关节位置 arm_state.csv（/arm_controller/controller_state，50 Hz，时间戳
-取自消息头，不受 /clock 10 Hz 发布节拍的限制）。
+取自消息头，不受 /clock 10 Hz 发布节拍的限制）。加载了切割力插件时另写 wrench.csv：插件
+实际施加的力旋量（/cutting_force/wrench）、执行器预计的力旋量
+（/cutting_force/expected_wrench）与同一时刻的底盘真值位姿。
 
   ros2 run scr_planner execute_slot_plan.py <plan.yaml> [结果目录] [--dry-run-gap=0.01]
                                            [--no-compensation] [--max-strafe=1.5] [--bt=<xml>]
@@ -39,6 +41,7 @@ import yaml
 from action_msgs.msg import GoalStatus
 from control_msgs.msg import JointTrajectoryControllerState
 from gazebo_msgs.msg import LinkStates
+from geometry_msgs.msg import WrenchStamped
 from nav_msgs.msg import Odometry
 from rclpy.action import ActionClient
 from rclpy.executors import MultiThreadedExecutor
@@ -93,6 +96,9 @@ class SlotRecorder:
         self.marker_u = marker_u    # 墙面原点（参考标记）在规划墙面坐标中的 u
         self.ekf_trace = []
         self.arm_trace = []         # (t, station, phase, 指令关节位置 ×4, 实际关节位置 ×4)
+        self.wrench_trace = []      # (t, 底盘真值 x y yaw, 施加的 Fx Fy Mz, 预计的 Fx Fy Mz)
+        self._expected = (0.0, 0.0, 0.0)
+        self._truth = None
         self.station, self.phase = -1, 'idle'
         self._pending = []          # 尚未生效的阶段 [(生效时刻, 停靠站, 阶段)]
         self._events = []           # 全部阶段事件 [(生效时刻, 停靠站, 阶段)]，结束时据此重新标注
@@ -113,6 +119,10 @@ class SlotRecorder:
                                       self._estimate_cb, 50)
         self.node.create_subscription(JointTrajectoryControllerState,
                                       '/arm_controller/controller_state', self._arm_cb, 50)
+        self.node.create_subscription(WrenchStamped, '/cutting_force/wrench',
+                                      self._wrench_cb, 50)
+        self.node.create_subscription(WrenchStamped, '/cutting_force/expected_wrench',
+                                      self._expected_cb, 50)
         self.client = ActionClient(self.node, ExecuteSlotPlan, '/execute_slot_plan')
         self.executor = MultiThreadedExecutor(num_threads=2)
         self.executor.add_node(self.node)
@@ -133,6 +143,21 @@ class SlotRecorder:
 
     def _clock_cb(self, msg):
         self._t_fine = msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9
+        p = msg.pose.pose
+        self._truth = (p.position.x, p.position.y, _yaw(p.orientation))
+
+    def _expected_cb(self, msg):
+        w = msg.wrench
+        self._expected = (w.force.x, w.force.y, w.torque.z)
+
+    def _wrench_cb(self, msg):
+        """切割力插件实际施加的力旋量（50 Hz）与同一时刻的底盘真值位姿."""
+        if self._t_goal is None or self._truth is None:
+            return
+        w = msg.wrench
+        t = msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9
+        self.wrench_trace.append((t, *self._truth, w.force.x, w.force.y, w.torque.z,
+                                  *self._expected))
 
     def _current_phase(self):
         """到当前时刻为止已生效的 (停靠站, 阶段)."""
@@ -251,7 +276,7 @@ class SlotRecorder:
         relb = np.array([b.position.x, b.position.y]) - self.wall.p0
         station, phase = self._current_phase()
         self.trace.append((self.fine_now(), station, u, float(p.z), depth, arm_x, phase,
-                           float(relb @ self.wall.t), float(relb @ self.wall.n)))
+                           float(relb @ self.wall.t), float(relb @ self.wall.n), yaw))
 
     def relabel(self):
         """运行结束后按事件时间重新标注刀尖轨迹的 (停靠站, 阶段)."""
@@ -486,8 +511,15 @@ def main():
         w.writerows(rows)
     with open(os.path.join(out_dir, 'tool_trace.csv'), 'w', newline='') as f:
         w = csv.writer(f)
-        w.writerow(['t', 'station', 'u', 'v', 'depth', 'arm_x', 'phase', 'base_u', 'base_d'])
+        w.writerow(['t', 'station', 'u', 'v', 'depth', 'arm_x', 'phase', 'base_u', 'base_d',
+                    'base_yaw'])
         w.writerows(ex.trace)
+    if ex.wrench_trace:
+        with open(os.path.join(out_dir, 'wrench.csv'), 'w', newline='') as f:
+            w = csv.writer(f)
+            w.writerow(['t', 'base_x', 'base_y', 'base_yaw', 'fx', 'fy', 'mz',
+                        'expected_fx', 'expected_fy', 'expected_mz'])
+            w.writerows([f'{v:.5f}' for v in r] for r in ex.wrench_trace)
     with open(os.path.join(out_dir, 'ekf_trace.csv'), 'w', newline='') as f:
         w = csv.writer(f)
         w.writerow(EKF_FIELDS + ('segment',))

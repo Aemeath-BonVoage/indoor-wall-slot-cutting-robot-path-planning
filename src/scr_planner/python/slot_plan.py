@@ -346,6 +346,12 @@ TIME_MODELS = {
     # 按阶段拟合，切割阶段对点数回归、进给取指令值（method traj --feed=0.05），每站 RMSE
     # 0.31 s，逐次运行留一交叉验证 0.31 s
     'traj_v1': TimeModel(),
+    # 带切割力的切割参数（scr_arm_controller/config/arm_motion_cutting.yaml：烧结砖，进给由
+    # 切割力模型限制为 5.5 mm/s、下刀 2.5 mm/s，进给建立 2 s，接触点停顿，切完等待 1 s；
+    # 定点保持为扰动观测器 + 前馈）：cutting_force/runs/dobff_f5.5_joint_s1、_s2、
+    # dobff_f5.5_rule_s1、_s2 共 44 站，method traj --feed=0.0055，每站 RMSE 0.54 s，
+    # 逐次运行留一交叉验证 0.57 s。不是默认值：默认执行路径仍是空切的 traj_v1
+    'cut_brick_v1': TimeModel(t_settle=4.86, v_strafe=0.0972, t_point=5.134, v_feed=0.0055),
 }
 
 

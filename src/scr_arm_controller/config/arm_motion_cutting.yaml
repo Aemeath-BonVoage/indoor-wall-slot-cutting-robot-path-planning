@@ -1,0 +1,37 @@
+# 带切割力的切割参数（技能服务器 task_skills 的节点参数 arm_motion.* 与 hold.*）：进给由切割力
+# 模型给出上限，定点保持用扰动观测器 + 切削力前馈。默认配置（arm_motion.yaml，空切、进给
+# 0.05 m/s、比例保持）不变；需要时显式选用本文件：
+#   ros2 launch scr_bringup sim_nav.launch.py arm_motion_params:=<本文件> \
+#       cutting_force:=true base_max_ang_accel:=75 \
+#       cutting_force_params:="apply_to=base;engagement=topic;tip_offset=0.2044"
+# 其余 arm_motion.* 参数取 arm_motion.yaml 的默认值。取值依据与 Gazebo 中的验证见
+# docs/experiments/cutting_force/README.md 第 10、11 节。
+#
+# 各材料在本文件的约束下得到的上限（切深 35 mm，820 W 主轴；material 改为相应名称即可）：
+#   材料             进给        下刀        起约束的一项
+#   aerated_block   35.2 mm/s   16.0 mm/s   轮地摩擦
+#   brick            5.54 mm/s   2.52 mm/s  轮地摩擦
+#   concrete         0.95 mm/s   0.43 mm/s  轮地摩擦
+# 偏航指令限幅保持默认值（hold.max_ang = 0.5 rad/s，可抵消 7.1 N·m）时，烧结砖的上限由
+# 定点保持决定，约 2.7 mm/s。
+/**:
+  ros__parameters:
+    arm_motion:
+      feed_basis: force_limit     # feed_rate / plunge_rate（默认 0.05 m/s）只作为上限
+      material: brick
+      slot_depth: 0.035           # m
+      power_fraction: 0.67        # 为硬点与主轴掉速留的功率余量
+      friction_mu: 0.3            # 有粉尘的地面的保守取值
+      friction_margin: 1.5
+      feed_ramp_time: 2.0         # s，进给 / 下刀速度的建立时间：切削力缓慢建立
+      cut_dwell: 1.0              # s，切完后先停住、等底盘回到保持点再退刀
+      split_plunge: true          # 下刀段在接触点停一下，切入从静止开始
+      scale_dry_plunge: true      # 空切时把下刀速度按行程比例折算
+    hold:
+      mode: dob                   # 扰动观测器
+      max_lin: 0.25               # m/s
+      max_ang: 4.0                # rad/s；需同时放宽底盘驱动上限 base_max_ang_accel:=75
+      feedforward_topic: /cutting_force/expected_wrench
+      # 前馈比例。验证时取 0.7，即假设模型低估切削力 30 %；仿真中插件与前馈用同一个模型，
+      # 取 1.0 会高估前馈的效果
+      feedforward_gain: 0.7

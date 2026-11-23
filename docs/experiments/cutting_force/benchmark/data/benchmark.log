@@ -1,0 +1,22 @@
+时间模型 cut_brick_v1：TimeModel(t_settle=4.86, v_strafe=0.0972, t_point=5.134, v_feed=0.0055)
+[   0]     12 s  {'current': None, 'joint': 1879.2, 'lower_bound': 1655.4}
+[  20]     33 s  {'current': 101.0, 'joint': 101.0, 'lower_bound': 101.0}
+[  40]     57 s  {'current': 266.5, 'joint': 266.5, 'lower_bound': 266.5}
+[  60]     81 s  {'current': 168.1, 'joint': 168.1, 'lower_bound': 168.1}
+[  80]    116 s  {'current': 1932.6, 'joint': 1871.0, 'lower_bound': 1871.0}
+[ 100]    149 s  {'current': 305.9, 'joint': 305.9, 'lower_bound': 305.9}
+[ 120]    191 s  {'current': 730.9, 'joint': 710.4, 'lower_bound': 710.4}
+[ 140]    245 s  {'current': 1197.5, 'joint': 1176.9, 'lower_bound': 1176.9}
+[ 160]    279 s  {'current': None, 'joint': None, 'lower_bound': 1869.4}
+[ 180]    318 s  {'current': None, 'joint': None, 'lower_bound': 1756.5}
+[ 200]    354 s  {'current': 1013.5, 'joint': 1013.5, 'lower_bound': 1013.5}
+[ 220]    386 s  {'current': 1354.2, 'joint': 1313.1, 'lower_bound': 1313.1}
+[ 240]    411 s  {'current': None, 'joint': None, 'lower_bound': 1875.2}
+[ 260]    449 s  {'current': 74.5, 'joint': 74.5, 'lower_bound': 74.5}
+[ 280]    486 s  {'current': 1485.6, 'joint': 1424.0, 'lower_bound': 1424.0}
+[ 300]    516 s  {'current': 229.4, 'joint': 229.4, 'lower_bound': 229.4}
+[ 320]    548 s  {'current': 187.9, 'joint': 187.9, 'lower_bound': 187.9}
+[ 340]    595 s  {'current': None, 'joint': None, 'lower_bound': 924.5}
+[ 360]    632 s  {'current': 795.2, 'joint': 769.8, 'lower_bound': 769.8}
+[ 380]    668 s  {'current': None, 'joint': None, 'lower_bound': 2618.9}
+400 面墙，779 s

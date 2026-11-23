@@ -1,0 +1,4 @@
+time_model,label,n_nonbearing,wins,ties,losses,joint_vs_rule_s,joint_vs_rule_pct,joint_vs_rule_pct_ci,n_all,rule_vs_per_slot_s,rule_vs_per_slot_pct,t_mean_rule_s,t_mean_joint_s
+align_v3,point to point (dry run),156,106,50,0,9.1035,3.4645,3.017..3.910,275,18.2062,9.8432,157.399,152.234
+traj_v1,"continuous, 50 mm/s (dry run)",156,106,50,0,2.2584,1.1804,1.028..1.334,275,15.8026,10.0578,120.886,119.605
+cut_brick_v1,"continuous, 5.5 mm/s (brick, force limit)",156,106,50,0,22.6198,2.2773,1.980..2.571,275,21.4974,3.285,598.587,585.755

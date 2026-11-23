@@ -70,8 +70,8 @@ ros2 run scr_description arm_demo.py                              # 机械臂关
 | `odom_error` | `true` | 编码器误差模型开关 |
 | `odom_seed` | `1` | 打滑过程的随机种子 |
 | `localization` | `ekf` | `ekf`（启动 `robot_localization`）或 `wheel` |
-| `cutting_force` | `false` | `true` 时在模型中加载切割力插件 `libscr_cutting_force.so`（[`src/scr_cutting_force.cpp`](src/scr_cutting_force.cpp)，力模型在 `include/scr_description/cutting_force_model.hpp`）；默认不加载，尚未在 Gazebo 中验证，见 [报告](../../docs/experiments/cutting_force/README.md) |
-| `cutting_force_params` | 空 | 插件参数 `"键=值;键=值"` |
+| `cutting_force` | `false` | `true` 时在模型中加载切割力插件 `libscr_cutting_force.so`（[`src/scr_cutting_force.cpp`](src/scr_cutting_force.cpp)，力模型在 `include/scr_description/cutting_force_model.hpp`）；默认不加载。进给取刀片中心在世界系中沿刀片方向的速度（低通 `velocity_tau`，默认 0.25 s），切深由话题 `cutting_force/engagement` 或刀尖到墙面的间隙给出。Gazebo 中的验证见 [报告](../../docs/experiments/cutting_force/README.md) |
+| `cutting_force_params` | 空 | 插件参数 `"键=值;键=值"`，例如 `apply_to=base;engagement=topic;tip_offset=0.2044;specific_energy=4e8;velocity_tau=0.25;seed=1` |
 | `base_max_accel` / `base_max_ang_accel` | 空 | 力控底盘的驱动力 / 力矩上限（以加速度给出），空 = 插件默认值 |
 
 ```bash

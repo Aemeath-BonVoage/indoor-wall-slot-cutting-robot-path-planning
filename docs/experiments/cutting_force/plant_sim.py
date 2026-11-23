@@ -49,11 +49,34 @@ def clamp(x, lim):
     return max(-lim, min(lim, x))
 
 
+# 机械臂沿墙轴（joint2）以外侧的连杆（link2–link4）：经关节位置 PID 挂在底盘上，不是刚性
+# 连接。质量与到底盘中心的距离取自 URDF（三个连杆的质量和，以及对竖直轴的回转半径），
+# 关节 PID 增益取自 scr_description/config/arm_controllers.yaml
+ARM_MASS = 1.90             # kg
+ARM_RADIUS = 0.414          # m，sqrt(Σ m_i·x_i² / Σ m_i)
+ARM_PID = (5000.0, 5000.0, 200.0)   # joint2：N/m、N/(m·s)、N·s/m
+
+
 class ForcePlant:
-    """力控底盘（与 ScrMecanumBaseSystem 的 plant = force 相同）与编码器误差模型."""
+    """
+    力控底盘（与 ScrMecanumBaseSystem 的 plant = force 相同）与编码器误差模型.
+
+    里程计按控制器的做法积分：每个控制周期读一次轮速、乘以周期累加（odom_period = T）。相对
+    连续积分，它使反馈中的位姿超前半个周期。Gazebo 中的阶跃试验表明需要这一项：按连续积分
+    的第一版模型把各控制律的峰值高估 3–20 %（见 README 第 10 节）。
+
+    arm_compliance = True（默认）时，机械臂外侧连杆作为一个质点经 joint2 的位置 PID 沿横向
+    挂在底盘前方 ARM_RADIUS 处：底盘偏航加速时它滞后，高频下底盘的等效转动惯量小于整机的
+    I_z。这一项在不饱和的试验中只改变峰值不到 1 %，在指令长时间饱和的试验中约 6 %。
+    """
 
     def __init__(self, a_max=5.0, alpha_max=10.0, k_lin=K_IN, k_ang=K_IN, seed=1,
-                 odom_error=True):
+                 odom_error=True, arm_compliance=True, odom_period=T):
+        # 里程计的积分方式：控制器每个控制周期读一次轮速，乘以周期累加（后向矩形）。
+        # odom_period = 0 表示按仿真步长连续积分
+        self.odom_period, self._since_odom = odom_period, 0.0
+        self.arm = arm_compliance
+        self.arm_pos, self.arm_vel, self.arm_int = 0.0, 0.0, 0.0   # joint2 的横向偏差（米）
         self.k_lin, self.k_ang = k_lin, k_ang
         self.f_max, self.t_max = M * a_max, IZ * alpha_max
         self.pose = [0.0, 0.0, 0.0]
@@ -84,12 +107,40 @@ class ForcePlant:
             fx, fy = fx * self.f_max / norm, fy * self.f_max / norm
         tz = clamp(IZ * self.k_ang * (cmd[2] - self.fvel[2]), self.t_max)
         self.drive = (fx, fy, tz)
-        self.vel[0] += dt * (fx + wrench[0] * c - wrench[1] * s) / M
-        self.vel[1] += dt * (fy + wrench[0] * s + wrench[1] * c) / M
-        self.vel[2] += dt * (tz + wrench[2]) / IZ
+        if self.arm:
+            self._step_with_arm(fx, fy, tz, wrench, c, s, dt)
+        else:
+            self.vel[0] += dt * (fx + wrench[0] * c - wrench[1] * s) / M
+            self.vel[1] += dt * (fy + wrench[0] * s + wrench[1] * c) / M
+            self.vel[2] += dt * (tz + wrench[2]) / IZ
         for i in range(3):
             self.pose[i] += dt * self.vel[i]
-        self._encoders(c, s, dt)
+        if self.odom_period <= 0.0:
+            self._encoders(c, s, dt)
+            return
+        self._since_odom += dt
+        if self._since_odom >= self.odom_period - 1e-9:
+            c, s = math.cos(self.pose[2]), math.sin(self.pose[2])
+            self._encoders(c, s, self._since_odom)
+            self._since_odom = 0.0
+
+    def _step_with_arm(self, fx, fy, tz, wrench, c, s, dt):
+        """底盘（去掉机械臂外侧连杆）+ 横向弹性连接的质点；小角度下横向与偏航耦合."""
+        kp, ki, kd = ARM_PID
+        fj = -(kp * self.arm_pos + ki * self.arm_int + kd * self.arm_vel)   # 关节对质点的力
+        m_b, i_b = M - ARM_MASS, IZ - ARM_MASS * ARM_RADIUS ** 2
+        # 机体系下的合力：x 方向质点与底盘刚性连接
+        bx = c * fx + s * fy + wrench[0]
+        by = -s * fx + c * fy + wrench[1] - fj
+        ax, ay = bx / M, by / m_b
+        alpha = (tz + wrench[2] - ARM_RADIUS * fj) / i_b
+        # 质点的横向加速度 = 底盘横向 + 偏航引起的切向 + 关节相对运动
+        self.arm_vel += dt * (fj / ARM_MASS - ay - ARM_RADIUS * alpha)
+        self.arm_pos += dt * self.arm_vel
+        self.arm_int += dt * self.arm_pos
+        self.vel[0] += dt * (c * ax - s * ay)
+        self.vel[1] += dt * (s * ax + c * ay)
+        self.vel[2] += dt * alpha
 
     def _encoders(self, c, s, dt):
         vx = c * self.fvel[0] + s * self.fvel[1]

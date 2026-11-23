@@ -163,6 +163,19 @@ def max_feed_rate(blade, depth, power=None):
     return lo
 
 
+def max_plunge_rate(blade, depth, power=None):
+    """主轴功率允许的最大下刀速度（m/s）：切到 depth 时弦长最大，解 F_t(v_p)·v_c = P."""
+    p = blade.spindle_power if power is None else power
+    lo, hi = 0.0, 1.0
+    for _ in range(60):
+        mid = 0.5 * (lo + hi)
+        if tool_forces(blade, depth, 0.0, mid).power > p:
+            hi = mid
+        else:
+            lo = mid
+    return lo
+
+
 # ---------------------------------------------------------------------------
 # 底盘：几何、质量与力旋量
 # ---------------------------------------------------------------------------
@@ -321,6 +334,76 @@ def static_margins(wrench, platform):
     mu_locked = (math.hypot(wrench.fx, wrench.fy) + abs(wrench.mz) / lever) / total \
         if total > 0.0 and min(loads) > 0.0 else math.inf
     return StaticMargins(loads, mu, mu_locked, min(loads) / (platform.mass * G / 4.0))
+
+
+# ---------------------------------------------------------------------------
+# 进给上限
+# ---------------------------------------------------------------------------
+# 工作窗口内对底盘最不利的刀具位置：最高处（横向力的侧倾力矩最大）、横向偏置最大
+WORST_TOOL_Z = 0.81
+WORST_TOOL_Y = 0.08
+
+
+@dataclass
+class FeedLimit:
+    """进给上限及各项约束单独给出的上限（m/s；None = 该项约束未给出）."""
+
+    feed: float                 # 进给上限（各项约束中最小的）
+    plunge: float               # 下刀速度上限（主轴功率）
+    binding: str                # 起约束作用的一项：power / friction / hold
+    power: float = None         # 主轴功率
+    friction: float = None      # 轮地摩擦（横槽，刀具在最不利位置）
+    hold: float = None          # 定点保持可抵消的偏航力矩
+
+
+def _bisect_feed(ok, hi):
+    """满足 ok(v) 的最大进给（ok 关于 v 单调：小进给满足、大进给不满足），上界 hi."""
+    if ok(hi):
+        return hi
+    lo = 0.0
+    for _ in range(50):
+        mid = 0.5 * (lo + hi)
+        if ok(mid):
+            lo = mid
+        else:
+            hi = mid
+    return lo
+
+
+def feed_limit(blade, depth=SLOT_DEPTH, platform=None, power_fraction=1.0, mu=None,
+               friction_margin=1.0, max_yaw_moment=None):
+    """
+    由切割力模型给出的进给上限.
+
+    三项约束，取最小者：
+      power     切削功率 ≤ power_fraction × 主轴输出功率。power_fraction < 1 为材料不均匀性
+                （硬点处比切削能更高）与主轴掉速留的余量；
+      friction  横槽、刀具在工作窗口内最不利位置时，抱死的麦克纳姆轮所需的摩擦系数乘以
+                friction_margin 不超过 mu（mu = None 时不检查）；
+      hold      横槽的偏航力矩不超过定点保持可抵消的 max_yaw_moment（N·m，None 时不检查）。
+    后两项只对横槽起作用（竖槽的水平力旋量小一个量级），这里不区分槽向，统一取横槽的上限。
+    下刀速度只受功率约束：下刀时刀片整个弦长同时切削，同样功率下的速度比进给低。
+    """
+    pf = platform or Platform()
+    p = power_fraction * blade.spindle_power
+    v_power = max_feed_rate(blade, depth, p)
+    v_friction = v_hold = None
+    worst = replace(pf, tool_z=WORST_TOOL_Z, tool_y=WORST_TOOL_Y)
+    if mu is not None:
+        def grip(v):
+            return max(static_margins(cut_wrench(blade, worst, depth, v, 'horizontal', s),
+                                      worst).mu_mecanum for s in (1, -1)) \
+                * friction_margin <= mu
+        v_friction = _bisect_feed(grip, v_power)
+    if max_yaw_moment is not None:
+        def torque(v):
+            return max(abs(cut_wrench(blade, worst, depth, v, 'horizontal', s).mz)
+                       for s in (1, -1)) <= max_yaw_moment
+        v_hold = _bisect_feed(torque, v_power)
+    cands = {'power': v_power, 'friction': v_friction, 'hold': v_hold}
+    binding = min((k for k, v in cands.items() if v is not None), key=lambda k: cands[k])
+    return FeedLimit(feed=cands[binding], plunge=max_plunge_rate(blade, depth, p),
+                     binding=binding, power=v_power, friction=v_friction, hold=v_hold)
 
 
 # ---------------------------------------------------------------------------

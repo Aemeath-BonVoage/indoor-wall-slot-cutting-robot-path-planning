@@ -4,7 +4,8 @@ Gazebo 中的外力阶跃试验：定点保持 + 切割力插件的 test_wrench�
 
 前提：仿真已启动并加载切割力插件（cutting_force:=true），底盘静止在任意位置。
 脚本以给定控制律开始定点保持，2 s 后在底盘原点施加常值外力（base_link 系），持续
---duration 秒后撤去，再记录 --tail 秒；真值取 /gazebo/model_states。结束时打印实测的
+--duration 秒后撤去，再记录 --tail 秒；真值取 /ground_truth/odom（50 Hz，时间取消息头的
+仿真时间，不受 /clock 10 Hz 发布节拍的限制）。结束时打印实测的
 稳态偏差、峰值与刀尖偏移，以及 plant_sim.ForcePlant 对同一试验的预测。
 
   ros2 launch scr_description gazebo.launch.py gui:=false cutting_force:=true \\
@@ -70,7 +71,8 @@ def main():
 
     import rclpy
     from geometry_msgs.msg import Wrench
-    from scr_arm_controller.base_hold import BaseHold
+    from nav_msgs.msg import Odometry
+    from scr_arm_controller.base_hold import BaseHold, _yaw
 
     ros_args = ['--ros-args', '-p', f'hold.mode:={args.mode}']
     for name, val in (('hold.max_lin', args.max_lin), ('hold.max_ang', args.max_ang)):
@@ -80,42 +82,44 @@ def main():
     hold = BaseHold(odom_topic=args.odom_topic)
     pub = hold.node.create_publisher(Wrench, '/cutting_force/test_wrench', 10)
 
-    def now():
-        return hold.node.get_clock().now().nanoseconds * 1e-9
+    truth = {'pose': None, 't': None}
+    rows, run = [], {'ref': None, 't_on': None}
+
+    def on_truth(msg):
+        p = msg.pose.pose
+        truth['pose'] = (p.position.x, p.position.y, _yaw(p.orientation))
+        truth['t'] = msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9
+        if run['ref'] is not None and hold._target is not None:
+            est = hold.disturbance_estimate() or (float('nan'),) * 3
+            rows.append((truth['t'] - run['t_on'], *body(run['ref'], truth['pose']),
+                         *body(hold._target, hold._odom), *est))
+
+    hold.node.create_subscription(Odometry, '/ground_truth/odom', on_truth, 50)
 
     def wait(cond, timeout, what):
         t0 = time.time()
         while not cond():
             if time.time() - t0 > timeout:
                 raise RuntimeError(f'timeout waiting for {what}')
-            time.sleep(0.02)
+            time.sleep(0.005)
 
     def send(w):
         msg = Wrench()
         msg.force.x, msg.force.y, msg.torque.z = w
         pub.publish(msg)
 
-    rows = []
     try:
-        wait(lambda: hold._odom is not None and hold._gt is not None and now() > 0.0, 20.0,
+        wait(lambda: hold._odom is not None and truth['pose'] is not None, 20.0,
              'odometry and ground truth')
         send((0.0, 0.0, 0.0))
         hold.hold()
-        ref, t0 = hold._gt, now()
-        t_on, t_off = 2.0, 2.0 + args.duration
-        state = 'pre'
-        while now() - t0 < t_off + args.tail:
-            t = now() - t0
-            if state == 'pre' and t >= t_on:
-                send(tuple(args.wrench))
-                state = 'on'
-            elif state == 'on' and t >= t_off:
-                send((0.0, 0.0, 0.0))
-                state = 'post'
-            dev = body(ref, hold._gt)
-            est = hold.disturbance_estimate() or (float('nan'),) * 3
-            rows.append((t - t_on, *dev, *body(hold._target, hold._odom), *est))
-            time.sleep(0.01)
+        t0 = truth['t']
+        run['t_on'], run['ref'] = t0 + 2.0, truth['pose']
+        wait(lambda: truth['t'] >= t0 + 2.0, 60.0, 'step time')
+        send(tuple(args.wrench))
+        wait(lambda: truth['t'] >= t0 + 2.0 + args.duration, 60.0 + 3 * args.duration, 'release')
+        send((0.0, 0.0, 0.0))
+        wait(lambda: truth['t'] >= t0 + 2.0 + args.duration + args.tail, 60.0, 'end')
     finally:
         send((0.0, 0.0, 0.0))
         hold.release()

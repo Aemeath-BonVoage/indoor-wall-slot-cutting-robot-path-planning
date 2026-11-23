@@ -1,0 +1,19 @@
+material,constraints,feed_mm_s,plunge_mm_s,binding,power_mm_s,friction_mm_s,hold_mm_s,fy_N,mz_Nm
+aerated_block,full power only,98.79,27.25,power,98.79,,,34.8,26.2
+aerated_block,power 67 %,57.92,15.98,power,57.92,,,23.3,17.6
+aerated_block,"power 67 %, friction 0.3 / 1.0",55.77,15.98,friction,57.92,55.77,,22.6,17.1
+aerated_block,"power 67 %, friction 0.3 / 1.5",35.2,15.98,friction,57.92,35.2,,16.0,12.1
+aerated_block,"power 67 %, friction 0.3 / 1.5, raised hold limits",35.2,15.98,friction,57.92,35.2,57.92,16.0,12.1
+aerated_block,"power 67 %, friction 0.3 / 1.5, default hold limits",17.22,15.98,hold,57.92,35.2,17.22,9.4,7.1
+brick,full power only,15.56,4.29,power,15.56,,,34.8,26.2
+brick,power 67 %,9.12,2.52,power,9.12,,,23.3,17.6
+brick,"power 67 %, friction 0.3 / 1.0",8.78,2.52,friction,9.12,8.78,,22.6,17.1
+brick,"power 67 %, friction 0.3 / 1.5",5.54,2.52,friction,9.12,5.54,,16.0,12.1
+brick,"power 67 %, friction 0.3 / 1.5, raised hold limits",5.54,2.52,friction,9.12,5.54,9.12,16.0,12.1
+brick,"power 67 %, friction 0.3 / 1.5, default hold limits",2.71,2.52,hold,9.12,5.54,2.71,9.4,7.1
+concrete,full power only,2.67,0.74,power,2.67,,,34.8,26.2
+concrete,power 67 %,1.57,0.43,power,1.57,,,23.3,17.6
+concrete,"power 67 %, friction 0.3 / 1.0",1.51,0.43,friction,1.57,1.51,,22.6,17.1
+concrete,"power 67 %, friction 0.3 / 1.5",0.95,0.43,friction,1.57,0.95,,16.0,12.1
+concrete,"power 67 %, friction 0.3 / 1.5, raised hold limits",0.95,0.43,friction,1.57,0.95,1.57,16.0,12.1
+concrete,"power 67 %, friction 0.3 / 1.5, default hold limits",0.47,0.43,hold,1.57,0.95,0.47,9.4,7.1
