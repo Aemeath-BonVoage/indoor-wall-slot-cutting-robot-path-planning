@@ -20,15 +20,17 @@
   python3 src/scr_planner/scripts/task_planning_benchmark.py --sensitivity --scenes 120
   python3 src/scr_planner/scripts/task_planning_benchmark.py --time-model align_v1 --out <dir>
 
---time-model：时间模型预设（slot_plan.TIME_MODELS），默认 align_v3（当前默认执行路径的标定）；
-  data/ 下的原始结果用 align_v1（第一版精对位下的标定）生成，align_v2/data/ 用 align_v2，
-  align_v3/data/ 用 align_v3。
+--time-model：时间模型预设（slot_plan.TIME_MODELS），默认 align_v3（机械臂逐点执行下的标定，
+  task_planning 报告所用）；data/ 下的原始结果用 align_v1（第一版精对位下的标定）生成，
+  align_v2/data/ 用 align_v2，align_v3/data/ 用 align_v3。机械臂连续轨迹下的标定为 traj_v1，
+  结果在 docs/experiments/arm_trajectory/benchmark/（--out 指定）。
 
 输出（默认 docs/experiments/task_planning/<预设>/data/；align_v1 为 data/）：
   results.csv（每面墙 × 每种方法一行）、lee.csv（每条槽一行）、sensitivity.csv
 """
 import argparse
 import csv
+import dataclasses
 import functools
 import multiprocessing as mp
 import os
@@ -90,7 +92,7 @@ def exact_time(plan, tm):
     """与 slot_plan.predict_time 相同的模型，但不取整（用于和下界比较）."""
     u, t = plan.start_u, 0.0
     for st in plan.stations:
-        t += tm.move(st.u_c - u) + tm.t_point * len(st.points)
+        t += tm.move(st.u_c - u) + tm.cut(len(st.points), st.cut_length)
         u = st.u_c
     return t
 
@@ -204,7 +206,8 @@ def run_sens(seed, tm=None):
     base = tm or sp.TimeModel()
     out = []
     for name, ks, kv, kp in SENS:
-        tm = sp.TimeModel(base.t_settle * ks, base.v_strafe * kv, base.t_point * kp)
+        tm = dataclasses.replace(base, t_settle=base.t_settle * ks, v_strafe=base.v_strafe * kv,
+                                 t_point=base.t_point * kp)
         for r in run_scene(seed, tm, methods=('current', 'joint', 'lower_bound')):
             r['model'] = name
             out.append(r)

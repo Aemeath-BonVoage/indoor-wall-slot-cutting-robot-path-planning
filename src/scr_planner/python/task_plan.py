@@ -7,18 +7,21 @@
   逐条槽按规范代价 J 选线、再划分停靠站（slot_plan.plan_task，routes='rule'）不考虑这一点。
 
 执行时间（slot_plan.TimeModel，Gazebo 标定）
-  T = Σ_站 (t_settle + 横移距离 / v) + t_point × 机械臂点数
+  T = Σ_站 (t_settle + 横移距离 / v) + t_point × 机械臂点数 + 槽线长度 / v_feed
+  最后一项只在机械臂以连续轨迹执行时存在（逐点执行时 v_feed = inf，切割耗时含在 t_point 内）。
   每个停靠站内，一段被窗口截出的子折线有 s 个直线小段时需要 4s 个点（退刀 / 下刀 /
   每小段终点 / 每次转向退刀-转刀-下刀 / 末尾退刀，见 slot_plan.count_points），所以
       机械臂点数 = 4 × Σ_槽线直线段 (该段跨过的停靠站窗口数)。
-  竖直段只落在一个窗口里；横向段每跨过一条窗口边界多一个小段（多 4 个点，约 8 s）。
+  竖直段只落在一个窗口里；横向段每跨过一条窗口边界多一个小段（多 4 个点：逐点执行时
+  约 8 s，连续轨迹时约 2 s）。
 
 方法（plan_task_joint）
   1. 窗口格：取所有停靠站窗口落在相位 φ 的等宽格上（边界列 c ≡ φ mod 12）。给定 φ，
      一条路线的机械臂点数沿路线可加：每段 4 t_point，横向段每穿过一条边界再加 4 t_point；
      新开一个窗口的代价（t_settle + w / v）记在进入该窗口的那一步上；已被其他槽打开的
      窗口不再计。这些都是“列代价”，加到 OrientedAStar 的分段搜索里（step_cost_* /
-     through_cost_x），开槽规范仍是硬约束，原规范代价 J 乘 ε 作为同时间下的次序。
+     through_cost_x）；槽线长度的耗时（每格 RES / v_feed）加在逐格的轴权重上。开槽规范仍是
+     硬约束，原规范代价 J 乘 ε 作为同时间下的次序。
   2. 对每个相位 φ（12 个），按任务顺序逐条规划，再做两轮坐标下降（固定其他槽、重规划
      第 k 条，只接受让精确预测时间下降的修改）。
   3. 每个候选（含原规则路线）都用精确的停靠站 DP（slot_plan.partition_dp）+ 一维最优
@@ -30,6 +33,7 @@
 下界（lower_bound）
   三个松弛，各自对任何合规方案都成立：
     - 每条槽单独规划（忽略其他槽的间距约束），横向段长 L 至少占 ceil(L / w) 个窗口；
+      连续轨迹的时间模型下，同一次搜索同时最小化“小段数 × 4 t_point + 长度 / v_feed”；
     - 每条槽的 u 投影至少覆盖两端线盒之间的区间，停靠站数 ≥ 这些区间并集的最少窗口覆盖数；
     - 横移距离 ≥ 覆盖上述区间的最左、最右站之间的一维最短扫掠距离。
   任何方法的预测时间 T 与下界之比给出“离最优还差多少”的上界；T 等于下界时即为证明最优。
@@ -95,12 +99,16 @@ def subsegments(corners, phi, wc):
 
 
 def time_params(scene, tm: sp.TimeModel):
-    """开槽规范参数 → 以秒计的搜索参数：每段 4 t_point，规范代价 J × EPS_RULE 作次序."""
+    """开槽规范参数 → 以秒计的搜索参数.
+
+    每段 4 t_point，每格槽线 RES / v_feed（逐点执行时为 0），规范代价 J × EPS_RULE 作次序。
+    """
     p = scene.params()
     q = dict(p)
+    cell = sp.RES * tm.t_per_metre
     q['turn_penalty'] = 4 * tm.t_point + EPS_RULE * p['turn_penalty']
-    q['weight_x'] = EPS_RULE * p.get('weight_x', 1.0)
-    q['weight_y'] = EPS_RULE * p.get('weight_y', 1.0)
+    q['weight_x'] = cell + EPS_RULE * p.get('weight_x', 1.0)
+    q['weight_y'] = cell + EPS_RULE * p.get('weight_y', 1.0)
     q['cost_weight'] = EPS_RULE * p.get('cost_weight', 0.0)
     return q
 
@@ -306,12 +314,18 @@ def _cover_count(intervals, w, tol=sp.REACH_TOL):
 
 
 def lower_bound(scene, robot, planner, tm, start_u, restrict_to_reach=True):
-    """预测执行时间的下界（秒）与各项分量；任一槽单独都不可行时返回 None."""
+    """预测执行时间的下界（秒）与各项分量；任一槽单独都不可行时返回 None.
+
+    机械臂项：对每条槽单独求 min(小段数 × 4 t_point + 长度 / v_feed)。小段数与长度由同一条
+    路线同时取到，所以它不小于“最少小段数 × 4 t_point + 最短长度 / v_feed”，仍是任何合规
+    方案的下界。逐点执行的时间模型（v_feed = inf）下长度项为零，退化为最少小段数。
+    """
     wc = window_cells(robot)
     w = robot.window_width
     p4 = 4 * tm.t_point
+    cell = sp.RES * tm.t_per_metre
     run = np.array([p4 * (math.ceil(k / wc) - 1) if k > 0 else 0.0 for k in range(2000)])
-    seg_lb = 0
+    seg_lb, t_arm = 0, 0.0
     for k, (start, goal, _, _) in enumerate(sp.scene_tasks(scene)):
         grid = sp.route_grid(scene, k, [], robot, restrict_to_reach)
         q = time_params(scene, tm)
@@ -320,6 +334,12 @@ def lower_bound(scene, robot, planner, tm, start_u, restrict_to_reach=True):
         if not res['ok']:
             return None
         seg_lb += round((res['cost'] + p4) / p4)          # 小段数（去掉 1e-9 的长度权）
+        if cell > 0.0:
+            q.update(weight_x=cell, weight_y=cell)
+            res = planner.plan(grid, start, goal, run_cost_x=run, **q)
+            t_arm += res['cost'] + p4
+    if cell <= 0.0:
+        t_arm = p4 * seg_lb
     us = [((min(s[0], g[0]) + 0.5) * sp.RES, (max(s[0], g[0]) + 0.5) * sp.RES)
           for s, g, _, _ in sp.scene_tasks(scene)]
     n_st = _cover_count(us, w)
@@ -327,7 +347,7 @@ def lower_bound(scene, robot, planner, tm, start_u, restrict_to_reach=True):
     lo, hi = min(a for a, _ in us), max(b for _, b in us)
     # 最左站中心 ≤ lo + off，最右站中心 ≥ hi - w + off（见 slot_plan.place_centres）
     travel = sp.sweep_travel(lo + off, hi - w + off, start_u)
-    t = n_st * tm.t_settle + travel / tm.v_strafe + tm.t_point * 4 * seg_lb
+    t = n_st * tm.t_settle + travel / tm.v_strafe + t_arm
     return dict(t_total=t, stations=n_st, points=4 * seg_lb, travel_m=travel)
 
 

@@ -223,7 +223,10 @@ def main():
     for m, seeds in (('per_slot', P), ('current', P), ('joint', P), ('joint', allj)):
         lb = T('lower_bound', seeds)
         t = T(m, seeds)
-        assert (t >= lb - 1e-6).all(), f'{m}: 低于下界'
+        # 容差 1 ms：结果文件保留 4 位小数；带切割长度项的时间模型下，方案的切割长度按
+        # 各站截出的子折线累加（剔除了 < 1e-6 m 的残片），与下界里整条路线的长度相差
+        # 1e-5 s 量级
+        assert (t >= lb - 1e-3).all(), f'{m}: 低于下界'
         g = (t - lb) / lb * 100
         cert = (t - lb) <= CERT
         gaps[(m, len(seeds))] = g
