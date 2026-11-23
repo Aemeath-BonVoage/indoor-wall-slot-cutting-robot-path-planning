@@ -6,7 +6,7 @@ BehaviorTree.CPP），各技能经 skill_server.py 以 ROS 2 action 的形式提
 
   FineAlign      精对位（AprilTag + 激光墙面 → EKF → 饱和控制律 → 收敛判据），确定墙面原点
   MoveToStation  墙面坐标闭环横移 / 接近（沿墙位置由里程计外推，离墙与朝向由激光更新）
-  CutStation     测到站残差 → 补偿 → 逐点执行机械臂点
+  CutStation     测到站残差 → 补偿 → 执行机械臂点（整站一条连续轨迹，或逐点）
   HoldBase       定点保持
   ScanMarker / RetractArm
 
@@ -37,6 +37,7 @@ try:
 except ImportError:            # 纯算法测试环境
     get_package_share_directory = None
 
+from scr_arm_controller.arm_trajectory import ARM_MOTION_PARAMS, limits_from_params
 from scr_arm_controller.base_hold import BaseHold
 from scr_arm_controller.cartesian_cutting import CartesianCuttingController
 from scr_arm_controller.docking_control import ConvergenceMonitor, WallAlignController
@@ -164,6 +165,9 @@ class CuttingSkills(Node):
             self.declare_parameter('alignment.' + k, v)
         self.align_cfg = {k: self.get_parameter('alignment.' + k).value
                           for k in ALIGNMENT_PARAMS}
+        for k, v in ARM_MOTION_PARAMS.items():
+            self.declare_parameter('arm_motion.' + k, v)
+        self.last_trajectory = None     # 最近一次连续轨迹（arm_trajectory.ArmTrajectory）
         a = self.align_cfg
         self.tag_map = self.load_tag_map()
         self.servo = WallMarkerServo(self, detector=a['detector'], tag_family=self.tag_map.family,
@@ -265,13 +269,20 @@ class CuttingSkills(Node):
             'yaw': self.quaternion_to_yaw(self.robot_pose.orientation)
         }
 
-    def set_phase(self, phase, station=None):
-        """更新当前阶段（实验记录用），并通知 skill_server 发布状态."""
+    def set_phase(self, phase, station=None, stamp=None, scheduled=False):
+        """
+        更新当前阶段（实验记录用），并通知 skill_server 发布状态.
+
+        stamp：阶段生效的仿真时刻（秒），不给时为当前时刻。scheduled：按时间表提前发布
+        （连续轨迹在开始时就给出之后各段的阶段，stamp 在未来），状态的 detail 标为
+        'scheduled'，接收方按 stamp 而不是到达时刻使用它。
+        """
         self.phase = phase
         if station is not None:
             self.cur_station = station
         if self.on_phase is not None:
-            self.on_phase(self.cur_station, phase)
+            self.on_phase(self.cur_station, phase, detail='scheduled' if scheduled else '',
+                          stamp=stamp)
 
     def sleep_sim(self, duration):
         """按仿真时钟等待 duration 秒（顺序调用时期间持续处理本节点回调）."""
@@ -901,8 +912,24 @@ class CuttingSkills(Node):
             return 0.0, 0.0, 0.0
         return (float(X[1] - du_target), float(X[0] - self.distance_from_marker), float(X[2]))
 
+    def arm_motion_config(self):
+        """读取 arm_motion.* 参数 → (模式, MotionLimits, 轨迹起始提前量)."""
+        c = {k: self.get_parameter('arm_motion.' + k).value for k in ARM_MOTION_PARAMS}
+        return str(c['mode']), limits_from_params(c), float(c['start_lead'])
+
     def run_points(self, points, is_cut, duration):
-        """逐点执行机械臂点，并标注阶段：相邻两点都在切深时为 'cut'，否则为 'move'."""
+        """
+        执行一个停靠站的机械臂点，并标注阶段：相邻两点都在切深时为 'cut'，否则为 'move'.
+
+        arm_motion.mode = 'continuous'（默认）时整站作为一条连续轨迹执行，duration 不起作用；
+        'point_to_point' 时逐点执行，每点 duration 秒。
+        """
+        mode, limits, lead = self.arm_motion_config()
+        if mode == 'continuous':
+            return self.run_points_continuous(points, is_cut, limits, lead)
+        if mode != 'point_to_point':
+            self.get_logger().error(f'未知的 arm_motion.mode: {mode!r}')
+            return False
         for (x, y, z, rot), phase in zip(points, cut_phases(is_cut)):
             if self.abort_requested():
                 self.set_phase('idle')
@@ -913,6 +940,33 @@ class CuttingSkills(Node):
                 return False
         self.set_phase('idle')
         return True
+
+    def run_points_continuous(self, points, is_cut, limits, start_lead):
+        """
+        整站机械臂点作为一条连续轨迹执行.
+
+        阶段标注与逐点执行相同（切割段为 'cut'，其余为 'move'），但各段的起止时刻在轨迹
+        开始时就已确定，所以一次性按时间表发布，每条状态的时间戳是该阶段的生效时刻。
+        """
+        end = [None]
+
+        def publish_schedule(t_start, traj):
+            prev = None
+            for seg in traj.segments:
+                phase = 'cut' if seg.kind == 'cut' else 'move'
+                if seg.t1 > seg.t0 and phase != prev:
+                    self.set_phase(phase, stamp=t_start + seg.t0, scheduled=True)
+                    prev = phase
+            end[0] = t_start + traj.duration
+
+        self.set_phase('move')
+        ok, traj = self.arm_controller.follow_points(
+            points, is_cut, limits, start_lead=start_lead, on_start=publish_schedule,
+            should_abort=self.abort_requested)
+        self.last_trajectory = traj
+        # 中止时立即回到 idle（时间戳为当前时刻，记录器据此丢弃尚未生效的时间表）
+        self.set_phase('idle', stamp=end[0] if ok else None)
+        return ok
 
     def set_wall_origin(self):
         """

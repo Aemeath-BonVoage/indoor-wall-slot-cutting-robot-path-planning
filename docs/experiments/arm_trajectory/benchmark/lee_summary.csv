@@ -1,0 +1,2 @@
+slots,cost_equal,astar_rule_ok,astar_rule_viol_slots,lee_viol_slots,lee_minbend_viol_slots,lee_viol_slots_partition,partition_slots,rule_cost_over_relaxed_pct,astar_relaxed_ms_median,lee_ms_median
+1024,1024,1024,0,589,589,589,740,15.92,5.78,65.6

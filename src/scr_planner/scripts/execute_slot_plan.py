@@ -7,7 +7,9 @@
 文件，同时只做 Gazebo 真值记录：刀尖轨迹、每站到位误差、底盘漂移；阶段与停靠站序号取自
 技能服务器的 /task_skills/status。结果与规划槽线比较，写出 stations.csv / tool_trace.csv /
 summary.yaml（字段与早期版本相同，另增 recoveries、realigned、since_fix_m），以及墙面相对
-状态估计的逐周期记录 ekf_trace.csv（/task_skills/wall_estimate 与同一时刻的真值）。
+状态估计的逐周期记录 ekf_trace.csv（/task_skills/wall_estimate 与同一时刻的真值）和机械臂
+控制器的指令 / 实际关节位置 arm_state.csv（/arm_controller/controller_state，50 Hz，时间戳
+取自消息头，不受 /clock 10 Hz 发布节拍的限制）。
 
   ros2 run scr_planner execute_slot_plan.py <plan.yaml> [结果目录] [--dry-run-gap=0.01]
                                            [--no-compensation] [--max-strafe=1.5] [--bt=<xml>]
@@ -35,7 +37,9 @@ import rclpy
 import rclpy.parameter
 import yaml
 from action_msgs.msg import GoalStatus
+from control_msgs.msg import JointTrajectoryControllerState
 from gazebo_msgs.msg import LinkStates
+from nav_msgs.msg import Odometry
 from rclpy.action import ActionClient
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
@@ -50,6 +54,7 @@ except ImportError:
 
 import slot_plan as sp  # noqa: E402
 import wall_rules as wr  # noqa: E402
+from scr_arm_controller.slot_execution import label_by_time  # noqa: E402
 from scr_interfaces.action import ExecuteSlotPlan  # noqa: E402
 from scr_interfaces.msg import TaskStatus, WallEstimate  # noqa: E402
 from slot_ros import build_markers  # noqa: E402
@@ -60,6 +65,10 @@ RECORD_FIELDS = ('station', 'u_c', 'points', 'move_dist_m', 'nav_leg', 'station_
                  'cut_s', 'sensed_lateral_mm', 'sensed_standoff_mm', 'sensed_yaw_deg', 'clamped',
                  'cut_cm', 'moved', 'cut_ok', 'origin_residual_mm', 'recoveries', 'realigned',
                  'since_fix_m')
+CLOCK_PERIOD = 0.1          # Gazebo 发布 /clock 的周期（秒）
+ARM_JOINTS = ('joint1', 'joint2', 'joint3', 'joint4')
+ARM_FIELDS = (('t', 'station', 'phase') + tuple(f'ref_{j}' for j in ARM_JOINTS)
+              + tuple(f'act_{j}' for j in ARM_JOINTS))
 EKF_FIELDS = ('t', 'station', 'phase', 'd', 'u', 'psi', 'sigma_d', 'sigma_u', 'sigma_psi',
               'lateral_scale', 'sigma_scale', 'odom_since_fix', 'u_known', 'tag_ids',
               'tags_accepted', 'true_u', 'true_d', 'true_psi', 'tag_xy')
@@ -83,7 +92,11 @@ class SlotRecorder:
         self.truth = {}             # station → 到站真值误差
         self.marker_u = marker_u    # 墙面原点（参考标记）在规划墙面坐标中的 u
         self.ekf_trace = []
+        self.arm_trace = []         # (t, station, phase, 指令关节位置 ×4, 实际关节位置 ×4)
         self.station, self.phase = -1, 'idle'
+        self._pending = []          # 尚未生效的阶段 [(生效时刻, 停靠站, 阶段)]
+        self._events = []           # 全部阶段事件 [(生效时刻, 停靠站, 阶段)]，结束时据此重新标注
+        self._t_fine = None         # 细粒度仿真时间：/ground_truth/odom 的消息头（50 Hz）
         self._base = None
         self._t_goal = None
         self._lock = threading.Lock()
@@ -91,12 +104,15 @@ class SlotRecorder:
         self.marker_pub = self.node.create_publisher(
             MarkerArray, '/wall_slot_plan/markers', qos)
         self.node.create_subscription(LinkStates, '/gazebo/link_states', self._links_cb, 50)
+        self.node.create_subscription(Odometry, '/ground_truth/odom', self._clock_cb, 10)
         status_qos = QoSProfile(depth=50, reliability=ReliabilityPolicy.RELIABLE,
                                 durability=DurabilityPolicy.TRANSIENT_LOCAL)
         self.node.create_subscription(TaskStatus, '/task_skills/status', self._status_cb,
                                       status_qos)
         self.node.create_subscription(WallEstimate, '/task_skills/wall_estimate',
                                       self._estimate_cb, 50)
+        self.node.create_subscription(JointTrajectoryControllerState,
+                                      '/arm_controller/controller_state', self._arm_cb, 50)
         self.client = ActionClient(self.node, ExecuteSlotPlan, '/execute_slot_plan')
         self.executor = MultiThreadedExecutor(num_threads=2)
         self.executor.add_node(self.node)
@@ -105,6 +121,26 @@ class SlotRecorder:
 
     def now(self):
         return self.node.get_clock().now().nanoseconds * 1e-9
+
+    def fine_now(self):
+        """
+        细粒度仿真时间（秒）.
+
+        节点时钟跟随 /clock，Gazebo 以 10 Hz 发布，分辨率只有 0.1 s；真值里程计的消息头
+        带仿真时间、50 Hz。没有该话题时退回节点时钟。
+        """
+        return self._t_fine if self._t_fine is not None else self.now()
+
+    def _clock_cb(self, msg):
+        self._t_fine = msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9
+
+    def _current_phase(self):
+        """到当前时刻为止已生效的 (停靠站, 阶段)."""
+        t = self.fine_now()
+        with self._lock:
+            while self._pending and self._pending[0][0] <= t:
+                _, self.station, self.phase = self._pending.pop(0)
+            return self.station, self.phase
 
     def shutdown(self):
         """先停后台执行器并等线程退出，再销毁节点（否则退出时 C++ 层会 abort）."""
@@ -117,8 +153,27 @@ class SlotRecorder:
         t = msg.stamp.sec + msg.stamp.nanosec * 1e-9
         if self._t_goal is None or t < self._t_goal:
             return              # 本次目标之前的状态（TRANSIENT_LOCAL 历史）
+        # 时间戳是阶段的生效时刻。实时标注（估计与控制器状态的记录用）：已到的立即生效，
+        # 未到的排队，由 _current_phase 在该时刻之后的第一个样本上生效。刀尖轨迹在运行结束
+        # 后按事件时间重新标注（relabel），与状态消息的送达延迟无关：
+        # - 按时间表提前发布的阶段（detail = scheduled）取消息里的生效时刻，晚到也不影响；
+        # - 即时状态取到达时刻（与逐点执行的标注方式相同），并丢弃生效时刻在它之后的旧时间表
+        #   （例如轨迹被中止）。它的时间戳取自技能服务器的节点时钟（/clock，10 Hz），真实
+        #   发布时刻在时间戳之后 0.1 s 以内，到达时刻超出这个范围（送达延迟）时取其上界
         with self._lock:
-            self.station, self.phase = msg.station, msg.phase
+            now = self.fine_now()
+            if msg.detail == 'scheduled':
+                when = t
+            else:
+                when = min(max(t, now), t + CLOCK_PERIOD)
+                self._events = [e for e in self._events if e[0] <= when]
+            self._events.append((when, msg.station, msg.phase))
+            if t <= now:
+                if msg.detail != 'scheduled':
+                    self._pending.clear()
+                self.station, self.phase = msg.station, msg.phase
+            else:
+                self._pending.append((t, msg.station, msg.phase))
         if msg.phase == 'arrived' and msg.station >= 0:
             # 到站并进入定点保持 0.3 s 后取真值（与早期版本的采样时刻相同）
             st = msg.station
@@ -154,8 +209,7 @@ class SlotRecorder:
         n_in = -self.wall.n
         psi = math.atan2(math.sin(yaw - math.atan2(n_in[1], n_in[0])),
                          math.cos(yaw - math.atan2(n_in[1], n_in[0])))
-        with self._lock:
-            station, phase = self.station, self.phase
+        station, phase = self._current_phase()
         acc = [i for i, ok in zip(msg.tag_ids, msg.tag_accepted) if ok]
         self.ekf_trace.append((
             self.now(), station, phase, msg.d, msg.u, msg.psi, msg.sigma_d, msg.sigma_u,
@@ -164,6 +218,20 @@ class SlotRecorder:
             ' '.join(str(i) for i in acc), float(rel @ self.wall.t) - self.marker_u,
             float(rel @ self.wall.n), psi,
             ' '.join(f'{i}:{q.x:.5f}:{q.y:.5f}' for i, q in zip(msg.tag_ids, msg.tag_positions))))
+
+    def _arm_cb(self, msg):
+        """机械臂控制器的指令（reference）与实际（feedback）关节位置."""
+        if self._t_goal is None or len(msg.reference.positions) < len(ARM_JOINTS):
+            return
+        try:
+            idx = [msg.joint_names.index(j) for j in ARM_JOINTS]
+        except ValueError:
+            return
+        station, phase = self._current_phase()
+        t = msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9
+        self.arm_trace.append((t, station, phase)
+                              + tuple(msg.reference.positions[i] for i in idx)
+                              + tuple(msg.feedback.positions[i] for i in idx))
 
     def _links_cb(self, msg):
         if TOOL_LINK not in msg.name or BASE_LINK not in msg.name:
@@ -181,10 +249,16 @@ class SlotRecorder:
         u = float(rel @ self.wall.t)
         depth = float(-(rel @ self.wall.n))      # >0：刀尖进入墙面（刚体墙上应约为 0）
         relb = np.array([b.position.x, b.position.y]) - self.wall.p0
-        with self._lock:
-            station, phase = self.station, self.phase
-        self.trace.append((self.now(), station, u, float(p.z), depth, arm_x, phase,
+        station, phase = self._current_phase()
+        self.trace.append((self.fine_now(), station, u, float(p.z), depth, arm_x, phase,
                            float(relb @ self.wall.t), float(relb @ self.wall.n)))
+
+    def relabel(self):
+        """运行结束后按事件时间重新标注刀尖轨迹的 (停靠站, 阶段)."""
+        with self._lock:
+            events = list(self._events)
+        labels = label_by_time([r[0] for r in self.trace], events)
+        self.trace = [(r[0], st, *r[2:6], ph, *r[7:]) for r, (st, ph) in zip(self.trace, labels)]
 
     # ---------- 执行 ----------
     def execute(self, goal):
@@ -227,6 +301,32 @@ def cutting_samples(trace, robot=None, depth=None):
     return [r for r in trace if r[1] >= 0 and r[6] == 'cut']
 
 
+def cutting_runs(trace):
+    """切割阶段的样本按连续的切割段分组 → [[(u, v), ...], ...]（每组是一段刀尖折线）."""
+    runs, prev = [], None
+    for k, r in enumerate(trace):
+        if r[1] >= 0 and r[6] == 'cut':
+            if prev != k - 1:
+                runs.append([])
+            runs[-1].append((r[2], r[3]))
+            prev = k
+    return runs
+
+
+def path_coverage(runs, pts, tol=0.003):
+    """
+    覆盖率（与采样率无关）：槽线取样点到“相邻刀尖样本连成的折线”的距离在 tol 内即算已切.
+
+    刀尖真值 20 Hz 采样，进给较快时相邻样本的间距超过 tol，逐点最近距离会把样本之间的槽线
+    误判为未切；刀尖在两个样本之间走直线（单轴直线切割），所以用折线距离。
+    """
+    lines = [r for r in runs if len(r) >= 2]
+    if not lines or not pts:
+        return 0.0
+    covered = sum(min(_dist_poly(q, line) for line in lines) < tol for q in pts)
+    return float(covered) / len(pts)
+
+
 def evaluate(trace, plan, robot, depth_target):
     """真值刀尖轨迹（切割阶段）vs 规划槽线."""
     deep = cutting_samples(trace, robot, depth_target)
@@ -246,6 +346,7 @@ def evaluate(trace, plan, robot, depth_target):
     uv = np.array([(r[2], r[3]) for r in deep])
     covered = sum(np.min(np.hypot(uv[:, 0] - q[0], uv[:, 1] - q[1])) < 0.003 for q in pts)
     res['coverage'] = float(covered) / max(1, len(pts))
+    res['coverage_path'] = path_coverage(cutting_runs(trace), pts)
     return res
 
 
@@ -335,6 +436,7 @@ def main():
     ok, result = ex.execute(goal)
     sim_total = ex.now() - sim_start
     time.sleep(0.5)                  # 最后一站的真值采样
+    ex.relabel()
     rows = [record_to_row(r) for r in result.stations] if result is not None else []
     if not rows:
         log.error('没有执行任何停靠站' + (f'：{result.error}' if result is not None else ''))
@@ -390,6 +492,11 @@ def main():
         w = csv.writer(f)
         w.writerow(EKF_FIELDS + ('segment',))
         w.writerows(e + (s,) for e, s in zip(ex.ekf_trace, segments))
+    with open(os.path.join(out_dir, 'arm_state.csv'), 'w', newline='') as f:
+        w = csv.writer(f)
+        w.writerow(ARM_FIELDS)
+        w.writerows([f'{r[0]:.4f}', r[1], r[2]] + [f'{v:.6f}' for v in r[3:]]
+                    for r in ex.arm_trace)
     with open(os.path.join(out_dir, 'summary.yaml'), 'w', encoding='utf-8') as f:
         yaml.safe_dump({k: (round(float(v), 4) if isinstance(v, (float, np.floating)) else
                             int(v) if isinstance(v, (np.integer, np.bool_)) else v)

@@ -1,0 +1,2 @@
+ros2 launch scr_bringup sim_nav.launch.py gui:=false rviz:=false odom_seed:=2 alignment_params:=docs/experiments/arm_trajectory/runs/dwell_0.0_joint_s2/skill_params.yaml
+ros2 run scr_planner execute_slot_plan.py docs/experiments/plan_validation/plans/plan_joint.yaml docs/experiments/arm_trajectory/runs/dwell_0.0_joint_s2 --dry-run-gap=0.01

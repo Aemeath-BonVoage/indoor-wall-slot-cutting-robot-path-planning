@@ -25,7 +25,10 @@ from scr_planner_py import OrientedAStar  # noqa: E402
 from test_slot_plan import _check_plan  # noqa: E402
 
 ROBOT = sp.RobotModel()
-TM = sp.TimeModel()
+# 联合规划的性质在逐点执行的时间模型（每多一个小段约 8 s）下检验；连续轨迹的时间模型
+# （每多一个小段约 1.7 s，另有切割长度项）见文末的专门测试
+TM = sp.TimeModel.preset('align_v3')
+TM_TRAJ = sp.TimeModel.preset('traj_v1')
 WALL = sp.WallFrame((0.0, 0.0), (6.0, 0.0))
 
 
@@ -187,7 +190,7 @@ def test_sweep_travel_and_centre_placement_are_optimal():
 def test_joint_never_worse_compliant_and_above_lower_bound(planner, scenes):
     better = 0
     for scene, meta, su in scenes:
-        cur = sp.plan_task(scene, WALL, ROBOT, planner, start_u=su)
+        cur = sp.plan_task(scene, WALL, ROBOT, planner, start_u=su, tm=TM)
         st = {}
         slots, plan = tp.joint_routes(scene, WALL, ROBOT, planner, TM, su, stats=st)
         lb = tp.lower_bound(scene, ROBOT, planner, TM, su)
@@ -210,7 +213,7 @@ def test_load_bearing_walls_have_nothing_to_choose(planner, scenes):
     for scene, meta, su in scenes:
         if not meta['load_bearing']:
             continue
-        cur = sp.plan_task(scene, WALL, ROBOT, planner, start_u=su)
+        cur = sp.plan_task(scene, WALL, ROBOT, planner, start_u=su, tm=TM)
         _, plan = tp.joint_routes(scene, WALL, ROBOT, planner, TM, su)
         assert plan.prediction['t_total'] == pytest.approx(cur.prediction['t_total'])
 
@@ -239,7 +242,7 @@ def test_lattice_search_aligns_jog_with_window_boundary(planner):
     jogs = [a[0] for a, b in zip(corners[:-1], corners[1:]) if a[0] == b[0]]
     assert jogs and all((x - 100) % wc == 0 for x in jogs)
     _, plan = tp.joint_routes(scene, WALL, ROBOT, planner, TM, 1.0)
-    cur = sp.plan_task(scene, WALL, ROBOT, planner, start_u=1.0)
+    cur = sp.plan_task(scene, WALL, ROBOT, planner, start_u=1.0, tm=TM)
     assert plan.prediction['points'] < cur.prediction['points']
 
 
@@ -296,3 +299,46 @@ def test_joint_plan_file_is_executable_by_main_task(planner):
         dry, _ = nct.station_arm_points(st, d, dry_run_gap=0.01)
         assert all(abs(p[0] - (d['robot']['standoff'] - 0.01 - d['robot']['tool_offset'])) < 1e-9
                    for p, c in zip(dry, is_cut) if c)
+
+
+# --- continuous-trajectory time model (cut length term) --------------------------------
+def test_time_params_charge_cut_length():
+    scene = wr.WallScene(400, 280, False, [], tasks=[((100, 30), (177, 55), 'a', 'b')])
+    p2p, traj = tp.time_params(scene, TM), tp.time_params(scene, TM_TRAJ)
+    cell = sp.RES / TM_TRAJ.v_feed
+    rule = scene.params()
+    assert p2p['weight_y'] == pytest.approx(tp.EPS_RULE * rule.get('weight_y', 1.0))
+    assert traj['weight_y'] == pytest.approx(cell + tp.EPS_RULE * rule.get('weight_y', 1.0))
+    assert traj['weight_x'] == pytest.approx(cell + tp.EPS_RULE * rule.get('weight_x', 1.0))
+    assert traj['turn_penalty'] == pytest.approx(
+        4 * TM_TRAJ.t_point + tp.EPS_RULE * rule['turn_penalty'])
+
+
+def test_joint_and_lower_bound_with_cut_length_term(planner, scenes):
+    """连续轨迹的时间模型下：下界 ≤ 联合规划 ≤ 规则路线；下界含最短槽长的切割时间."""
+    import dataclasses
+    no_feed = dataclasses.replace(TM_TRAJ, v_feed=math.inf)
+    checked = 0
+    for scene, meta, su in scenes[:16]:
+        cur = sp.plan_task(scene, WALL, ROBOT, planner, start_u=su, tm=TM_TRAJ)
+        slots, plan = tp.joint_routes(scene, WALL, ROBOT, planner, TM_TRAJ, su)
+        lb = tp.lower_bound(scene, ROBOT, planner, TM_TRAJ, su)
+        lb0 = tp.lower_bound(scene, ROBOT, planner, no_feed, su)
+        assert lb is not None and lb0 is not None
+        # 每条槽的长度不小于两端的曼哈顿距离
+        manhattan = sum(abs(g[0] - s[0]) + abs(g[1] - s[1])
+                        for s, g, _, _ in sp.scene_tasks(scene)) * sp.RES
+        assert lb['t_total'] >= lb0['t_total'] + manhattan / TM_TRAJ.v_feed - 1e-6
+        assert (lb['stations'], lb['points']) == (lb0['stations'], lb0['points'])
+        if plan is None:
+            continue
+        assert lb['t_total'] <= plan.prediction['t_total'] + 0.05
+        assert sum(tp.plan_violations(scene, slots, ROBOT).values()) == 0
+        if cur.status == 'success':
+            assert plan.prediction['t_total'] <= cur.prediction['t_total'] + 1e-9
+            # 预测时间含切割长度项
+            length = sum(st.cut_length for st in cur.stations)
+            assert cur.prediction['t_cut'] == pytest.approx(
+                TM_TRAJ.t_point * cur.prediction['points'] + length / TM_TRAJ.v_feed, abs=0.06)
+        checked += 1
+    assert checked >= 10

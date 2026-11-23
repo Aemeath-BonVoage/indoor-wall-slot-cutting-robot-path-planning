@@ -282,20 +282,40 @@ def station_points(st: Station, wall: WallFrame, robot: RobotModel, depth,
 # ---------------------------------------------------------------------------
 @dataclass
 class TimeModel:
-    """执行时间模型（仿真时间，秒）：每站 t_settle + 横移距离 / v_strafe + 点数 × t_point.
+    """执行时间模型（仿真时间，秒）.
+
+    每站耗时 = t_settle + 横移距离 / v_strafe + 点数 × t_point + 切割长度 / v_feed。
+
+    机械臂逐点执行（每点固定 motion.duration）时，切割段的耗时已经含在 t_point 里，
+    v_feed = inf，最后一项为零（预设 align_v1 / v2 / v3）。整站作为一条连续轨迹执行时
+    （技能服务器 arm_motion.mode = continuous），切割段按进给速度 v_feed 走，耗时与长度
+    成正比；其余运动（换位、下刀、退刀、转刀）与每段的加减速开销按点数折算成 t_point：
+    每个直线小段恒为 4 个点（count_points），所以“每多一个小段多 4·t_point”仍然成立，
+    只是数值从约 8.1 s 降到约 2.0 s（预设 traj_v1）。
 
     默认值为当前默认执行路径（行为树任务层；精对位为 AprilTag 标记地图 + 激光 EKF + 横移
-    比例估计，横移前机械臂回到观测位姿）的标定结果，即 TIME_MODELS['align_v3']。此前执行
-    路径下的标定保留为 TIME_MODELS['align_v1'] / ['align_v2']，用于复现此前的报告。标定数据与
-    方法见 calibrate_time_model.py 与 docs/experiments/plan_validation。仿真或执行代码改动后
-    应重标定。
+    比例估计，横移前机械臂回到观测位姿；机械臂连续轨迹，进给 0.05 m/s）的标定结果，即
+    TIME_MODELS['traj_v1']。此前执行路径下的标定保留为 TIME_MODELS['align_v1'] / ['align_v2'] /
+    ['align_v3']，用于复现此前的报告。标定数据与方法见 calibrate_time_model.py、
+    docs/experiments/plan_validation 与 docs/experiments/arm_trajectory。仿真、执行代码或
+    arm_motion.* 参数改动后应重标定。
     """
-    t_settle: float = 4.70      # 每站：横移启停 + 到位 + 测残差 + 观测位姿 → 首个切割点
-    v_strafe: float = 0.0971    # 沿墙横移的等效速度（m/s）
-    t_point: float = 2.030      # 每个机械臂点（motion.duration = 2.0 s + 通信开销）
+    t_settle: float = 4.77      # 每站：横移启停 + 到位 + 测残差 + 回观测位姿 + 轨迹起始提前量
+    v_strafe: float = 0.1036    # 沿墙横移的等效速度（m/s）
+    t_point: float = 0.501      # 每个机械臂点折算的非切割运动时间（每个直线小段 4 个点）
+    v_feed: float = 0.05        # 切割进给（m/s）；inf = 逐点执行，切割耗时已含在 t_point 内
 
     def move(self, d):
         return self.t_settle + abs(d) / self.v_strafe
+
+    def cut(self, n_points, length=0.0):
+        """一个停靠站的机械臂运动时间：n_points 个点、切割长度 length（米）."""
+        return self.t_point * n_points + length / self.v_feed
+
+    @property
+    def t_per_metre(self):
+        """每米槽线的切割耗时（s/m）；逐点执行时为 0."""
+        return 1.0 / self.v_feed
 
     @classmethod
     def preset(cls, name):
@@ -310,16 +330,22 @@ TIME_MODELS = {
     # 第一版精对位（色块 + PBVS，站间横移用激光朝向平滑），行为树改造之前的执行路径：
     # slot_execution/runs/dp、dp_repeat、per_slot、per_slot_repeat 共 54 站，整体最小二乘，
     # 每站 RMSE 0.10 s
-    'align_v1': TimeModel(t_settle=4.40, v_strafe=0.0945, t_point=2.034),
+    'align_v1': TimeModel(t_settle=4.40, v_strafe=0.0945, t_point=2.034, v_feed=math.inf),
     # 精对位 v2（单个 AprilTag + 激光 EKF），行为树改造之前的执行路径：
     # slot_execution/runs/fine_align_dp、fine_align_dp_repeat、fine_align_dp_nofold 共 33 站，
     # 按阶段拟合（横移阶段回归 + 固定开销均值 + 切割总时间 / 总点数），每站 RMSE 0.68 s
-    'align_v2': TimeModel(t_settle=2.83, v_strafe=0.0984, t_point=2.049),
-    # 当前默认执行路径（行为树 + 标记地图 + 横移比例估计 + 横移前回观测位姿）：
+    'align_v2': TimeModel(t_settle=2.83, v_strafe=0.0984, t_point=2.049, v_feed=math.inf),
+    # 行为树 + 标记地图 + 横移比例估计 + 横移前回观测位姿，机械臂逐点执行：
     # along_wall_accuracy/runs/default_s1、default_s2、scale_tags_0.6_s1、scale_tags_0.6_s2
     # 共 44 站，按阶段拟合且切割阶段用回归（method phases-reg），每站 RMSE 0.22 s，
     # 逐次运行留一交叉验证 0.24 s
-    'align_v3': TimeModel(),
+    'align_v3': TimeModel(t_settle=4.70, v_strafe=0.0971, t_point=2.030, v_feed=math.inf),
+    # 当前默认执行路径（同上，机械臂改为整站连续轨迹：进给 0.05 m/s，空行程 0.25 m/s、
+    # 1 m/s²，下刀后等待 0.2 s，见 scr_arm_controller/config/arm_motion.yaml）：
+    # arm_trajectory/runs/cont_dp11_s1、cont_dp11_s2、cont_rule_s1、cont_rule_s2 共 44 站，
+    # 按阶段拟合，切割阶段对点数回归、进给取指令值（method traj --feed=0.05），每站 RMSE
+    # 0.31 s，逐次运行留一交叉验证 0.31 s
+    'traj_v1': TimeModel(),
 }
 
 
@@ -485,6 +511,9 @@ def sweep_travel(r_star, l_star, start_u):
 def partition_dp(pieces, robot: RobotModel, tm: TimeModel, step=0.005, start_u=None):
     """动态规划划分停靠站窗口，最小化 Σ(每站固定开销 + 点数 × 每点时间) + 横移时间.
 
+    时间模型里与切割长度成正比的一项（tm.v_feed）不进入这里的代价：每一段槽线无论划到
+    哪个窗口都要切一次，这一项对所有划分都相同，不改变最优划分。
+
     状态 x = “u < x 的槽线已切完”。下一站从第一个未覆盖点 a 开始，结束于候选位置
     y ∈ (a, a + 窗宽]；该站代价只取决于 [a, y) 内的槽线。候选位置为 step 网格加上所有
     折线顶点的 u，保证能把窗口边界对齐到拐角。
@@ -616,7 +645,7 @@ def predict_time(stations, start_u, tm: TimeModel):
         d = abs(st.u_c - u)
         travel += d
         t_move += tm.move(d)
-        t_cut += tm.t_point * len(st.points)
+        t_cut += tm.cut(len(st.points), st.cut_length)
         n_pts += len(st.points)
         u = st.u_c
     return dict(stations=len(stations), points=n_pts, travel_m=round(travel, 4),

@@ -236,7 +236,47 @@
 - 说明：横轴为时间，纵轴为 EKF 沿墙位置估计减去真值（种子 1）。
 - 要点：基线每次横移后阶跃增大；多标记或比例修正时到站后保持在 ±2 mm 以内，横移中的尖峰来自运动中测量与里程计的时间对齐误差。
 
-### 3.7 切割力模型
+### 3.7 机械臂连续轨迹：各站耗时的分解
+
+<a href="experiments/arm_trajectory/fig_time.png"><img src="experiments/arm_trajectory/fig_time.png" width="420" alt="各站耗时的分解"></a>
+
+- 报告：[机械臂连续轨迹 §5.1](experiments/arm_trajectory/README.md) · [PDF](experiments/arm_trajectory/fig_time.pdf)
+- 说明：四根柱为规则路线与联合规划各自在逐点执行、连续轨迹下的各站耗时之和（Gazebo，仿真时间；各次运行的平均，n 为运行数）。竖线纹为底盘横移到站，交叉纹为到站残差测量等固定开销，斜线为机械臂不切割的运动（换位、下刀、退刀、转刀），实心为切割段。
+- 要点：连续轨迹把 11 个停靠站的耗时由 228 s 降到 160 s（联合规划，−30 %）、246 s 降到 165 s（规则路线，−33 %）；节省全部来自不切割的运动（122 s → 37 s），切割段因改用恒定进给 0.05 m/s 反而变长。
+
+### 3.8 机械臂连续轨迹：同一停靠站的关节速度
+
+<a href="experiments/arm_trajectory/fig_profile.png"><img src="experiments/arm_trajectory/fig_profile.png" width="640" alt="关节速度曲线"></a>
+
+- 报告：[机械臂连续轨迹 §5.1](experiments/arm_trajectory/README.md) · [PDF](experiments/arm_trajectory/fig_profile.pdf)
+- 说明：联合规划第 9 站（12 个机械臂点）的四个关节速度，横轴为该站第一个机械臂点开始后的时间，灰色底为切割段；刀片转速按 0.1 倍画出。(a) 逐点执行，(b) 连续轨迹。
+- 要点：逐点执行每段固定 2 s、速度在起止点阶跃，切割速度随段长变化；连续轨迹的切割段保持进给速度，下刀、退刀、转刀与换位压缩成短促的加减速，全站 24.3 s → 16.2 s。
+
+### 3.9 机械臂连续轨迹：参数扫描
+
+<a href="experiments/arm_trajectory/fig_tradeoff.png"><img src="experiments/arm_trajectory/fig_tradeoff.png" width="640" alt="参数扫描"></a>
+
+- 报告：[机械臂连续轨迹 §5.3](experiments/arm_trajectory/README.md) · [PDF](experiments/arm_trajectory/fig_tradeoff.pdf)
+- 说明：五列依次改变进给、加速度、空行程速度、加加速度的上升时间、下刀后等待时间（灰色竖点线为默认值）。上排为 11 个停靠站的 `CutStation` 耗时之和，朱红虚线为逐点执行；下排为切割段内横向偏差最大值（蓝）、直线轴关节跟踪误差最大值（绿）、机械臂运动期间底盘漂移最大值（橙），朱红虚线为逐点执行的横向偏差最大值。每个标记一次运行（多数配置 1 次，个别 2–3 次），连线为均值。
+- 要点：时间主要由进给决定，而进给在仿真中不影响精度；加速度与空行程速度超过默认值后时间收益很小、偏差增大；下刀后等待 0.2 s 把横向偏差最大值从 0.75 mm 压到 0.15 mm 以内。
+
+### 3.10 机械臂连续轨迹：时间模型
+
+<a href="experiments/arm_trajectory/fig_time_model.png"><img src="experiments/arm_trajectory/fig_time_model.png" width="640" alt="连续轨迹的时间模型"></a>
+
+- 报告：[机械臂连续轨迹 §5.4](experiments/arm_trajectory/README.md) · [PDF](experiments/arm_trajectory/fig_time_model.pdf)
+- 说明：(a) 时间模型 `traj_v1`（增加“切割长度 / 进给”一项）的预测与实测，每个点为一个停靠站，灰色圆点为标定数据、蓝色三角为验证数据，点线为两者相等；(b) 轨迹生成器给出的名义轨迹时长（横轴）与实测 `CutStation` 耗时（纵轴），点线为拟合直线。
+- 要点：对未参与标定的联合规划，各站之和的预测误差 ≤ 1.0 s（0.6 %）；生成器时长与实测相差 0.04 s（RMSE），轨迹时长是确定的。
+
+### 3.11 机械臂连续轨迹：对联合规划结论的影响
+
+<a href="experiments/arm_trajectory/fig_planning.png"><img src="experiments/arm_trajectory/fig_planning.png" width="640" alt="两种时间模型下的规划对比"></a>
+
+- 报告：[机械臂连续轨迹 §5.5](experiments/arm_trajectory/README.md) · [PDF](experiments/arm_trajectory/fig_planning.pdf)
+- 说明：400 面随机墙中的非承重配对墙（n = 156）。(a) 每面墙的平均预测时间按时间模型的四项拆开，左两柱为逐点执行的模型（`align_v3`），右两柱为连续轨迹的模型（`traj_v1`），每组内左为规则路线 + DP、右为联合规划；(b) 联合规划相对规则路线 + DP 的逐墙节省的累积分布，朱红虚线为 `align_v3`，蓝实线为 `traj_v1`。
+- 要点：每多一个直线小段的代价从 8.1 s 降到 2.0 s，联合规划的平均节省由 3.46 % 缩小到 1.18 %；变快的墙数（106）不变，没有一面墙变慢。
+
+### 3.12 切割力模型
 
 <a href="experiments/cutting_force/fig_force_model.png"><img src="experiments/cutting_force/fig_force_model.png" width="640" alt="切割力模型"></a>
 
@@ -244,7 +284,7 @@
 - 说明：(a) 切深 35 mm 时刀片受力随进给速度的变化，粗线为法向力、细线为切向力，三种材料，方块为主轴输出功率 820 W 对应的进给上限；(b) 烧结砖上切横槽时底盘受到的横向力、推离墙面的力与偏航力矩，黑点线为仿真底盘默认的偏航力矩上限；(c) 一刀（先下刀、后进给）的时间历程，含材料不均匀性，黑点线为名义偏航力矩。
 - 要点：刀片线速度 73 m/s，820 W 只对应约 11 N 的切向力，作用在机器人上的主要是几十牛的法向力；横槽的进给反力在刀具处产生偏航力矩，烧结砖 5 mm/s 时约 10 N·m。模型数值多数为假设，见报告中的出处表。
 
-### 3.8 平台可行性：所需摩擦与倾覆裕度
+### 3.13 平台可行性：所需摩擦与倾覆裕度
 
 <a href="experiments/cutting_force/fig_feasibility.png"><img src="experiments/cutting_force/fig_feasibility.png" width="560" alt="平台可行性"></a>
 
@@ -252,7 +292,7 @@
 - 说明：横轴为进给速度，曲线画到主轴功率上限为止。(a) 抱死四个麦克纳姆轮撑住切削力所需的摩擦系数，粗线为横槽（刀具在最高处）、细线为竖槽，灰带为假设的轮地摩擦系数范围；(b) 最小轮压与静态平均轮压之比，降到 0 即倾覆。
 - 要点：竖槽在满功率下只需 μ ≈ 0.14；横槽在满功率下需 μ ≈ 0.49、最小轮压只剩 37 %，现有 30.5 kg 的平台需要限制进给或增加支撑。
 
-### 3.9 定点保持控制律：频率响应
+### 3.14 定点保持控制律：频率响应
 
 <a href="experiments/cutting_force/fig_frequency.png"><img src="experiments/cutting_force/fig_frequency.png" width="560" alt="频率响应"></a>
 
@@ -260,7 +300,7 @@
 - 说明：偏航轴离散闭环（50 Hz，一拍延迟）。(a) 横向切削力到刀尖沿墙偏移的动态柔度；(b) 灵敏度函数，峰值越高鲁棒性越差。朱红虚线为现有的比例保持，蓝实线为扰动观测器。
 - 要点：比例保持在低频有 4.7 mm/N 的静态柔度；带积分作用的控制律把低频柔度降为零，但 5–20 rad/s 附近的峰值仍有 2.8–5.5 mm/N。
 
-### 3.10 定点保持控制律：设计折中与鲁棒性
+### 3.15 定点保持控制律：设计折中与鲁棒性
 
 <a href="experiments/cutting_force/fig_robustness.png"><img src="experiments/cutting_force/fig_robustness.png" width="640" alt="设计折中与鲁棒性"></a>
 
@@ -268,7 +308,7 @@
 - 说明：(a) 各控制律沿整定参数扫描得到的“灵敏度峰值 – 1 N·m 阶跃力矩下的刀尖峰值”曲线，越靠左下越好；(b) 真实速度环增益偏离标称值时的最大闭环极点模；(c) 同一整定规则下刀尖峰值随速度环增益与控制周期的变化，黑点线为“10 N·m 阶跃下 1 mm”所需的水平。
 - 要点：相近的鲁棒性下扰动观测器的瞬态峰值最小；速度环增益在 0.25–4 倍内各控制律都稳定。50 Hz 外环加 20 /s 的速度环最好也有 2.7 mm/(N·m)，瓶颈是速度环增益而不是控制律。
 
-### 3.11 切入方式与时间响应（离线仿真）
+### 3.16 切入方式与时间响应（离线仿真）
 
 <a href="experiments/cutting_force/fig_step_response.png"><img src="experiments/cutting_force/fig_step_response.png" width="640" alt="时间响应"></a>
 
@@ -276,7 +316,7 @@
 - 说明：烧结砖、横槽、进给 5 mm/s。(a) 阶跃切入与 (b) 切削力在 4 s 内线性增加时的刀尖偏移（对数刻度，黑点线为 1 mm）；(c) 阶跃切入时的偏航角速度指令。
 - 要点：比例保持停在约 75 mm 不恢复；扰动观测器在阶跃切入下峰值 32 mm、0.56 s 恢复，斜坡切入下 1.9 mm，加 70 % 的前馈后 0.6 mm。各控制律的稳态指令相同，差别只在建立的快慢。
 
-### 3.12 各工况的刀尖偏移（离线仿真）
+### 3.17 各工况的刀尖偏移（离线仿真）
 
 <a href="experiments/cutting_force/fig_cases.png"><img src="experiments/cutting_force/fig_cases.png" width="640" alt="各工况的刀尖偏移"></a>
 
@@ -284,7 +324,7 @@
 - 说明：斜坡切入加材料不均匀性，刀尖偏移峰值（均值 ± 标准差，n = 8，对数刻度）。横轴为进给速度，(a) 横槽，(b) 竖槽；六种控制律，黑点线为 1 mm。
 - 要点：横槽 2 mm/s 时比例保持 48 mm，扰动观测器 1.2 mm，加前馈 0.5 mm；竖槽的扰动小一个量级，扰动观测器在 10 mm/s 下仍为 0.5 mm。
 
-### 3.13 限幅与抗积分饱和（离线仿真）
+### 3.18 限幅与抗积分饱和（离线仿真）
 
 <a href="experiments/cutting_force/fig_saturation.png"><img src="experiments/cutting_force/fig_saturation.png" width="560" alt="限幅"></a>
 
@@ -292,7 +332,7 @@
 - 说明：8.6 N·m 的偏航力矩对 9.2 N·m 的上限，阶跃切入 6 s 后退刀。(a) 刀尖偏移（对数刻度）；(b) 偏航角速度指令，黑点线为限幅。
 - 要点：无抗饱和的 PI 退刀后反冲近 0.4 m，反算式抗饱和降到 50 mm；扰动观测器用限幅后的指令推进估计，退刀后 0.54 s 回到 1 mm 以内。外力超过限幅时任何控制律都无效。
 
-### 3.14 里程计看不到打滑时（离线仿真）
+### 3.19 里程计看不到打滑时（离线仿真）
 
 <a href="experiments/cutting_force/fig_slip.png"><img src="experiments/cutting_force/fig_slip.png" width="640" alt="里程计看不到打滑"></a>
 
@@ -376,12 +416,19 @@
 | AprilTag + LiDAR EKF | AprilTag + 激光 EKF（本版精对位） |
 | arm points | 机械臂点（每个切割点一次机械臂动作） |
 | arm reach band | 机械臂可达（可切）高度带 |
+| arm: cut length / feed | 机械臂：切割长度 / 进给（时间模型的长度项） |
+| arm: cutting segments | 机械臂：切割段（沿槽线进给） |
+| arm: per-point term | 机械臂：按点数计的时间（时间模型的点数项） |
+| arm: reposition, plunge, retract, rotate | 机械臂：换位、下刀、退刀、转刀（不切割的运动） |
 | axis-aligned | 横平竖直 |
+| base drift | 底盘漂移（机械臂运动期间） |
+| base move to station | 底盘横移到站 |
 | baseline | 基线 |
 | bay window / beam / column / door / pier / window | 飘窗 / 梁 / 柱 / 门 / 窄墙垛 / 窗 |
 | behaviour tree | 行为树 |
 | bend hits obstacle | 弯管碰到障碍 |
 | blade forces (normal / tangential) | 刀片受力（法向 / 切向） |
+| blade rotation | 刀片转向（joint4） |
 | blocked (obstacle + margin) | 不可开槽区（障碍 + 规范边距） |
 | calibration data / validation data | 标定数据 / 验证数据 |
 | camera yaw | 相机偏航（安装偏角） |
@@ -390,9 +437,12 @@
 | compliant / violates | 合规 / 违反 |
 | conduit centre line | 线管中心线 |
 | control effort | 控制量 |
+| continuous (trajectory) / point-to-point | 连续轨迹 / 逐点执行 |
 | convergence test | 收敛判据 |
 | cool light / strong light | 冷白光 / 强白光 |
 | corner pixel noise | 角点像素噪声 |
+| cross-track deviation | 切割段内横向偏差 |
+| CutStation time | `CutStation` 技能耗时 |
 | cutting / dry cut | 切割 / 空切 |
 | cutting window | 切割窗口（一个停靠站负责的墙面范围） |
 | data trunking | 弱电线槽 |
@@ -401,6 +451,7 @@
 | distance travelled | 行驶距离 |
 | DOB (disturbance observer) | 扰动观测器 |
 | DP partition | 动态规划（DP）划分 |
+| dwell after plunge | 下刀后等待 |
 | EKF (wheel + gyro) | EKF（轮式里程计 + 陀螺） |
 | encoder errors | 编码器误差模型 |
 | engagement / step engagement | 切入 / 阶跃切入 |
@@ -408,7 +459,7 @@
 | execution order | 执行顺序 |
 | expanded nodes | 扩展节点数 |
 | feasibility | 可行性 |
-| feed rate | 进给速度 |
+| feed rate | 进给速度（刀尖沿槽线的速度） |
 | feedforward | 前馈 |
 | final position error / final yaw (heading) error | 最终位置误差 / 最终偏航（朝向）误差 |
 | fine alignment | 精对位 |
@@ -417,6 +468,7 @@
 | force-driven plant | 力驱动被控对象 |
 | fore-aft offset / lateral offset | 前后偏移 / 横向偏移 |
 | four corners | 四角点（标记的四个角） |
+| fraction of walls | 墙的比例（累积分布的纵轴） |
 | gap to lower bound | 与下界的差距 |
 | goal / start | 目标点 / 起点 |
 | ground truth | 真值 |
@@ -431,10 +483,13 @@
 | hybrid (2.5D) | 2.5D 混合视觉伺服 |
 | image u / v | 像面坐标 u / v |
 | intermittent occlusion / static occlusion | 间歇遮挡 / 全程遮挡 |
+| jerk ramp time | 加加速度上升时间（加速度从 0 升到上限的时间） |
 | jerk RMS | 加加速度均方根 |
 | joint planning | 联合规划 |
+| joint tracking error | 关节跟踪误差（指令 − 实际） |
 | junction box / switch / outlet | 接线盒 / 开关 / 插座 |
 | lateral force / push-back force | 横向力 / 推离墙面的力 |
+| lift (Z) / along wall (Y) / extend (X) | 升降轴 / 沿墙轴 / 伸缩轴 |
 | load-bearing wall / partition wall | 承重墙 / 非承重墙 |
 | lower bound | 下界 |
 | marker / reference marker | 定位标记 / 参考标记 |
@@ -454,16 +509,19 @@
 | path length | 路径长度 |
 | PBVS / IBVS | 基于位置 / 基于图像的视觉伺服 |
 | per-slot partition | 逐槽划分 |
+| per-station overhead | 每站固定开销 |
 | planned slot | 规划槽线 |
 | planning time | 规划耗时 |
 | plunge / feed | 下刀 / 进给 |
 | power panel | 配电箱 |
 | predicted / measured | 预测 / 实测 |
 | range noise | 激光测距噪声 |
+| rapid speed / rapid accel. | 空行程速度 / 加速度 |
 | re-alignment | 重新对位 |
 | recovery | 恢复（重试） |
 | required friction coefficient | 所需摩擦系数 |
 | residual compensation | 残差补偿 |
+| residual measurement, overhead | 到站残差测量等固定开销 |
 | right-angle turns | 直角转弯 |
 | RMS / RMSE | 均方根 / 均方根误差 |
 | rule-based routes (+ DP) | 规则路线（先按规范代价选线，再 DP 划分停靠站） |
@@ -485,6 +543,7 @@
 | steady-state | 稳态 |
 | strafe | 横移 |
 | strafe-scale correction | 横移比例修正 |
+| strafing | 横移 |
 | structural beam | 承重横梁 |
 | sweep order | 扫掠顺序 |
 | taught at goal / taught zero offset | 在期望位姿示教 / 示教零位 |
@@ -497,6 +556,7 @@
 | tool-tip deviation | 刀尖偏移 |
 | tool-tip path error | 刀尖轨迹误差 |
 | top view | 俯视图 |
+| trajectory duration from the generator | 轨迹生成器给出的时长 |
 | turn / turn penalty | 转弯 / 转向惩罚 |
 | v1 (colour blob + PBVS) | 第一版精对位（色块 + PBVS） |
 | v2 (AprilTag + LiDAR EKF) | 本版精对位（AprilTag + 激光 EKF） |
@@ -525,7 +585,8 @@
 | 2.6–2.7 | `python3 src/scr_planner/scripts/task_planning_report.py <data> <out> --time-model=<预设>`（见 [复现](experiments/task_planning/README.md#复现)） |
 | 3.2 | `python3 src/scr_planner/scripts/plot_station_order.py <基线运行> <优化运行> <results.csv> <out.png>` |
 | 3.3–3.6 | `python3 docs/experiments/along_wall_accuracy/make_report.py` |
-| 3.7–3.14 | `python3 docs/experiments/cutting_force/analysis.py` |
+| 3.7–3.11 | `python3 docs/experiments/arm_trajectory/make_report.py`（3.8 的数据由 `extract_profile.py` 从数据包导出，已提交；3.11 另需 `benchmark/data/`，见 [复现](experiments/arm_trajectory/README.md#8-复现)） |
+| 3.12–3.19 | `python3 docs/experiments/cutting_force/analysis.py` |
 | 4.1、5.3 | `python3 docs/report/make_figures.py` |
 | 4.2–4.4 | `python3 docs/experiments/system_modernization/make_report.py` |
 | 5.1–5.2 | `python3 docs/experiments/plan_validation/make_report.py` |

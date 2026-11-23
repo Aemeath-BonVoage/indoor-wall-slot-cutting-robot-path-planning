@@ -389,9 +389,38 @@ def test_time_model_presets():
     assert (v1.t_settle, v1.v_strafe, v1.t_point) == (4.40, 0.0945, 2.034)
     v2 = sp.TimeModel.preset('align_v2')
     assert (v2.t_settle, v2.v_strafe, v2.t_point) == (2.83, 0.0984, 2.049)
-    assert sp.TimeModel() == sp.TimeModel.preset('align_v3')
+    v3 = sp.TimeModel.preset('align_v3')
+    assert (v3.t_settle, v3.v_strafe, v3.t_point) == (4.70, 0.0971, 2.030)
+    # 逐点执行的预设没有切割长度项；当前默认是连续轨迹的标定
+    assert all(math.isinf(m.v_feed) and m.t_per_metre == 0.0 for m in (v1, v2, v3))
+    assert sp.TimeModel() == sp.TimeModel.preset('traj_v1')
+    assert math.isfinite(sp.TimeModel().v_feed)
     with pytest.raises(ValueError):
         sp.TimeModel.preset('nonexistent')
+
+
+def test_time_model_cut_length_term(planner):
+    """连续轨迹的时间模型：点数项 + 切割长度 / 进给；长度项不改变停靠站划分."""
+    import dataclasses
+    p2p = sp.TimeModel.preset('align_v3')
+    assert p2p.cut(8, 0.24) == pytest.approx(8 * p2p.t_point)
+    tm = sp.TimeModel(t_settle=5.0, v_strafe=0.1, t_point=0.4, v_feed=0.05)
+    assert tm.cut(8, 0.24) == pytest.approx(8 * 0.4 + 0.24 / 0.05)
+    assert tm.t_per_metre == pytest.approx(20.0)
+    no_feed = dataclasses.replace(tm, v_feed=math.inf)
+    cfg = yaml.safe_load(open(os.path.join(PKG, 'config', 'wall_task_room3_south.yaml'),
+                              encoding='utf-8'))
+    scene, wall = sp.scene_from_config(cfg)
+    a = sp.plan_task(scene, wall, ROBOT, planner, tm=tm)
+    b = sp.plan_task(scene, wall, ROBOT, planner, tm=no_feed)
+    assert [(s.u_lo, s.u_hi, s.u_c) for s in a.stations] == \
+        [(s.u_lo, s.u_hi, s.u_c) for s in b.stations]
+    cut_len = sum(s.cut_length for s in a.stations)
+    assert a.prediction['t_cut'] == pytest.approx(
+        tm.t_point * a.prediction['points'] + cut_len / tm.v_feed, abs=0.06)
+    assert a.prediction['t_total'] - b.prediction['t_total'] == pytest.approx(
+        cut_len / tm.v_feed, abs=0.11)
+    assert a.prediction['t_move'] == b.prediction['t_move']
 
 
 EXPERIMENTS = os.path.join(SRC, '..', 'docs', 'experiments')
@@ -412,8 +441,36 @@ def test_time_model_presets_reproduce_calibration():
             ('align_v3', ALONG_WALL_RUNS, ('default_s1', 'default_s2', 'scale_tags_0.6_s1',
                                            'scale_tags_0.6_s2'), 'phases-reg')):
         a = cal.arrays(cal.load([os.path.join(base, r) for r in runs]))
-        t_settle, v, t_point = cal.FIT[method](a)
+        t_settle, v, t_point, v_feed = cal.FIT[method](a)
         tm = sp.TimeModel.preset(name)
         assert t_settle == pytest.approx(tm.t_settle, abs=0.005)
         assert v == pytest.approx(tm.v_strafe, abs=5e-5)
         assert t_point == pytest.approx(tm.t_point, abs=5e-4)
+        assert math.isinf(v_feed)
+
+
+ARM_RUNS = os.path.join(EXPERIMENTS, 'arm_trajectory', 'runs')
+
+
+@pytest.mark.skipif(not os.path.isdir(ARM_RUNS), reason='experiment data not in this tree')
+def test_traj_time_model_reproduces_calibration():
+    """traj_v1 由连续轨迹的标定运行复现；进给取指令值，实测的切割速度与之一致."""
+    sys.path.insert(0, os.path.join(PKG, 'scripts'))
+    import calibrate_time_model as cal
+    runs = ('cont_dp11_s1', 'cont_dp11_s2', 'cont_rule_s1', 'cont_rule_s2')
+    a = cal.arrays(cal.load([os.path.join(ARM_RUNS, r) for r in runs]))
+    tm = sp.TimeModel.preset('traj_v1')
+    t_settle, v, t_point, v_feed = cal.fit_traj(a, tm.v_feed)
+    assert t_settle == pytest.approx(tm.t_settle, abs=0.005)
+    assert v == pytest.approx(tm.v_strafe, abs=5e-5)
+    assert t_point == pytest.approx(tm.t_point, abs=5e-4)
+    assert v_feed == tm.v_feed
+    # 进给也放开拟合时，得到的切割速度与指令进给相差不到 8 %（点数与切割长度相关，
+    # 两个系数不能很好地分开，所以预设里进给取指令值）
+    assert cal.fit_traj(a)[3] == pytest.approx(tm.v_feed, rel=0.08)
+    # 样本外：联合规划的两次运行，每站 RMSE < 0.5 s，各站之和误差 < 2 %
+    val = cal.load([os.path.join(ARM_RUNS, r) for r in ('cont_joint_s1', 'cont_joint_s2')])
+    st = cal.stats(cal.preset_params(tm), val)
+    assert st['rmse'] < 0.5
+    total = cal.arrays(val)['y'].sum() / 2
+    assert all(abs(e) < 0.02 * total for e in st['total_err'])

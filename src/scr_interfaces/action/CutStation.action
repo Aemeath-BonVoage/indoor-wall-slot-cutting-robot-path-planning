@@ -1,7 +1,9 @@
 # 在当前停靠站执行一组机械臂点（底盘由 HoldBase 或到站时的定点保持维持）
+# 执行方式由技能服务器的参数 arm_motion.mode 决定：continuous（整站一条连续轨迹，速度由
+# arm_motion.* 的进给与各轴限值决定）或 point_to_point（逐点，每点 point_duration 秒）
 int32 station
 scr_interfaces/ArmPoint[] points
-float64 point_duration       # 每段运动时间（秒）
+float64 point_duration       # 逐点执行时每段的运动时间（秒）；连续轨迹不使用
 bool compensate              # 先测到站残差，再把机械臂点修正到实际停靠位姿
 float64 lateral_offset       # 补偿参照：本站目标沿墙坐标（米）
 float64 standoff             # 补偿参照：目标离墙距离（米）
