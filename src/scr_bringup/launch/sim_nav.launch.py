@@ -11,6 +11,9 @@
   ros2 launch scr_bringup sim_nav.launch.py odom_error:=false     # 理想轮式里程计
   ros2 launch scr_bringup sim_nav.launch.py plant:=wheels        # 轮子驱动底盘（实验）
   ros2 launch scr_bringup sim_nav.launch.py base_control:=plugin # 早期力控插件（/odom 为真值）
+  ros2 launch scr_bringup sim_nav.launch.py arm_motion_params:=/path/to/arm_motion.yaml
+                                                               # 机械臂切割运动参数（连续轨迹 / 逐点）
+  ros2 launch scr_bringup sim_nav.launch.py cutting_force:=true  # 加载切割力插件（默认不加载）
 
 任务层就绪后执行任务：
   ros2 run scr_arm_controller navigation_cutting_task task_at_target.yaml
@@ -47,7 +50,8 @@ def generate_launch_description():
                               description='Map yaml for Nav2'),
         DeclareLaunchArgument('params_file',
                               default_value=os.path.join(nav_share, 'config', 'nav2_params.yaml'),
-                              description='Nav2 params file (e.g. nav2_params_scr_planner.yaml)'),
+                              description='Nav2 params file (nav2_params_dwb.yaml: '
+                                          'NavFn + DWB baseline)'),
         DeclareLaunchArgument('nav_delay', default_value='8.0',
                               description='Seconds to wait for Gazebo before starting Nav2'),
         DeclareLaunchArgument('base_control', default_value='ros2_control',
@@ -72,6 +76,21 @@ def generate_launch_description():
                               description='Fine-alignment parameters of the skill server '
                                           '(default: multi-tag map + online lateral odometry '
                                           'scale, see docs/experiments/along_wall_accuracy)'),
+        DeclareLaunchArgument('arm_motion_params',
+                              default_value=os.path.join(arm_share, 'config',
+                                                         'arm_motion.yaml'),
+                              description='Arm motion parameters while cutting (arm_motion.*): '
+                                          'continuous trajectory limits or point-to-point mode'),
+        DeclareLaunchArgument('cutting_force', default_value='false',
+                              description='Load the cutting-force plugin (scr_cutting_force)'),
+        DeclareLaunchArgument('cutting_force_params', default_value='',
+                              description='Plugin parameters as "key=value;key=value"'),
+        DeclareLaunchArgument('base_max_accel', default_value='',
+                              description='Drive force limit of the force plant as an '
+                                          'acceleration (m/s^2); empty = plugin default'),
+        DeclareLaunchArgument('base_max_ang_accel', default_value='',
+                              description='Drive torque limit of the force plant as an angular '
+                                          'acceleration (rad/s^2); empty = plugin default'),
     ]
 
     gazebo = IncludeLaunchDescription(
@@ -85,6 +104,10 @@ def generate_launch_description():
             'odom_error': LaunchConfiguration('odom_error'),
             'odom_seed': LaunchConfiguration('odom_seed'),
             'localization': LaunchConfiguration('localization'),
+            'cutting_force': LaunchConfiguration('cutting_force'),
+            'cutting_force_params': LaunchConfiguration('cutting_force_params'),
+            'base_max_accel': LaunchConfiguration('base_max_accel'),
+            'base_max_ang_accel': LaunchConfiguration('base_max_ang_accel'),
         }.items(),
     )
 
@@ -109,6 +132,7 @@ def generate_launch_description():
         PythonLaunchDescriptionSource(os.path.join(task_share, 'launch', 'task.launch.py')),
         launch_arguments={
             'alignment_params': LaunchConfiguration('alignment_params'),
+            'arm_motion_params': LaunchConfiguration('arm_motion_params'),
             # 技能的局部闭环：融合定位时用轮式里程计（见 scr_arm_controller/task_skills.py）
             'odom_topic': PythonExpression([
                 "'/wheel/odom' if '", LaunchConfiguration('base_control'),
