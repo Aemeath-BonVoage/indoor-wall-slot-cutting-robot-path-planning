@@ -1,0 +1,10 @@
+# The build context is the repository root. Only the workspace sources, the
+# experiment data read by the tests and the container entrypoint are needed;
+# everything else (git metadata, build/, install/, log/) stays out of the context.
+*
+!src
+!docs
+!docker/entrypoint.sh
+
+**/__pycache__
+**/*.pyc
