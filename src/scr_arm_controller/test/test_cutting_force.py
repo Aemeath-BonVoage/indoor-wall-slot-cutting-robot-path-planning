@@ -144,3 +144,48 @@ def test_inhomogeneity_statistics():
     sd = math.sqrt(sum((x - mean) ** 2 for x in xs) / len(xs))
     assert mean == pytest.approx(1.0, abs=0.01) and sd == pytest.approx(0.25, abs=0.01)
     assert cf.Inhomogeneity(cov=0.0).advance(0.01) == 1.0
+
+
+def test_plunge_rate_limit_is_lower_than_feed_limit():
+    b = cf.BladeParams()
+    vp = cf.max_plunge_rate(b, 0.035)
+    assert cf.tool_forces(b, 0.035, 0.0, vp).power == pytest.approx(b.spindle_power, rel=1e-6)
+    # 下刀时整个弦长（127 mm）同时切削，进给时只有切深（35 mm）
+    assert vp == pytest.approx(cf.max_feed_rate(b, 0.035) * 35.0 / 127.3, rel=0.01)
+
+
+def test_feed_limit_constraints():
+    b = cf.BladeParams()
+    full = cf.feed_limit(b)
+    assert full.binding == 'power' and full.friction is None and full.hold is None
+    assert full.feed == pytest.approx(cf.max_feed_rate(b, 0.035))
+    derated = cf.feed_limit(b, power_fraction=0.67)
+    assert cf.tool_forces(b, 0.035, derated.feed).power == pytest.approx(0.67 * 820.0, rel=1e-6)
+    # 摩擦约束：上限处最不利位置所需的摩擦系数（乘安全系数）恰好等于给定值
+    fr = cf.feed_limit(b, power_fraction=0.67, mu=0.3, friction_margin=1.5)
+    assert fr.binding == 'friction' and fr.feed < derated.feed
+    worst = cf.Platform(tool_z=cf.WORST_TOOL_Z, tool_y=cf.WORST_TOOL_Y)
+    need = max(cf.static_margins(cf.cut_wrench(b, worst, 0.035, fr.feed, 'horizontal', s),
+                                 worst).mu_mecanum for s in (1, -1))
+    assert need * 1.5 == pytest.approx(0.3, rel=1e-4)
+    # 定点保持的力矩裕量：默认限幅（0.5 rad/s ≙ 9.2 N·m，留 1.3 倍）下它最先起作用
+    hold = cf.feed_limit(b, power_fraction=0.67, mu=0.3, friction_margin=1.5,
+                         max_yaw_moment=9.2 / 1.3)
+    assert hold.binding == 'hold' and hold.feed < fr.feed
+    mz = max(abs(cf.cut_wrench(b, worst, 0.035, hold.feed, 'horizontal', s).mz)
+             for s in (1, -1))
+    assert mz == pytest.approx(9.2 / 1.3, rel=1e-4)
+    # 约束足够宽时退回功率上限
+    loose = cf.feed_limit(b, mu=5.0, max_yaw_moment=1e3)
+    assert loose.binding == 'power' and loose.feed == pytest.approx(full.feed)
+
+
+def test_feed_limit_scales_with_material():
+    lim = {m: cf.feed_limit(cf.BladeParams.for_material(m), power_fraction=0.67, mu=0.3,
+                            friction_margin=1.5) for m in cf.MATERIALS}
+    assert lim['aerated_block'].feed > lim['brick'].feed > lim['concrete'].feed
+    # 同样的约束对应同样的切削力：不同材料在各自上限处的偏航力矩相同
+    worst = cf.Platform(tool_z=cf.WORST_TOOL_Z, tool_y=cf.WORST_TOOL_Y)
+    mz = [cf.cut_wrench(cf.BladeParams.for_material(m), worst, 0.035, v.feed, 'horizontal').mz
+          for m, v in lim.items()]
+    assert mz == pytest.approx([mz[0]] * 3, rel=1e-3)

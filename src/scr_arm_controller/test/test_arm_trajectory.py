@@ -288,3 +288,18 @@ def test_default_limits_below_urdf_limits():
                       re.S)
         assert m and lim.axis(i).v < float(m.group(1))
     assert lim.feed <= lim.rapid_speed and lim.plunge <= lim.rapid_speed
+
+
+def test_feed_ramp_time_limits_cut_and_plunge_acceleration():
+    lim = MotionLimits(feed=0.005, plunge=0.002, feed_ramp_time=2.0)
+    assert lim.path('cut').a == pytest.approx(0.0025)
+    assert lim.path('plunge').a == pytest.approx(0.001)
+    assert MotionLimits(feed=0.005).path('cut').a == MotionLimits.feed_accel
+    # 空行程不受影响；进给很快时仍以 feed_accel 为准
+    assert lim.axis(0).a == MotionLimits.rapid_accel
+    assert MotionLimits(feed=2.0, feed_ramp_time=1.0).path('cut').a == 0.5
+    with pytest.raises(ValueError):
+        MotionLimits(feed_ramp_time=-1.0)
+    # 一段 100 mm 的切割：加减速各约 2 s，总时间 ≈ 长度 / 进给 + 建立时间
+    t = rest_to_rest_time(0.1, lim.path('cut'))
+    assert t == pytest.approx(0.1 / 0.005 + 2.0, abs=0.1)

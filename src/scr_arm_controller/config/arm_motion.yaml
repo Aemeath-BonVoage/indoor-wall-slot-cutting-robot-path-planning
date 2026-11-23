@@ -28,3 +28,18 @@
       dwell: 0.2                  # s
       # 轨迹起始时刻相对最新控制器状态时间戳的提前量；须大于 /clock 的发布周期（0.1 s）
       start_lead: 0.15            # s
+      # 进给 / 下刀速度从 0 升到设定值的最短时间；0 = 只受 feed_accel 限制。切削力随进给
+      # 增大，进给缓慢建立时定点保持才跟得上（见 docs/experiments/cutting_force）
+      feed_ramp_time: 0.0         # s
+      # 下刀段在刀尖接触墙面处先停一下，切入从静止开始
+      split_plunge: false
+      # 进给的依据：fixed = 直接取上面的 feed_rate / plunge_rate（空切的默认做法）；
+      # force_limit = 取切割力模型给出的上限（主轴功率 × power_fraction、最不利位置所需的
+      # 轮地摩擦系数 × friction_margin ≤ friction_mu、定点保持可抵消的偏航力矩），
+      # feed_rate / plunge_rate 仍作为上限。按材料给出的数值见 config/arm_motion_cutting.yaml
+      feed_basis: fixed
+      material: brick             # aerated_block / brick / concrete
+      slot_depth: 0.035           # m
+      power_fraction: 0.67
+      friction_mu: 0.3
+      friction_margin: 1.5

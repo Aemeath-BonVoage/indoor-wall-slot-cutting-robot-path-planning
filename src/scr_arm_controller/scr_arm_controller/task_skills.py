@@ -23,23 +23,28 @@ spin 本节点）。
 import math
 import os
 import time
+from dataclasses import replace
 
 import rclpy
-from geometry_msgs.msg import Twist
+from geometry_msgs.msg import Twist, WrenchStamped
 from gazebo_msgs.msg import ModelStates
 from nav_msgs.msg import Odometry
 from rclpy.duration import Duration
 from rclpy.node import Node
 from rclpy.parameter import Parameter
+from std_msgs.msg import Float64
 
 try:
     from ament_index_python.packages import get_package_share_directory
 except ImportError:            # 纯算法测试环境
     get_package_share_directory = None
 
+
+from scr_arm_controller import cutting_force
 from scr_arm_controller.arm_trajectory import ARM_MOTION_PARAMS, limits_from_params
 from scr_arm_controller.base_hold import BaseHold
 from scr_arm_controller.cartesian_cutting import CartesianCuttingController
+from scr_arm_controller.cut_schedule import CutSchedule, split_plunges, travel_ratio
 from scr_arm_controller.docking_control import ConvergenceMonitor, WallAlignController
 from scr_arm_controller.slot_execution import cut_phases
 from scr_arm_controller.tag_map import TagMap, resolve_path
@@ -86,6 +91,57 @@ ALIGNMENT_PARAMS = {
     'scale_init': 0.0,                 # s 的先验（可填离线标定值）
     'scale_sigma': 0.05,               # s 的先验标准差
 }
+
+
+class CutStateReporter:
+    """
+    切割期间按轨迹时间表发布切削状态（50 Hz，由定点保持节点的里程计节拍驱动）.
+
+    话题 cutting_force/engagement（std_msgs/Float64，切深，米）：切割力插件据此施加切削力；
+    话题 cutting_force/expected_wrench（geometry_msgs/WrenchStamped，base_link 系）：按名义
+    切割力模型预计的底盘力旋量，定点保持可订阅它作前馈（hold.feedforward_topic）。
+    没有切割力插件时这两个话题没有订阅者，不影响执行。
+    """
+
+    LEAD = 0.02     # 预计力旋量取一个控制周期之后的值：前馈经定点保持下发要晚一拍
+
+    def __init__(self, hold):
+        node = hold.node
+        self._depth_pub = node.create_publisher(Float64, 'cutting_force/engagement', 10)
+        self._wrench_pub = node.create_publisher(
+            WrenchStamped, 'cutting_force/expected_wrench', 10)
+        self._schedule = None
+        self._t_start = 0.0
+        hold.tick_callbacks.append(self._tick)
+
+    def start(self, schedule, t_start):
+        self._t_start = t_start
+        self._schedule = schedule
+
+    def stop(self):
+        if self._schedule is not None:
+            self._schedule = None
+            self._publish(0.0, cutting_force.Wrench(), None)
+
+    def _tick(self, stamp):
+        sch = self._schedule
+        if sch is None:
+            return
+        t = stamp - self._t_start
+        if t > sch.duration:
+            self.stop()
+            return
+        self._publish(sch.state(t).depth, sch.wrench(t + self.LEAD), stamp)
+
+    def _publish(self, depth, wrench, stamp):
+        self._depth_pub.publish(Float64(data=float(depth)))
+        msg = WrenchStamped()
+        if stamp is not None:
+            ns = int(round(stamp * 1e9))
+            msg.header.stamp.sec, msg.header.stamp.nanosec = ns // 1000000000, ns % 1000000000
+        msg.header.frame_id = 'base_link'
+        msg.wrench.force.x, msg.wrench.force.y, msg.wrench.torque.z = wrench.planar
+        self._wrench_pub.publish(msg)
 
 
 class CuttingSkills(Node):
@@ -151,6 +207,7 @@ class CuttingSkills(Node):
         # 扫描 / 切割期间底盘定点保持（机械臂反作用力会推动底盘）
         self.hold_base = True
         self.base_hold = BaseHold(entity=self.GAZEBO_ENTITY, odom_topic=self.odom_topic)
+        self.cut_reporter = CutStateReporter(self.base_hold)
 
         # 多站开槽规划执行（run_slot_plan）
         self.max_strafe = 1.5          # 站间横移超过该距离（米）时先退到离墙 nav_standoff 用 Nav2 过去
@@ -913,9 +970,38 @@ class CuttingSkills(Node):
         return (float(X[1] - du_target), float(X[0] - self.distance_from_marker), float(X[2]))
 
     def arm_motion_config(self):
-        """读取 arm_motion.* 参数 → (模式, MotionLimits, 轨迹起始提前量)."""
+        """
+        读取 arm_motion.* 参数 → (模式, MotionLimits, 轨迹起始提前量).
+
+        feed_basis = 'force_limit' 时进给与下刀速度取切割力模型给出的上限（主轴功率、轮地
+        摩擦、定点保持可抵消的偏航力矩），feed_rate / plunge_rate 仍作为上限。
+        """
         c = {k: self.get_parameter('arm_motion.' + k).value for k in ARM_MOTION_PARAMS}
-        return str(c['mode']), limits_from_params(c), float(c['start_lead'])
+        limits = limits_from_params(c)
+        self.cut_config = c
+        if str(c['feed_basis']) == 'force_limit':
+            fl = cutting_force.feed_limit(
+                self.cut_blade(c), float(c['slot_depth']),
+                power_fraction=float(c['power_fraction']), mu=float(c['friction_mu']),
+                friction_margin=float(c['friction_margin']),
+                max_yaw_moment=self.base_hold.yaw_authority())
+            limits = replace(limits, feed=min(limits.feed, fl.feed),
+                             plunge=min(limits.plunge, fl.plunge))
+            self.get_logger().info(
+                f'进给按切割力模型限制（{c["material"]}）：进给 {limits.feed * 1e3:.2f} mm/s'
+                f'（约束：{fl.binding}），下刀 {limits.plunge * 1e3:.2f} mm/s',
+                throttle_duration_sec=60.0)
+        elif str(c['feed_basis']) != 'fixed':
+            self.get_logger().error(f'未知的 arm_motion.feed_basis: {c["feed_basis"]!r}，按 fixed 处理')
+        return str(c['mode']), limits, float(c['start_lead'])
+
+    @staticmethod
+    def cut_blade(c):
+        """arm_motion.material → 刀片与材料参数；未知材料时退回烧结砖."""
+        name = str(c['material'])
+        if name not in cutting_force.MATERIALS:
+            name = 'brick'
+        return cutting_force.BladeParams.for_material(name)
 
     def run_points(self, points, is_cut, duration):
         """
@@ -959,10 +1045,26 @@ class CuttingSkills(Node):
                     prev = phase
             end[0] = t_start + traj.duration
 
+        c = self.cut_config
+        if bool(c['split_plunge']):
+            points, is_cut = split_plunges(points, is_cut, float(c['slot_depth']))
+        if str(c['feed_basis']) == 'force_limit':
+            # 空切时下刀行程短于槽深：下刀速度按行程比例折算，使下刀时间与切深的变化率
+            # 和真实下刀一致
+            limits = replace(limits, plunge=limits.plunge * travel_ratio(
+                points, is_cut, float(c['slot_depth'])))
+
+        def on_start(t_start, traj):
+            publish_schedule(t_start, traj)
+            self.cut_reporter.start(
+                CutSchedule(traj, self.cut_blade(c), float(c['slot_depth']),
+                            self.distance_from_marker), t_start)
+
         self.set_phase('move')
         ok, traj = self.arm_controller.follow_points(
-            points, is_cut, limits, start_lead=start_lead, on_start=publish_schedule,
+            points, is_cut, limits, start_lead=start_lead, on_start=on_start,
             should_abort=self.abort_requested)
+        self.cut_reporter.stop()
         self.last_trajectory = traj
         # 中止时立即回到 idle（时间戳为当前时刻，记录器据此丢弃尚未生效的时间表）
         self.set_phase('idle', stamp=end[0] if ok else None)

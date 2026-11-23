@@ -19,7 +19,9 @@
 //                   世界系）的间隙 g 推算，a = depth·clamp((dry_run_gap + plunge_ramp − g)
 //                   / plunge_ramp, 0, 1)，用于空切：刀尖到达墙前 dry_run_gap 处即视为切到
 //                   规定深度；
-//   下刀速度        切入期间刀具相对底盘朝墙面方向（+x）的速度。
+//   下刀速度        切深由话题给出时取切深的变化率（差分 + 低通，只取增加的方向）：空切时
+//                   刀具的实际行程短于槽深，下刀速度不能由刀具速度得到；切深由间隙推算时
+//                   取刀具相对底盘朝墙面方向（+x）的速度。
 // 另有话题 cutting_force/test_wrench（geometry_msgs/Wrench，base_link 系，作用在底盘
 // 原点）：直接给定外力，用于阶跃 / 斜坡扰动试验，与模型给出的力叠加。
 //
@@ -168,7 +170,9 @@ private:
     // 刀具相对底盘的速度（位置差分 + 低通）；朝墙面方向的分量为下刀速度
     const double a = dt / (velocity_tau_ + dt);
     vel_ += a * ((p - prev_p_) / dt - vel_);
-    const double plunge = std::max(vel_.X(), 0.0);
+    depth_rate_ += a * ((depth - prev_depth_) / dt - depth_rate_);
+    prev_depth_ = depth;
+    const double plunge = std::max(gap_mode_ ? vel_.X() : depth_rate_, 0.0);
     const double theta = blade_joint_->Position(0);
     const Vec3 blade_dir{0.0, std::sin(theta), std::cos(theta)};
     const double feed_signed = vel_.Y() * blade_dir[1] + vel_.Z() * blade_dir[2];
@@ -256,6 +260,7 @@ private:
   bool have_prev_{false};
   double prev_time_{0.0};
   Vector3d prev_p_, vel_;
+  double prev_depth_{0.0}, depth_rate_{0.0};
   double last_gain_{1.0}, feed_sign_{1.0};
 };
 

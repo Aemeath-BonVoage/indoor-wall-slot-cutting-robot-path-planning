@@ -51,7 +51,9 @@ class MotionLimits:
     它的反作用力相对底盘中心有约 0.4 m 的力臂，加减速时推动底盘偏航，是机械臂运动对
     底盘的主要扰动。jerk_time 是加速度
     从 0 升到上限的时间（加加速度 = 加速度 / jerk_time），0 表示梯形速度曲线。dwell 是下刀
-    到位后、开始进给前的等待时间。
+    到位后、开始进给前的等待时间。feed_ramp_time 是切割 / 下刀段的速度从 0 升到进给值的
+    最短时间（0 = 只受 feed_accel 限制）：切削力随进给速度增大，进给缓慢建立时切削力也
+    缓慢建立，定点保持才跟得上（见 docs/experiments/cutting_force）。
     """
 
     feed: float = 0.05
@@ -64,6 +66,7 @@ class MotionLimits:
     rot_accel: float = 12.0
     jerk_time: float = 0.05
     dwell: float = 0.2          # 下刀到位后、开始进给前的等待（秒）
+    feed_ramp_time: float = 0.0     # 进给 / 下刀速度从 0 升到设定值的最短时间（秒）
 
     def __post_init__(self):
         for k in ('feed', 'plunge', 'feed_accel', 'rapid_speed', 'rapid_accel', 'rot_speed',
@@ -72,8 +75,8 @@ class MotionLimits:
                 raise ValueError(f'{k} must be > 0')
         if self.rapid_accel_lateral is not None and not self.rapid_accel_lateral > 0.0:
             raise ValueError('rapid_accel_lateral must be > 0')
-        if self.jerk_time < 0.0 or self.dwell < 0.0:
-            raise ValueError('jerk_time and dwell must be >= 0')
+        if self.jerk_time < 0.0 or self.dwell < 0.0 or self.feed_ramp_time < 0.0:
+            raise ValueError('jerk_time, dwell and feed_ramp_time must be >= 0')
 
     def _jerk(self, a):
         return a / self.jerk_time if self.jerk_time > 0.0 else 0.0
@@ -90,7 +93,10 @@ class MotionLimits:
     def path(self, kind):
         """切割 / 下刀段的刀尖路径限值."""
         v = self.feed if kind == 'cut' else self.plunge
-        return AxisLimit(v, self.feed_accel, self._jerk(self.feed_accel))
+        a = self.feed_accel
+        if self.feed_ramp_time > 0.0:
+            a = min(a, v / self.feed_ramp_time)
+        return AxisLimit(v, a, self._jerk(a))
 
 
 # 切割时的机械臂运动参数：技能服务器的 ROS 参数 arm_motion.*（task_skills.py），每次执行
@@ -110,6 +116,19 @@ ARM_MOTION_PARAMS = {
     'rot_accel': MotionLimits.rot_accel,        # rad/s²
     'jerk_time': MotionLimits.jerk_time,        # s，加速度升到上限的时间；0 = 梯形速度曲线
     'dwell': MotionLimits.dwell,                # s，下刀到位后、开始进给前的等待
+    # s，进给 / 下刀速度从 0 升到设定值的最短时间；0 = 只受 feed_accel 限制
+    'feed_ramp_time': MotionLimits.feed_ramp_time,
+    # 下刀段在刀尖接触墙面处先停一下，切入从静止开始（配合 feed_ramp_time 使切削力缓慢建立）
+    'split_plunge': False,
+    # 进给的依据：'fixed' = 直接取 feed_rate / plunge_rate（空切的默认做法）；
+    # 'force_limit' = 取切割力模型给出的上限（cutting_force.feed_limit：主轴功率、轮地摩擦与
+    # 定点保持的力矩裕量），feed_rate / plunge_rate 仍作为上限
+    'feed_basis': 'fixed',
+    'material': 'brick',                        # 墙体材料（cutting_force.MATERIALS 的键）
+    'slot_depth': 0.035,                        # m，槽深（切深）
+    'power_fraction': 0.67,                     # 进给上限所用的主轴功率占输出功率的比例
+    'friction_mu': 0.3,                         # 进给上限所用的轮地摩擦系数（有粉尘的地面）
+    'friction_margin': 1.5,                    # 所需摩擦系数的安全系数
     'start_lead': 0.15,                         # s，轨迹起始时刻相对最新控制器状态的提前量
 }
 
@@ -123,7 +142,8 @@ def limits_from_params(params):
         rapid_accel_lateral=float(params.get('rapid_accel_lateral') or 0.0) or None,
         rot_speed=float(params['rot_speed']),
         rot_accel=float(params['rot_accel']), jerk_time=float(params['jerk_time']),
-        dwell=float(params['dwell']))
+        dwell=float(params['dwell']),
+        feed_ramp_time=float(params.get('feed_ramp_time') or 0.0))
 
 
 # ---------------------------------------------------------------------------
