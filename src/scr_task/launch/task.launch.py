@@ -2,6 +2,7 @@
 
   ros2 launch scr_task task.launch.py
   ros2 launch scr_task task.launch.py alignment_params:=/path/to/calib.yaml
+  ros2 launch scr_task task.launch.py arm_motion_params:=/path/to/arm_motion.yaml
 
 执行器启动后等待 Nav2（bt_navigator 激活）与技能服务器就绪，再加载行为树并激活。
 """
@@ -24,6 +25,11 @@ def generate_launch_description():
             description='Fine-alignment parameters (alignment.*) for the skill server; the '
                         'default enables the multi-tag map and lateral scale estimation'),
         DeclareLaunchArgument(
+            'arm_motion_params',
+            default_value=os.path.join(arm_share, 'config', 'arm_motion.yaml'),
+            description='Arm motion parameters while cutting (arm_motion.*) for the skill '
+                        'server: continuous trajectory limits or point-to-point mode'),
+        DeclareLaunchArgument(
             'odom_topic', default_value='/odom',
             description='Odometry for the skills\' local loops (/wheel/odom when fusing an EKF)'),
         DeclareLaunchArgument(
@@ -33,7 +39,9 @@ def generate_launch_description():
     ]
     skills = Node(
         package='scr_arm_controller', executable='task_skill_server', name='task_skills',
-        output='screen', parameters=[LaunchConfiguration('alignment_params'),
+        # 后面的文件覆盖前面的：alignment_params 指向的文件里若带 arm_motion 段，以它为准
+        output='screen', parameters=[LaunchConfiguration('arm_motion_params'),
+                                     LaunchConfiguration('alignment_params'),
                                      {'use_sim_time': True,
                                       'odom_topic': LaunchConfiguration('odom_topic')}])
     executor = Node(

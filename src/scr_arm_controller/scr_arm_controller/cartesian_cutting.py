@@ -1,11 +1,18 @@
 #!/usr/bin/env python3
 """笛卡尔空间切割控制 - 指定相对于base_link的坐标进行切割"""
 
+import time
+
 import rclpy
 from rclpy.node import Node
 from rclpy.action import ActionClient
+from builtin_interfaces.msg import Duration as DurationMsg
+from builtin_interfaces.msg import Time as TimeMsg
 from control_msgs.action import FollowJointTrajectory
+from control_msgs.msg import JointTrajectoryControllerState
 from trajectory_msgs.msg import JointTrajectoryPoint
+
+from scr_arm_controller.arm_trajectory import plan_trajectory
 
 
 class CartesianCuttingController(Node):
@@ -25,6 +32,14 @@ class CartesianCuttingController(Node):
 
         # 关节名称
         self.joint_names = ['joint1', 'joint2', 'joint3', 'joint4']
+
+        # 控制器状态（连续轨迹的起点与时间基准）。控制器按 /clock 的节拍（10 Hz）发布，
+        # 时间戳即发布时刻的仿真时间。队列深度 1：本节点只在等待动作结果时处理回调，
+        # 其间积压的旧消息不需要保留。不用 /joint_states：它以控制周期（1 kHz）发布
+        self._arm_state = None          # (时间戳 秒, [j1, j2, j3, j4])
+        self._arm_state_count = 0
+        self.create_subscription(JointTrajectoryControllerState,
+                                 '/arm_controller/controller_state', self._on_arm_state, 1)
 
         # 关节限位
         self.joint_limits = {
@@ -178,6 +193,92 @@ class CartesianCuttingController(Node):
         rclpy.spin_until_future_complete(self, result_future)
 
         return True
+
+    def _on_arm_state(self, msg):
+        try:
+            q = [msg.feedback.positions[msg.joint_names.index(n)] for n in self.joint_names]
+        except (ValueError, IndexError):
+            return
+        self._arm_state = (msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9, q)
+        self._arm_state_count += 1
+
+    def wait_arm_state(self, timeout=2.0):
+        """等调用之后收到的第一条控制器状态，返回 (时间戳 秒, 实际关节位置) 或 None."""
+        n0, t_end = self._arm_state_count, time.monotonic() + timeout
+        while rclpy.ok() and self._arm_state_count == n0:
+            if time.monotonic() > t_end:
+                return None
+            rclpy.spin_once(self, timeout_sec=0.02)
+        return self._arm_state
+
+    def follow_points(self, points, is_cut, limits, start_lead=0.15, on_start=None,
+                      should_abort=None):
+        """
+        把一组笛卡尔点（base_link 系，(x, y, z, rotation)）作为一条连续轨迹执行.
+
+        轨迹由 arm_trajectory.plan_trajectory 生成，一次发给 joint_trajectory_controller。
+        轨迹的起始时刻取“最新控制器状态的时间戳 + start_lead”写进消息头，因此各段的起止
+        时刻在仿真时间上是确定的：目标被接受后调用 on_start(起始时刻, 轨迹)，调用方据此
+        提前给出各段的时间表（阶段标注），不依赖执行期间的回调时序。控制器状态最多滞后
+        一个 /clock 周期（0.1 s），start_lead 须大于它，轨迹才从头执行。
+        should_abort() 为真时取消轨迹（控制器保持当前位置）。
+        返回 (是否完成, ArmTrajectory 或 None)。
+        """
+        waypoints = []
+        for x, y, z, rotation in points:
+            joints = self.inverse_kinematics(x, y, z, rotation)
+            if joints is None:
+                self.get_logger().error('逆运动学求解失败，目标不可达')
+                return False, None
+            waypoints.append(joints)
+        state = self.wait_arm_state()
+        if state is None:
+            self.get_logger().error('没有收到机械臂控制器状态，无法生成轨迹')
+            return False, None
+        stamp, q_now = state
+        traj = plan_trajectory(q_now, waypoints, is_cut, limits)
+        t_start = stamp + start_lead
+
+        goal_msg = FollowJointTrajectory.Goal()
+        goal_msg.trajectory.joint_names = self.joint_names
+        ns = int(round(t_start * 1e9))
+        goal_msg.trajectory.header.stamp = TimeMsg(sec=ns // 1000000000,
+                                                   nanosec=ns % 1000000000)
+        for t, q, qd, qdd in traj.knots():
+            point = JointTrajectoryPoint()
+            point.positions = [float(v) for v in q]
+            point.velocities = [float(v) for v in qd]
+            if qdd is not None:
+                point.accelerations = [float(v) for v in qdd]
+            ns = int(round(t * 1e9))
+            point.time_from_start = DurationMsg(sec=ns // 1000000000, nanosec=ns % 1000000000)
+            goal_msg.trajectory.points.append(point)
+        self.get_logger().info(
+            f'连续轨迹：{len(waypoints)} 个点，{len(goal_msg.trajectory.points)} 个结点，'
+            f'时长 {traj.duration:.2f} s，起始时刻 {t_start:.3f} s')
+
+        future = self._action_client.send_goal_async(goal_msg)
+        rclpy.spin_until_future_complete(self, future)
+        goal_handle = future.result()
+        if not goal_handle.accepted:
+            self.get_logger().error('目标被拒绝')
+            return False, traj
+        if on_start is not None:
+            on_start(t_start, traj)
+        result_future = goal_handle.get_result_async()
+        cancelled = False
+        while rclpy.ok() and not result_future.done():
+            rclpy.spin_once(self, timeout_sec=0.02)
+            if not cancelled and should_abort is not None and should_abort():
+                goal_handle.cancel_goal_async()
+                cancelled = True
+        if cancelled or not result_future.done():
+            return False, traj
+        code = result_future.result().result.error_code
+        if code != FollowJointTrajectory.Result.SUCCESSFUL:
+            self.get_logger().error(f'轨迹执行失败：error_code = {code}')
+            return False, traj
+        return True, traj
 
     def move_to_cartesian(self, x, y, z, rotation=0.0, duration=3.0):
         """移动到笛卡尔坐标"""

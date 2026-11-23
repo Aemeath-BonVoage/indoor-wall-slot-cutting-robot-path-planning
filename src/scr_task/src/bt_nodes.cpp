@@ -146,7 +146,8 @@ BT::PortsList CutStationAction::providedPorts()
     {
       InputPort<int>("station", "Station index (-1: single-station task)"),
       InputPort<ArmPoints>("points", "Arm points in base_link"),
-      InputPort<double>("point_duration", "Duration of each arm segment (s)"),
+      InputPort<double>(
+        "point_duration", "Duration of each arm segment (s); point-to-point mode only"),
       InputPort<bool>("compensate", "Measure the arrival residual and correct the points"),
       InputPort<double>("lateral_offset", "Reference u of this station (m)"),
       InputPort<double>("standoff", "Reference distance to the wall (m)"),

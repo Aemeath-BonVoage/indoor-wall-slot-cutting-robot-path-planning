@@ -8,7 +8,8 @@
   /task_skills/hold_base        scr_interfaces/action/HoldBase
   /task_skills/scan_marker      scr_interfaces/action/ScanMarker
   /task_skills/retract_arm      scr_interfaces/action/RetractArm
-  /task_skills/status           scr_interfaces/msg/TaskStatus（阶段变化时发布）
+  /task_skills/status           scr_interfaces/msg/TaskStatus（阶段变化时发布；连续轨迹的各段
+                                在轨迹开始时按时间表一次发布，时间戳为生效时刻）
 
 各技能共享同一个墙面相对状态估计（EKF）与定点保持：精对位确定的墙面原点由之后的横移
 沿用，横移收敛时开始的定点保持一直持续到切割结束。因此技能放在同一进程内，而不是拆成
@@ -81,9 +82,14 @@ class SkillServer:
         g = self._motion_goal
         return g is not None and g.is_cancel_requested
 
-    def _publish_status(self, station, phase, detail=''):
+    def _publish_status(self, station, phase, detail='', stamp=None):
+        """发布阶段；stamp（秒）为阶段生效时刻，缺省为当前时刻."""
         msg = TaskStatus()
-        msg.stamp = self.skills.get_clock().now().to_msg()
+        if stamp is None:
+            msg.stamp = self.skills.get_clock().now().to_msg()
+        else:
+            ns = int(round(stamp * 1e9))
+            msg.stamp.sec, msg.stamp.nanosec = ns // 1000000000, ns % 1000000000
         msg.station, msg.phase, msg.detail = int(station), phase, detail
         self.status_pub.publish(msg)
 

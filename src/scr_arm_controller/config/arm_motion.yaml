@@ -1,0 +1,30 @@
+# 切割时的机械臂运动参数（技能服务器 task_skills 的节点参数 arm_motion.*）
+#   ros2 launch scr_bringup sim_nav.launch.py arm_motion_params:=<本文件的副本>
+# 每次执行 CutStation 时读取，运行中可用 ros2 param set /task_skills arm_motion.<名称> <值> 修改。
+# 轨迹生成见 scr_arm_controller/arm_trajectory.py，取值依据与对比见
+# docs/experiments/arm_trajectory/README.md
+/**:
+  ros__parameters:
+    arm_motion:
+      # continuous：整站机械臂点作为一条连续轨迹，按下列限值做时间参数化（默认）；
+      # point_to_point：逐点执行，每点固定为规划文件中的 motion.duration（对比基线）
+      mode: continuous
+      # 工艺参数：刀尖沿槽线的进给与下刀切入速度。仿真为空切、没有切削力，这两个值不由
+      # 仿真给出，应按刀具与墙体材料设定
+      feed_rate: 0.05             # m/s
+      plunge_rate: 0.05           # m/s
+      feed_accel: 0.5             # m/s²，切割 / 下刀段的加速度
+      # 刀具不接触墙体时（退刀、站内换位、转刀）各轴的限值
+      rapid_speed: 0.25           # m/s，直线轴（升降 / 沿墙 / 伸缩）
+      rapid_accel: 1.0            # m/s²
+      # 沿墙轴（joint2）的加速度上限；0 = 与 rapid_accel 相同（横切时取它与 feed_accel 中
+      # 较小者）。该轴加减速的反作用力使底盘偏航，是机械臂运动对底盘的主要扰动
+      rapid_accel_lateral: 0.0    # m/s²
+      rot_speed: 2.5              # rad/s，刀片转向
+      rot_accel: 12.0             # rad/s²
+      # 加速度从 0 升到上限的时间（加加速度 = 加速度 / jerk_time）；0 = 梯形速度曲线
+      jerk_time: 0.05             # s
+      # 下刀到位后、开始进给前的等待：让换位引起的底盘偏航衰减后再开始切割
+      dwell: 0.2                  # s
+      # 轨迹起始时刻相对最新控制器状态时间戳的提前量；须大于 /clock 的发布周期（0.1 s）
+      start_lead: 0.15            # s
