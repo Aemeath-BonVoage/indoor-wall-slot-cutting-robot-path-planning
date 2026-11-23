@@ -56,6 +56,34 @@ ros2 run scr_planner wall_slot_planner_node.py --ros-args \
 
 `execute_slot_plan.py` 不含执行逻辑：执行由 `scr_task` 的行为树完成，记录器发送规划文件，订阅 Gazebo 真值、技能服务器的阶段话题 `/task_skills/status` 与墙面状态估计 `/task_skills/wall_estimate`，把刀尖轨迹、到站误差、底盘漂移与规划槽线比较。`summary.yaml` 与 `stations.csv` 的字段与早期版本相同，另增每站恢复次数 `recoveries`、是否按行程重新对位 `realigned`、到站时的无标记行程 `since_fix_m`、本站接受过更新的标记 `tags_used` / `tag_updates`，以及 `summary.yaml` 中的 `realignments`、`final_lateral_scale`、`final_sigma_scale`。`ekf_trace.csv` 逐周期记录估计（`d, u, ψ`、σ、横移比例、画面中的标记）与同一时刻的真值（以参考标记为原点，参考标记的 map 坐标由 `--marker-x/--marker-y` 给出）。`--realign-distance=<m>` 填写目标的按行程重新对位阈值（不给出时用执行器参数，负值关闭）。
 
+## 无合规方案时的替代方案与房间级规划
+
+多条槽互相挡住、联合规划找不到合规方案时，`plan_alternatives.py` 不放松开槽规范，而是改任务本身，按对施工的改动从小到大给出替代方案，并附代价（折算的人工分钟，单价为假设）：
+
+| 级别 | 做法 | 对施工的改变 |
+|---|---|---|
+| `refeed` | 新点位改从同墙另一个同类已有点位引线，或两条槽互换起点 | 接线拓扑；墙外不增加材料 |
+| `floor` / `ceiling` | 这条槽两端各开竖槽到地面（顶棚），线管在垫层（吊顶）内连通 | 墙外线管长度；高度带以外的竖槽人工开 |
+| `relocate` | 新点位沿墙平移不超过 20 cm | 线盒位置 |
+
+```python
+import plan_alternatives as pa
+plan, alt, alts = pa.plan_with_fallback(scene, wall, robot, planner)   # 原任务可行时 alt.changes 为空
+pa.diagnose(scene, robot, planner)      # 无解原因：最小冲突集、放松哪条规则才可行
+pa.check(alt, scene, robot)             # 独立合规检查（应全为 0）
+```
+
+`room_plan.py` 把规划扩展到一个房间：每面墙的方案（无解时取替代方案）、墙的访问顺序、每面墙的扫掠方向与入口标记、墙间转场时间（Nav2 实测拟合 + 首次精对位），以及跨墙角回路（墙角过线或走地，线管保持连续）。顺序问题是每簇两个节点的广义旅行商问题，用子集动态规划精确求解。
+
+```bash
+# 房间任务 → room_plan.yaml（顺序、方向、转场、各基线的总时间）+ 每面墙的 wall_<name>.yaml
+python3 src/scr_planner/scripts/plan_room.py src/scr_planner/config/room_task_room3.yaml /tmp/room3
+# 随机房间任务（room_gen.residential_room）
+python3 src/scr_planner/scripts/plan_room.py --generate=7 /tmp/room7.yaml
+```
+
+`wall_<name>.yaml` 与 `plan_wall_slots.py` 的输出格式相同，执行器可逐面墙执行；其中 `marker_u` 为该墙的入口标记，执行前需把任务执行器的 `marker_x / marker_y` 设为它在 map 中的位置。房间任务文件的格式见 `config/room_task_room3.yaml`。方法、400 面墙基准中无解墙面的诊断与 200 个随机房间的对比见 [房间级规划报告](../../docs/experiments/room_planning/README.md)；相关脚本为 `infeasible_walls_benchmark.py`、`room_planning_benchmark.py`、`room_planning_report.py`。
+
 ## 时间模型
 
 每站耗时 = `t_settle` + 横移距离 / `v_strafe` + 点数 × `t_point` + 切割长度 / `v_feed`（`slot_plan.TimeModel`）。机械臂逐点执行的预设中 `v_feed` 为无穷大，切割耗时已含在 `t_point` 内。标定结果保存为命名预设 `slot_plan.TIME_MODELS`，用 `TimeModel.preset(name)` 取用：
@@ -92,6 +120,8 @@ colcon test --packages-select scr_planner && colcon test-result --verbose
 ```
 
 - `test/test_oriented_astar.cpp`（gtest）：基本行为、各项规范约束，以及在 400 张随机栅格、随机规则组合上与独立实现的逐格 Dijkstra 比较最优值；
+- `test/test_task_plan.py`（pytest）：墙面生成器、联合规划不劣于规则路线且不低于下界、Lee 布线对照；
+- `test/test_room_plan.py`（pytest）：替代方案的合规性与排序、走地竖槽的长度、地面最短路、子集动态规划与全枚举一致、房间生成可复现、跨墙角回路的连续性、room3 房间任务的规划文件可被执行器解析；
 - `test/test_slot_plan.py`（pytest）：停靠站覆盖、动态规划划分不劣于贪心、扫掠顺序与暴力枚举一致、单轴切割、规划文件读写、规划文件的解析与补偿公式（`scr_arm_controller/slot_execution.py`）、时间模型预设。
 
-实验报告：[开槽规划算法与施工规范](../../docs/experiments/cpp_planner/README.md)、[多站执行与停靠站顺序优化](../../docs/experiments/slot_execution/README.md)。
+实验报告：[开槽规划算法与施工规范](../../docs/experiments/cpp_planner/README.md)、[多站执行与停靠站顺序优化](../../docs/experiments/slot_execution/README.md)、[任务级联合规划](../../docs/experiments/task_planning/README.md)、[房间级规划与无解墙面的替代方案](../../docs/experiments/room_planning/README.md)。
