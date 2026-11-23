@@ -16,6 +16,11 @@
   wheel        控制器直接发布 /odom 与 TF（只用轮式里程计）
 
 真值始终发布在 /ground_truth/odom（gazebo_ros_p3d）与 /gazebo/model_states，只用于评估。
+
+切割力（cutting_force，默认 false）：为 true 时在模型中加入 libscr_cutting_force.so，按切割力
+模型在刀具上施加力旋量（见 src/scr_cutting_force.cpp）；cutting_force_params 以
+"键=值;键=值" 的形式给出插件参数（例如 "specific_energy=1.5e9;apply_to=base"）。
+base_max_accel / base_max_ang_accel 非空时改写 ros2_control 底盘（force）的驱动力 / 力矩上限。
 """
 import math
 import os
@@ -80,6 +85,36 @@ def configure_base(urdf, plant, odom_error, seed):
     return urdf
 
 
+def set_base_limits(urdf, max_accel, max_ang_accel):
+    """ros2_control 底盘（force）的驱动力 / 力矩上限：M·max_accel、I_z·max_ang_accel."""
+    extra = ''.join(f'\n      <param name="{k}">{float(v)}</param>'
+                    for k, v in (('max_accel', max_accel), ('max_ang_accel', max_ang_accel))
+                    if v != '')
+    if not extra:
+        return urdf
+    out, n = re.subn(r'(<param name="plant">[^<]*</param>)', r'\g<1>' + extra, urdf)
+    if n != 1:
+        raise RuntimeError('URDF 中找不到 ros2_control 底盘的硬件参数块')
+    return out
+
+
+def add_cutting_force(urdf, params):
+    """在模型末尾加入切割力插件；params 为 "键=值;键=值"（值中可含空格，如向量）."""
+    elems = ['<enabled>true</enabled>']
+    for item in filter(None, (p.strip() for p in params.split(';'))):
+        key, sep, value = item.partition('=')
+        if not sep or not re.fullmatch(r'[a-z_]+', key.strip()):
+            raise RuntimeError(f'无效的切割力插件参数：{item}')
+        elems.append(f'<{key.strip()}>{value.strip()}</{key.strip()}>')
+    block = ('  <gazebo>\n    <plugin name="scr_cutting_force" '
+             'filename="libscr_cutting_force.so">\n      ' + '\n      '.join(elems) +
+             '\n    </plugin>\n  </gazebo>\n')
+    out, n = re.subn(r'</robot>\s*$', block + '</robot>\n', urdf)
+    if n != 1:
+        raise RuntimeError('URDF 末尾找不到 </robot>')
+    return out
+
+
 def launch_robot(context, robot_description):
     def arg(name):
         return context.perform_substitution(LaunchConfiguration(name))
@@ -95,6 +130,9 @@ def launch_robot(context, robot_description):
     urdf = select_base_control(robot_description, base)
     if base == 'ros2_control':
         urdf = configure_base(urdf, plant, odom_error, int(arg('odom_seed')))
+        urdf = set_base_limits(urdf, arg('base_max_accel'), arg('base_max_ang_accel'))
+    if arg('cutting_force').lower() in ('1', 'true', 'yes'):
+        urdf = add_cutting_force(urdf, arg('cutting_force_params'))
     actions = [launch_ros.actions.Node(
         package='robot_state_publisher', executable='robot_state_publisher',
         parameters=[{'robot_description': urdf}])]
@@ -182,6 +220,16 @@ def generate_launch_description():
                               description='Seed of the encoder slip process'),
         DeclareLaunchArgument('localization', default_value='ekf',
                               description='ekf (wheel odometry + IMU) | wheel'),
+        DeclareLaunchArgument('cutting_force', default_value='false',
+                              description='Load the cutting-force plugin (scr_cutting_force)'),
+        DeclareLaunchArgument('cutting_force_params', default_value='',
+                              description='Plugin parameters as "key=value;key=value"'),
+        DeclareLaunchArgument('base_max_accel', default_value='',
+                              description='Drive force limit of the force plant as an '
+                                          'acceleration (m/s^2); empty = plugin default 5'),
+        DeclareLaunchArgument('base_max_ang_accel', default_value='',
+                              description='Drive torque limit of the force plant as an angular '
+                                          'acceleration (rad/s^2); empty = plugin default 10'),
     ]
 
     gzserver = ExecuteProcess(

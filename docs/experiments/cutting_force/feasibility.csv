@@ -1,0 +1,7 @@
+material,orientation,feed_power_limit_mm_s,mu_required_at_limit,min_wheel_load_ratio_at_limit
+aerated_block,horizontal,98.79,0.492,0.374
+aerated_block,vertical,98.79,0.144,0.966
+brick,horizontal,15.56,0.492,0.374
+brick,vertical,15.56,0.144,0.966
+concrete,horizontal,2.67,0.492,0.374
+concrete,vertical,2.67,0.144,0.966

@@ -13,12 +13,21 @@ find_package(rclcpp REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(tf2_ros REQUIRED)
+find_package(std_msgs REQUIRED)
+
+include_directories(include)
 
 # 基于力的平面运动插件（替代 gazebo_ros_planar_move，见 src/scr_planar_move.cpp）
 add_library(scr_planar_move SHARED src/scr_planar_move.cpp)
 ament_target_dependencies(scr_planar_move
   gazebo_dev gazebo_ros rclcpp geometry_msgs nav_msgs tf2_ros)
-install(TARGETS scr_planar_move LIBRARY DESTINATION lib)
+
+# 切割力插件（默认不加载，见 src/scr_cutting_force.cpp 与 launch 参数 cutting_force）
+add_library(scr_cutting_force SHARED src/scr_cutting_force.cpp)
+ament_target_dependencies(scr_cutting_force
+  gazebo_dev gazebo_ros rclcpp geometry_msgs std_msgs)
+install(TARGETS scr_planar_move scr_cutting_force LIBRARY DESTINATION lib)
+install(DIRECTORY include/ DESTINATION include)
 
 # Install directories
 install(
@@ -35,4 +44,10 @@ install(
   DESTINATION lib/${PROJECT_NAME}
 )
 
+if(BUILD_TESTING)
+  find_package(ament_cmake_gtest REQUIRED)
+  ament_add_gtest(test_cutting_force_model test/test_cutting_force_model.cpp)
+endif()
+
+ament_export_include_directories(include)
 ament_package()

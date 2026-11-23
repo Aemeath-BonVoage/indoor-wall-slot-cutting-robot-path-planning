@@ -1,0 +1,6 @@
+controller,gains,max_pole_modulus,crossover_rad_s,phase_margin_deg,gain_margin,delay_margin_ms,sensitivity_peak,tip_compliance_lowfreq_mm_per_N,tip_compliance_peak_mm_per_N,step_peak_tip_mm_per_Nm,step_settle_s
+P,kp=6,0.857,5.76,64.0,6.09,194.0,1.4,4.6672,4.667,6.893,
+PI,kp=6.67 ki=14.81,0.932,6.77,41.9,4.68,108.0,1.68,0.0189,5.549,5.502,1.4
+PID,kp=9.60 ki=25.60 kd=0.20,0.916,9.37,43.4,3.63,81.0,1.7,0.0109,3.763,3.927,1.14
+DOB,kp=6 omega_o=40,0.83,12.89,41.6,2.78,56.0,1.75,0.0048,2.77,2.67,0.56
+LQG,kp=5.69 kd=0.26 sigma_d/sigma_y=2,0.881,7.15,36.1,2.81,88.0,1.96,0.0151,5.974,5.554,0.82

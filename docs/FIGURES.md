@@ -236,6 +236,70 @@
 - 说明：横轴为时间，纵轴为 EKF 沿墙位置估计减去真值（种子 1）。
 - 要点：基线每次横移后阶跃增大；多标记或比例修正时到站后保持在 ±2 mm 以内，横移中的尖峰来自运动中测量与里程计的时间对齐误差。
 
+### 3.7 切割力模型
+
+<a href="experiments/cutting_force/fig_force_model.png"><img src="experiments/cutting_force/fig_force_model.png" width="640" alt="切割力模型"></a>
+
+- 报告：[切割力扰动与抗扰定点保持](experiments/cutting_force/README.md#2-切割力模型) · [PDF](experiments/cutting_force/fig_force_model.pdf)
+- 说明：(a) 切深 35 mm 时刀片受力随进给速度的变化，粗线为法向力、细线为切向力，三种材料，方块为主轴输出功率 820 W 对应的进给上限；(b) 烧结砖上切横槽时底盘受到的横向力、推离墙面的力与偏航力矩，黑点线为仿真底盘默认的偏航力矩上限；(c) 一刀（先下刀、后进给）的时间历程，含材料不均匀性，黑点线为名义偏航力矩。
+- 要点：刀片线速度 73 m/s，820 W 只对应约 11 N 的切向力，作用在机器人上的主要是几十牛的法向力；横槽的进给反力在刀具处产生偏航力矩，烧结砖 5 mm/s 时约 10 N·m。模型数值多数为假设，见报告中的出处表。
+
+### 3.8 平台可行性：所需摩擦与倾覆裕度
+
+<a href="experiments/cutting_force/fig_feasibility.png"><img src="experiments/cutting_force/fig_feasibility.png" width="560" alt="平台可行性"></a>
+
+- 报告：[切割力扰动与抗扰定点保持](experiments/cutting_force/README.md#3-平台可行性) · [PDF](experiments/cutting_force/fig_feasibility.pdf)
+- 说明：横轴为进给速度，曲线画到主轴功率上限为止。(a) 抱死四个麦克纳姆轮撑住切削力所需的摩擦系数，粗线为横槽（刀具在最高处）、细线为竖槽，灰带为假设的轮地摩擦系数范围；(b) 最小轮压与静态平均轮压之比，降到 0 即倾覆。
+- 要点：竖槽在满功率下只需 μ ≈ 0.14；横槽在满功率下需 μ ≈ 0.49、最小轮压只剩 37 %，现有 30.5 kg 的平台需要限制进给或增加支撑。
+
+### 3.9 定点保持控制律：频率响应
+
+<a href="experiments/cutting_force/fig_frequency.png"><img src="experiments/cutting_force/fig_frequency.png" width="560" alt="频率响应"></a>
+
+- 报告：[切割力扰动与抗扰定点保持](experiments/cutting_force/README.md#55-离散闭环极点裕度与柔度) · [PDF](experiments/cutting_force/fig_frequency.pdf)
+- 说明：偏航轴离散闭环（50 Hz，一拍延迟）。(a) 横向切削力到刀尖沿墙偏移的动态柔度；(b) 灵敏度函数，峰值越高鲁棒性越差。朱红虚线为现有的比例保持，蓝实线为扰动观测器。
+- 要点：比例保持在低频有 4.7 mm/N 的静态柔度；带积分作用的控制律把低频柔度降为零，但 5–20 rad/s 附近的峰值仍有 2.8–5.5 mm/N。
+
+### 3.10 定点保持控制律：设计折中与鲁棒性
+
+<a href="experiments/cutting_force/fig_robustness.png"><img src="experiments/cutting_force/fig_robustness.png" width="640" alt="设计折中与鲁棒性"></a>
+
+- 报告：[切割力扰动与抗扰定点保持](experiments/cutting_force/README.md#55-离散闭环极点裕度与柔度) · [PDF](experiments/cutting_force/fig_robustness.pdf)
+- 说明：(a) 各控制律沿整定参数扫描得到的“灵敏度峰值 – 1 N·m 阶跃力矩下的刀尖峰值”曲线，越靠左下越好；(b) 真实速度环增益偏离标称值时的最大闭环极点模；(c) 同一整定规则下刀尖峰值随速度环增益与控制周期的变化，黑点线为“10 N·m 阶跃下 1 mm”所需的水平。
+- 要点：相近的鲁棒性下扰动观测器的瞬态峰值最小；速度环增益在 0.25–4 倍内各控制律都稳定。50 Hz 外环加 20 /s 的速度环最好也有 2.7 mm/(N·m)，瓶颈是速度环增益而不是控制律。
+
+### 3.11 切入方式与时间响应（离线仿真）
+
+<a href="experiments/cutting_force/fig_step_response.png"><img src="experiments/cutting_force/fig_step_response.png" width="640" alt="时间响应"></a>
+
+- 报告：[切割力扰动与抗扰定点保持](experiments/cutting_force/README.md#62-力控底盘里程计反馈) · [PDF](experiments/cutting_force/fig_step_response.pdf)
+- 说明：烧结砖、横槽、进给 5 mm/s。(a) 阶跃切入与 (b) 切削力在 4 s 内线性增加时的刀尖偏移（对数刻度，黑点线为 1 mm）；(c) 阶跃切入时的偏航角速度指令。
+- 要点：比例保持停在约 75 mm 不恢复；扰动观测器在阶跃切入下峰值 32 mm、0.56 s 恢复，斜坡切入下 1.9 mm，加 70 % 的前馈后 0.6 mm。各控制律的稳态指令相同，差别只在建立的快慢。
+
+### 3.12 各工况的刀尖偏移（离线仿真）
+
+<a href="experiments/cutting_force/fig_cases.png"><img src="experiments/cutting_force/fig_cases.png" width="640" alt="各工况的刀尖偏移"></a>
+
+- 报告：[切割力扰动与抗扰定点保持](experiments/cutting_force/README.md#62-力控底盘里程计反馈) · [PDF](experiments/cutting_force/fig_cases.pdf)
+- 说明：斜坡切入加材料不均匀性，刀尖偏移峰值（均值 ± 标准差，n = 8，对数刻度）。横轴为进给速度，(a) 横槽，(b) 竖槽；六种控制律，黑点线为 1 mm。
+- 要点：横槽 2 mm/s 时比例保持 48 mm，扰动观测器 1.2 mm，加前馈 0.5 mm；竖槽的扰动小一个量级，扰动观测器在 10 mm/s 下仍为 0.5 mm。
+
+### 3.13 限幅与抗积分饱和（离线仿真）
+
+<a href="experiments/cutting_force/fig_saturation.png"><img src="experiments/cutting_force/fig_saturation.png" width="560" alt="限幅"></a>
+
+- 报告：[切割力扰动与抗扰定点保持](experiments/cutting_force/README.md#62-力控底盘里程计反馈) · [PDF](experiments/cutting_force/fig_saturation.pdf)
+- 说明：8.6 N·m 的偏航力矩对 9.2 N·m 的上限，阶跃切入 6 s 后退刀。(a) 刀尖偏移（对数刻度）；(b) 偏航角速度指令，黑点线为限幅。
+- 要点：无抗饱和的 PI 退刀后反冲近 0.4 m，反算式抗饱和降到 50 mm；扰动观测器用限幅后的指令推进估计，退刀后 0.54 s 回到 1 mm 以内。外力超过限幅时任何控制律都无效。
+
+### 3.14 里程计看不到打滑时（离线仿真）
+
+<a href="experiments/cutting_force/fig_slip.png"><img src="experiments/cutting_force/fig_slip.png" width="640" alt="里程计看不到打滑"></a>
+
+- 报告：[切割力扰动与抗扰定点保持](experiments/cutting_force/README.md#63-里程计看不到打滑时) · [PDF](experiments/cutting_force/fig_slip.pdf)
+- 说明：轮地接触底盘上的横槽切割（烧结砖，5 mm/s）。(a) 底盘真实朝向偏差；(b) 刀尖沿墙偏移；(c) 真实朝向与里程计报告的朝向。七种反馈方式：里程计、现有墙面 EKF、卡尔曼形式的扰动观测器，依次加入定位标记与陀螺。
+- 要点：只用里程计时底盘真实转过几度而里程计读数为零，任何控制律都不动作；激光能保持朝向与离墙距离，沿墙位置只有定位标记能看到；加入陀螺后刀尖偏移峰值约 2 mm（均方根 0.8 mm）。
+
 ## 四、系统
 
 ### 4.1 软件架构
@@ -308,6 +372,7 @@
 | along-wall error on arrival / arrival error | 到站沿墙误差 / 到站误差 |
 | along-wall estimate | 沿墙位置估计 |
 | AMCL (map frame) | AMCL 定位（map 系） |
+| anti-windup / back-calculation | 抗积分饱和 / 反算式 |
 | AprilTag + LiDAR EKF | AprilTag + 激光 EKF（本版精对位） |
 | arm points | 机械臂点（每个切割点一次机械臂动作） |
 | arm reach band | 机械臂可达（可切）高度带 |
@@ -316,6 +381,7 @@
 | bay window / beam / column / door / pier / window | 飘窗 / 梁 / 柱 / 门 / 窄墙垛 / 窗 |
 | behaviour tree | 行为树 |
 | bend hits obstacle | 弯管碰到障碍 |
+| blade forces (normal / tangential) | 刀片受力（法向 / 切向） |
 | blocked (obstacle + margin) | 不可开槽区（障碍 + 规范边距） |
 | calibration data / validation data | 标定数据 / 验证数据 |
 | camera yaw | 相机偏航（安装偏角） |
@@ -323,6 +389,7 @@
 | colour blob | 色块（第一版定位标记） |
 | compliant / violates | 合规 / 违反 |
 | conduit centre line | 线管中心线 |
+| control effort | 控制量 |
 | convergence test | 收敛判据 |
 | cool light / strong light | 冷白光 / 强白光 |
 | corner pixel noise | 角点像素噪声 |
@@ -332,13 +399,17 @@
 | diagonal slot / diagonal share | 斜槽 / 斜向移动比例 |
 | distance from wall / stand-off | 离墙距离 |
 | distance travelled | 行驶距离 |
+| DOB (disturbance observer) | 扰动观测器 |
 | DP partition | 动态规划（DP）划分 |
 | EKF (wheel + gyro) | EKF（轮式里程计 + 陀螺） |
 | encoder errors | 编码器误差模型 |
+| engagement / step engagement | 切入 / 阶跃切入 |
 | enhanced / improved / standard A\* | 增强 / 改进 / 标准 A\* |
 | execution order | 执行顺序 |
 | expanded nodes | 扩展节点数 |
 | feasibility | 可行性 |
+| feed rate | 进给速度 |
+| feedforward | 前馈 |
 | final position error / final yaw (heading) error | 最终位置误差 / 最终偏航（朝向）误差 |
 | fine alignment | 精对位 |
 | first-version planner | 第一版规划器（Python 原型） |
@@ -349,8 +420,11 @@
 | gap to lower bound | 与下界的差距 |
 | goal / start | 目标点 / 起点 |
 | ground truth | 真值 |
+| gyro | 陀螺 |
+| heading | 朝向 |
 | heading drift / position drift | 航向漂移 / 位置漂移 |
 | held-out | 样本外（未参与标定） |
+| horizontal cut / vertical cut | 横槽 / 竖槽 |
 | horizontal run > 50 cm | 横槽超过 50 cm |
 | horizontal slot on load-bearing wall | 承重墙上开横槽 |
 | hold (station hold) | 定点保持 |
@@ -360,6 +434,7 @@
 | jerk RMS | 加加速度均方根 |
 | joint planning | 联合规划 |
 | junction box / switch / outlet | 接线盒 / 开关 / 插座 |
+| lateral force / push-back force | 横向力 / 推离墙面的力 |
 | load-bearing wall / partition wall | 承重墙 / 非承重墙 |
 | lower bound | 下界 |
 | marker / reference marker | 定位标记 / 参考标记 |
@@ -381,11 +456,13 @@
 | per-slot partition | 逐槽划分 |
 | planned slot | 规划槽线 |
 | planning time | 规划耗时 |
+| plunge / feed | 下刀 / 进给 |
 | power panel | 配电箱 |
 | predicted / measured | 预测 / 实测 |
 | range noise | 激光测距噪声 |
 | re-alignment | 重新对位 |
 | recovery | 恢复（重试） |
+| required friction coefficient | 所需摩擦系数 |
 | residual compensation | 残差补偿 |
 | right-angle turns | 直角转弯 |
 | RMS / RMSE | 均方根 / 均方根误差 |
@@ -394,6 +471,7 @@
 | saturated law | 饱和控制律 |
 | saving | 节省 |
 | scene | 场景（一面随机墙及其任务） |
+| sensitivity / sensitivity peak | 灵敏度函数 / 灵敏度峰值 |
 | sensor noise | 传感器噪声 |
 | simulation time | 仿真时间 |
 | single-frame std. dev. | 单帧测量标准差 |
@@ -412,15 +490,24 @@
 | taught at goal / taught zero offset | 在期望位姿示教 / 示教零位 |
 | time model (align_v1 / v2 / v3) | 时间模型（三个标定预设） |
 | time per station | 每站耗时 |
+| tipping margin | 倾覆裕度 |
 | tool tip | 刀尖 |
 | tool-tip along-wall error | 刀尖沿墙误差 |
+| tool-tip compliance | 刀尖柔度（单位切削力引起的刀尖偏移） |
+| tool-tip deviation | 刀尖偏移 |
 | tool-tip path error | 刀尖轨迹误差 |
 | top view | 俯视图 |
 | turn / turn penalty | 转弯 / 转向惩罚 |
 | v1 (colour blob + PBVS) | 第一版精对位（色块 + PBVS） |
 | v2 (AprilTag + LiDAR EKF) | 本版精对位（AprilTag + 激光 EKF） |
+| velocity-loop gain | 速度环增益 |
+| wall EKF | 墙面相对 EKF |
 | wall entry point / target box | 入墙点 / 目标线盒 |
+| wheel load | 轮压 |
 | wheel odometry | 轮式里程计 |
+| wind-up | 积分累积（饱和） |
+| wrench | 力旋量（力与力矩） |
+| yaw moment / yaw-rate command | 偏航力矩 / 偏航角速度指令 |
 | z-plane | z 平面 |
 
 ## 图的生成
@@ -438,6 +525,7 @@
 | 2.6–2.7 | `python3 src/scr_planner/scripts/task_planning_report.py <data> <out> --time-model=<预设>`（见 [复现](experiments/task_planning/README.md#复现)） |
 | 3.2 | `python3 src/scr_planner/scripts/plot_station_order.py <基线运行> <优化运行> <results.csv> <out.png>` |
 | 3.3–3.6 | `python3 docs/experiments/along_wall_accuracy/make_report.py` |
+| 3.7–3.14 | `python3 docs/experiments/cutting_force/analysis.py` |
 | 4.1、5.3 | `python3 docs/report/make_figures.py` |
 | 4.2–4.4 | `python3 docs/experiments/system_modernization/make_report.py` |
 | 5.1–5.2 | `python3 docs/experiments/plan_validation/make_report.py` |
