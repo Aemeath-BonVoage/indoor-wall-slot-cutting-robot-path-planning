@@ -138,9 +138,9 @@ ros2 launch scr_bringup sim_nav.launch.py base_control:=plugin  # 早期配置�
 
 编码器的横移打滑（3 %）使里程计横移距离偏大。默认的精对位参数用墙上的多标记地图和 EKF 中在线估计的横移比例补偿这一项，11 站开槽的最大沿墙误差为 1.5 mm（只用一个标记、站间只靠里程计时为 24.7 mm），见 [6.4](#64-定位标记地图与横移比例估计)。
 
-### 2.5 切割力与抗扰定点保持（实验，默认关闭）
+### 2.5 切割力与定点保持的控制律
 
-仿真中的切割默认是空切，不施加切割力。切割力插件与定点保持的其他控制律默认关闭，模型、离线分析与 Gazebo 中的验证见 [报告](experiments/cutting_force/README.md)。
+仿真中的切割默认是空切，不施加切割力，切割力插件默认关闭；模型、离线分析与 Gazebo 中的验证见 [报告](experiments/cutting_force/README.md)。
 
 | 启动参数 | 默认 | 说明 |
 |---|---|---|
@@ -150,7 +150,7 @@ ros2 launch scr_bringup sim_nav.launch.py base_control:=plugin  # 早期配置�
 
 插件的话题：`cutting_force/engagement`（切深，`std_msgs/Float64`，执行器按轨迹时间表发布）、`cutting_force/expected_wrench`（执行器按名义模型预计的力旋量，用作前馈）、`cutting_force/test_wrench`（直接给定外力，用于阶跃试验）、`cutting_force/wrench`（实际施加的力旋量）。
 
-定点保持的控制律由 `base_hold` 节点的参数 `hold.mode` 选择：`p`（默认，现有的比例保持）、`pi`、`pid`、`dob`（扰动观测器）、`lqg`；另有 `hold.max_lin`、`hold.max_ang`、`hold.observer_bandwidth`、`hold.delay_steps`、`hold.feedforward_topic`、`hold.feedforward_gain`。
+定点保持的控制律由 `base_hold` 节点的参数 `hold.mode` 选择：`dob`（默认，扰动观测器）、`p`（比例保持）、`pi`、`pid`、`lqg`。除 `p` 外的控制律按 50 Hz 的里程计设计，里程计的实际周期偏离一半以上时（例如 10 Hz 的 `/odom`）自动退回比例控制并在日志中报错，周期恢复后切回；另有 `hold.max_lin`、`hold.max_ang`、`hold.observer_bandwidth`、`hold.delay_steps`、`hold.feedforward_topic`、`hold.feedforward_gain`。
 
 带切割力执行多站任务时用 [`arm_motion_cutting.yaml`](../src/scr_arm_controller/config/arm_motion_cutting.yaml)：进给由切割力模型给出上限（烧结砖 5.5 mm/s），定点保持为扰动观测器 + 前馈，并放宽保持限幅。比例保持在带力切割下会被推开数厘米，不要与 `cutting_force:=true` 一起使用。
 
@@ -356,7 +356,7 @@ ros2 launch scr_bringup sim_nav.launch.py gui:=false alignment_params:=/tmp/fine
 ros2 run scr_arm_controller navigation_cutting_task task_at_target.yaml
 ```
 
-`teach_alignment_offset` 与 `alignment_benchmark` 可以用 `--ros-args -p <参数>:=<值>` 传节点参数。它们默认使用 `/odom`，而仿真中融合里程计只有约 10 Hz：独立运行这两个工具时加 `--ros-args -p odom_topic:=/wheel/odom`，否则精对位可能得不到测量；`hold.mode` 为 `dob` 时在 10 Hz 的里程计上还会出现厘米级的摆动（[执行层排查](experiments/execution_issues/README.md) 6.4 节）。
+`teach_alignment_offset` 与 `alignment_benchmark` 可以用 `--ros-args -p <参数>:=<值>` 传节点参数。它们默认使用 `/odom`，而仿真中融合里程计只有约 10 Hz：独立运行这两个工具时加 `--ros-args -p odom_topic:=/wheel/odom`，否则精对位可能得不到测量，定点保持也会因里程计周期不符退回比例控制（[执行层排查](experiments/execution_issues/README.md) 6.4、6.6 节）。
 
 | 参数 | 默认 | 说明 |
 |---|---|---|
@@ -370,8 +370,9 @@ ros2 run scr_arm_controller navigation_cutting_task task_at_target.yaml
 | `alignment.observe_between_stations` | `true` | 横移前机械臂回到观测位姿（滑台 −0.15 m、伸缩轴缩回），使墙上的标记处在画面内；只在 `strafe_tag_updates` 时生效，每站约多 2 s |
 | `alignment.estimate_scale` | `true` | 把里程计横移比例修正 `s`（真实横移 = (1 + s) × 里程计横移）作为 EKF 的第四个状态在线估计 |
 | `alignment.scale_init / scale_sigma` | 0.0 / 0.05 | `s` 的先验均值与标准差；有离线标定值时可填入 `scale_init` |
-| `alignment.estimate_tag_map` | `false` | 把非参考标记的沿墙位置作为 EKF 状态在线估计（[报告](experiments/tag_map_estimation/README.md)，已在 Gazebo 中验证）。必须与 `estimate_scale` 同时打开：两个标记不同框且不估计比例时，地图会吸收里程计的比例误差 |
-| `alignment.tag_map_prior_sigma` / `tag_map_floor` | 0.0 / 0.0 | 标记位置先验的标准差（0 = 取地图文件中的位置误差）；导出协方差的下限，建议 0.0005 m |
+| `alignment.estimate_tag_map` | `true` | 把非参考标记的沿墙位置作为 EKF 状态在线估计，地图文件中的位置只作先验（[报告](experiments/tag_map_estimation/README.md)）。只在 `estimate_scale` 同时开启时生效，否则报错并按已知地图处理；`false` = 地图位置视为已知常数 |
+| `alignment.tag_map_prior_sigma` / `tag_map_floor` | 0.0 / 0.0005 | 标记位置先验的标准差（0 = 取地图文件中的位置误差）；导出协方差的下限（米） |
+| `alignment.tag_map_without_scale` | `false` | 不估计横移比例时也估计地图（对照实验用：标记不同框时地图会吸收里程计的比例误差） |
 | `alignment.tag_map_output` | 空 | 估计出的地图（含协方差）的保存路径；第二遍作业时把 `tag_map` 指向它即可沿用 |
 
 早期版本中通过 `navigation_cutting_task ... --ros-args --params-file <yaml>` 或 `-p alignment.*:=` 传参；任务改由行为树执行后，这些参数需在启动任务层时传给技能服务器，对客户端设置不再生效。
@@ -716,7 +717,7 @@ colcon test --packages-select scr_planner     # 只测单个包
 | 无合规方案墙面的替代方案；房间级规划（200 个随机房间） | 否 | [room_planning](experiments/room_planning/README.md) |
 | 时间模型 `align_v3` 标定；联合规划与规则路线的 Gazebo 执行 | 标定部分否 | [plan_validation](experiments/plan_validation/README.md) |
 
-注意各报告所用的仿真配置：系统层现代化之前的实验（精对位、多站执行、时间模型）在早期配置（`base_control:=plugin`，`/odom` 为真值，NavFn + DWB）下取得，复现时按 [2.4](#24-底盘里程计与定位) 设置启动参数；沿墙精度实验之前的多站数据还要用早期的站间语义（单标记、站间只用里程计，[6.4](#64-定位标记地图与横移比例估计)）。各报告的“复现”一节给出了对应的命令。
+注意各报告所用的配置：定点保持改为扰动观测器、标记地图改为在线估计之前的报告，数据是在 `hold.mode: p`、`alignment.estimate_tag_map: false` 下测得的，复现时在技能服务器的参数文件中显式写上这两项（`along_wall_accuracy/run_experiment.py` 的各配置已固定后一项）。此外，系统层现代化之前的实验（精对位、多站执行、时间模型）在早期配置（`base_control:=plugin`，`/odom` 为真值，NavFn + DWB）下取得，复现时按 [2.4](#24-底盘里程计与定位) 设置启动参数；沿墙精度实验之前的多站数据还要用早期的站间语义（单标记、站间只用里程计，[6.4](#64-定位标记地图与横移比例估计)）。各报告的“复现”一节给出了对应的命令。
 
 第一版规划器（Python 原型）的对比脚本不需要 ROS：
 

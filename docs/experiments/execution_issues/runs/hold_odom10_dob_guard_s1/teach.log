@@ -1,0 +1,15 @@
+[INFO] [1795509154.779342655] [cartesian_cutting_controller]: 等待action服务器...
+[INFO] [1795509154.780869885] [cartesian_cutting_controller]: 已连接到action服务器
+[INFO] [1795509154.784064677] [cartesian_cutting_controller]: 笛卡尔空间工作范围（相对于base_link）:
+[INFO] [1795509154.784398034] [cartesian_cutting_controller]:   X: [0.5168, 0.5818] m
+[INFO] [1795509154.784720120] [cartesian_cutting_controller]:   Y: [-0.0601, 0.0799] m
+[INFO] [1795509154.784942804] [cartesian_cutting_controller]:   Z: [0.1568, 0.7068] m
+[INFO] [1795509154.801196440] [trajectory_visualizer]: 轨迹可视化器已初始化（Gazebo模式）
+[INFO] [1795509154.815024159] [base_hold]: 定点保持控制律：dob
+[INFO] [1795509154.840385126] [navigation_cutting_task]: 标记地图在线估计已开启：地图位置作为先验
+[INFO] [1795509154.840871171] [navigation_cutting_task]: 标记地图 install/scr_arm_controller/share/scr_arm_controller/config/tag_map.yaml：3 个标记，最大间距 0.60 m，位置误差 σ = 2.0 mm
+[INFO] [1795509154.863360431] [navigation_cutting_task]: 切割任务技能库已初始化
+[ERROR] [1795509155.193815780] [base_hold]: 里程计周期 100 ms 与定点保持的设计周期 20 ms 不符，定点保持退回比例控制
+[INFO] [1795509155.328969482] [navigation_cutting_task]: 机械臂移至接近位姿 joint1=-0.15 m, joint3=+0.020 m（缩回）
+[INFO] [1795509155.329430410] [cartesian_cutting_controller]: 发送目标: [-0.15, 0.0, 0.02, 0.0]
+[INFO] [1795509157.852828064] [cartesian_cutting_controller]: 轨迹计时: 时长 2.000 s，发送→接受 2519 ms 墙钟 / 0 ms 仿真，接受→结果 0.004 s 墙钟 / 0.000 s 仿真，额外 -2.000 s 仿真 (发送 116.800，结果 116.80[INFO] [1795509185.353024098] [navigation_cutting_task]: 零位偏置：法向 -0.018 mm、沿墙 -0.105 mm、朝向 -0.0547°（300 个样本，标准误 0.043 mm / 0.0363°）→ docs/experiments/execution_issues/runs/hold_odom10_dob_guard_s1/taught.yaml
