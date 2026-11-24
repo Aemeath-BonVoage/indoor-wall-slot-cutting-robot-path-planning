@@ -1,0 +1,20 @@
+feature,order,distance_m,points,frame_sigma_mm,frame_mean_mm,static30_sigma_mm,static30_max_mm
+corner,noise→quantize,0.5,128,2.04,-1.637,0.4577,2.667
+corner,noise→quantize,1,97.47,2.178,-0.6114,0.4534,1.99
+corner,noise→quantize,1.5,78.51,2.365,-0.2766,0.4496,1.437
+corner,noise→quantize,2,65.45,2.646,0.1113,0.4525,1.125
+corner,noise→quantize,2.5,56.01,2.722,-0.01238,0.5506,1.432
+corner,noise→quantize,3,49,3.096,-0.3007,0.5152,1.466
+corner,noise→quantize,3.6,42,3.574,-0.1289,0.6653,1.81
+corner,quantize→noise,0.5,127.9,2.02,-1.75,0.6098,3.017
+corner,quantize→noise,1,97.45,2.032,-0.7632,0.5545,2.529
+corner,quantize→noise,1.5,78.45,2.291,-0.4057,0.6383,1.545
+corner,quantize→noise,2,65.44,2.587,-0.1934,0.8119,2.305
+corner,quantize→noise,2.5,56,2.662,-0.4555,0.7901,1.942
+corner,quantize→noise,3,49,2.96,-0.4778,0.8242,2.613
+corner,quantize→noise,3.6,42,3.243,-0.7097,0.8745,2.932
+opening edge,analytic,0.3,nan,4.175,0,4.175,7.231
+opening edge,analytic,0.6,nan,6.118,0,6.118,10.6
+opening edge,analytic,1,nan,10.72,0,10.72,18.58
+opening edge,analytic,1.5,nan,19.72,0,19.72,34.16
+opening edge,analytic,2,nan,32.32,0,32.32,55.98

@@ -1,0 +1,34 @@
+run,pass_,station,err_mm,sigma_mm,psi_err_deg
+default_s1,pass 1,0,0.283783,0.57995,0.0288797
+default_s1,pass 1,1,-0.361178,0.521689,-0.0304087
+default_s1,pass 1,2,0.454391,0.514954,0.0327823
+default_s1,pass 1,3,1.43854,0.516842,0.107541
+default_s1,pass 1,4,0.643203,0.544579,0.0417311
+default_s1,pass 1,5,-0.0920306,0.572541,-0.0380382
+default_s1,pass 1,6,0.133001,0.562649,-0.0237366
+default_s1,pass 1,7,0.343612,0.543063,-0.0225408
+default_s1,pass 1,8,0.153044,0.538591,-0.0416495
+default_s1,pass 1,9,-0.281462,0.56854,-0.073818
+default_s1,pass 1,10,-0.268643,0.590066,-0.0734309
+default_s2,pass 1,0,-0.161148,0.578446,-0.0144275
+default_s2,pass 1,1,0.335869,0.520108,0.0235055
+default_s2,pass 1,2,0.27341,0.520907,0.0193161
+default_s2,pass 1,3,0.596606,0.516327,0.0439118
+default_s2,pass 1,4,0.0494936,0.538467,-0.00967146
+default_s2,pass 1,5,-0.609815,0.569421,-0.0533744
+default_s2,pass 1,6,-0.194214,0.5531,-0.0210235
+default_s2,pass 1,7,-0.994643,0.542182,-0.089178
+default_s2,pass 1,8,-0.0105217,0.543251,-0.0218508
+default_s2,pass 1,9,0.160037,0.555102,-0.0152617
+default_s2,pass 1,10,-0.701848,0.584432,-0.0621799
+default_s2,pass 2 (prior: default_s1),0,-0.161148,0.578446,-0.0144275
+default_s2,pass 2 (prior: default_s1),1,0.335869,0.520108,0.0235055
+default_s2,pass 2 (prior: default_s1),2,0.27341,0.520907,0.0193161
+default_s2,pass 2 (prior: default_s1),3,0.596606,0.516327,0.0439118
+default_s2,pass 2 (prior: default_s1),4,0.0494936,0.538467,-0.00967146
+default_s2,pass 2 (prior: default_s1),5,-0.586776,0.568205,-0.0535389
+default_s2,pass 2 (prior: default_s1),6,-0.133846,0.548544,-0.0185304
+default_s2,pass 2 (prior: default_s1),7,-0.953112,0.539574,-0.0883506
+default_s2,pass 2 (prior: default_s1),8,0.0230811,0.541411,-0.0215564
+default_s2,pass 2 (prior: default_s1),9,0.191223,0.553511,-0.0151368
+default_s2,pass 2 (prior: default_s1),10,-0.595114,0.579597,-0.0623832

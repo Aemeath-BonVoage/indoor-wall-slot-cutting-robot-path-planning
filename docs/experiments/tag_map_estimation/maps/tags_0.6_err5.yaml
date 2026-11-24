@@ -1,0 +1,11 @@
+# Gazebo 验证用标记地图：间距 0.6 m（ID 0、2、4），记录值有误差：ID 2 记为 +5 mm、ID 4 记为 −5 mm
+# （世界中的标记位置不变，等价于粘贴误差）。在线估计时这些记录值作为先验均值
+tag_map:
+  family: tag36h11
+  size: 0.1
+  reference_id: 0
+  sigma_position: 0.005
+  tags:
+  - {id: 0, u: 0.0, v: 0.7}
+  - {id: 2, u: 0.605, v: 0.7}
+  - {id: 4, u: 1.195, v: 0.7}
