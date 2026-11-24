@@ -19,10 +19,10 @@ import numpy as np
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.abspath(os.path.join(HERE, '..', '..', '..'))
 # (结果目录前缀, 图例, 配色角色)；stress = 导航期间另有 3 个忙循环进程
-CONFIGS = [('nav_default', 'Timeout 20 ms', 'baseline'),
-           ('nav_timeout', 'Timeout 1000 ms', 'proposed'),
-           ('nav_stress_default', 'Timeout 20 ms, loaded', 'alt2'),
-           ('nav_stress_timeout', 'Timeout 1000 ms, loaded', 'alt')]
+CONFIGS = [('nav_default', '20 ms', 'baseline'),
+           ('nav_timeout', '1000 ms', 'proposed'),
+           ('nav_stress_default', '20 ms, loaded', 'alt2'),
+           ('nav_stress_timeout', '1000 ms, loaded', 'alt')]
 
 
 def load_legs():
@@ -126,7 +126,7 @@ def plot(rows):
         jitter = (np.arange(len(t)) % 7 - 3) * 0.05
         ax.plot(k + jitter, t, **fs.marker(role, ms=2.5))
     ax.set_xticks([0, 1])
-    ax.set_xticklabels([f'{g[0]}\nn = {len(g[1])}' for g in groups], fontsize=6)
+    ax.set_xticklabels([f'{g[0]}\nn = {len(g[1])}' for g in groups], fontsize=7)
     ax.set_xlim(-0.5, 1.5)
     ax.set_ylabel('Navigation time, start → wall (s)')
     fs.light_grid(ax, axis='y')
@@ -150,8 +150,9 @@ def plot(rows):
     ax.set_xticks([0, 1])
     ax.set_xticklabels(['Start → wall', 'Wall → start'])
     ax.set_ylabel('Navigation time (s)')
-    ax.set_ylim(21.5, 28.5)
-    ax.legend(loc='upper right', ncol=2, fontsize=6, handletextpad=0.2, columnspacing=0.6)
+    ax.set_ylim(21.5, 29.5)
+    ax.legend(loc='upper right', ncol=2, fontsize=7, handletextpad=0.2, columnspacing=0.6,
+              title='Acknowledgement timeout', title_fontsize=7)
     fs.light_grid(ax, axis='y')
     ax.set_title('(b) This study, n = 12 legs per box')
 
@@ -175,7 +176,7 @@ def plot(rows):
     ax2.set_ylim(0, 3)
     h1, l1 = ax.get_legend_handles_labels()
     h2, l2 = ax2.get_legend_handles_labels()
-    ax.legend(h1 + h2, l1 + l2, loc='upper right', fontsize=6, markerscale=2)
+    ax.legend(h1 + h2, l1 + l2, loc='upper right', fontsize=7, markerscale=2)
     ax.set_title('(c) Stall in plan_validation joint_s1')
     fs.save(fig, os.path.join(HERE, 'fig_nav_arrival.png'))
 

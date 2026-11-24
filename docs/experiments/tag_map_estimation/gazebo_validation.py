@@ -304,7 +304,7 @@ def figures(rows, preds, hist):
     a1.set_ylim(top=2.7)
     a1.legend(fontsize='small', loc='upper center', ncol=2)
     fs.light_grid(a1, 'y')
-    fs.panel_label(a1, 'a', 'three markers, error ± exported 1σ')
+    fs.panel_label(a1, 'a', 'Three markers, error ± exported 1σ')
     for k, r in enumerate(mrows):
         for i, dx, role in ((2, -0.13, 'proposed'), (4, 0.13, 'alt')):
             if f'map_z_id{i}' in r:
@@ -318,7 +318,7 @@ def figures(rows, preds, hist):
     a2.set_xticks(range(len(mrows)))
     a2.set_xticklabels([f'{r["group"]}-s{r["seed"]}' for r in mrows], rotation=90)
     a2.set_ylabel('Normalised map error e / σ')
-    fs.panel_label(a2, 'b', 'all runs with online map')
+    fs.panel_label(a2, 'b', 'All runs with online map')
     fs.save(fig, os.path.join(HERE, 'fig_gazebo_map'))
 
 

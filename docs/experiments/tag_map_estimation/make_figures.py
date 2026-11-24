@@ -50,8 +50,8 @@ def fig_validation():
 def fig_methods():
     rows = rd('mc_summary.csv')
     fig, axes = fs.subplots(1, 2, width='double', height=2.4, sharey=True)
-    for ax, scale, title in zip(axes, (0, 1), ('without strafe-scale state',
-                                                'with strafe-scale state')):
+    for ax, scale, title in zip(axes, (0, 1), ('Without strafe-scale state',
+                                                'With strafe-scale state')):
         for k, (m, lab, role) in enumerate(METHODS):
             pts = sorted((float(r['sigma_p_mm']), float(r['run_max_mean_mm']),
                           float(r['run_max_p95_mm']))
@@ -97,7 +97,7 @@ def fig_layouts():
         ax.set_yscale('log')
         ax.set_ylim(0.5, 40)
         fs.plain_log(ax, 'y')
-        fs.panel_label(ax, 'ab'[scale], ('without', 'with')[scale] + ' strafe-scale state')
+        fs.panel_label(ax, 'ab'[scale], ('Without', 'With')[scale] + ' strafe-scale state')
     axes[0].set_ylabel(fs.label('Max. station error per run', 'mm'))
     axes[1].legend(loc='upper right', ncol=2)
     fs.save(fig, os.path.join(HERE, 'fig_mc_layouts.png'))
@@ -118,7 +118,7 @@ def fig_replay():
     for ax, tag in zip(axes, (2, 4)):
         ax.axhline(0.0, **fs.line('reference'))
         ax.set_ylabel(fs.label(f'ID {tag} map error', 'mm'))
-        fs.panel_label(ax, 'ab'[tag // 4], f'marker ID {tag} (prior {"+5" if tag == 2 else "-5"} mm)')
+        fs.panel_label(ax, 'ab'[tag // 4], f'Marker ID {tag} (prior {"+5" if tag == 2 else "−5"} mm)')
     axes[1].set_xlabel(fs.label('Time since start of alignment', 's'))
     axes[0].legend(loc='upper right')
     fs.save(fig, os.path.join(HERE, 'fig_replay.png'))
@@ -141,7 +141,7 @@ def fig_bias():
     ax.set_xlabel(fs.label(r'$d\,(\hat\psi-\psi)$ at station', 'mm'))
     ax.set_ylabel(fs.label(r'$\hat u - u$ at station', 'mm'))
     ax.legend(loc='upper left')
-    fs.panel_label(ax, 'a', 'Gazebo, 11 stations x 2 runs')
+    fs.panel_label(ax, 'a', 'Gazebo, 11 stations × 2 runs')
     ax = axes[1]
     rs = [r for r in sim if r['sweep'] == 'lateral scale error']
     x = np.array([float(r['value']) * 100 for r in rs])
@@ -155,7 +155,7 @@ def fig_bias():
     ax.set_xlabel(fs.label('Odometry over-reads strafe by', '%'))
     ax.set_ylabel(fs.label('Station bias', 'mm'))
     ax.legend(loc='upper left')
-    fs.panel_label(ax, 'b', 'simulation, no scale state')
+    fs.panel_label(ax, 'b', 'Simulation, no scale state')
     fs.save(fig, os.path.join(HERE, 'fig_bias.png'))
 
 

@@ -305,6 +305,7 @@ def fig_summary(out):
         ax.text(1.0, i, f'{np.mean(v):.1f}', ha='right', va='center', fontsize=7,
                 transform=ax.get_yaxis_transform())
     ax.set_xscale('log')
+    fs.plain_log(ax, axis='x')
     ax.set_xlim(0.5, 80)
     ax.set_yticks(range(len(cfgs)))
     ax.set_yticklabels([c[1] for c in cfgs], fontsize=7)
@@ -330,6 +331,7 @@ def fig_summary(out):
     ax.plot([], [], ls='none', marker='o', color=INK2, ms=3.6, label='peak')
     ax.plot([], [], ls='none', marker='o', color=INK2, mfc='white', ms=3.6, label='RMS')
     ax.set_yscale('log')
+    fs.plain_log(ax)
     ax.set_ylim(0.05, 200)
     ax.set_xticks(range(len(cfgs)))
     ax.set_xticklabels([c[1] for c in cfgs], fontsize=7)
@@ -341,8 +343,8 @@ def fig_summary(out):
     # (f) 规划收益随时间模型（执行方式）的变化
     ax = axs[2, 1]
     rows = load(os.path.join(EXP, 'cutting_force', 'planning_gain.csv'))
-    names = {'align_v3': 'Point to point\n(align_v3)', 'traj_v1': 'Continuous, 50 mm/s\n(traj_v1)',
-             'cut_brick_v1': 'Continuous, 5.5 mm/s\n(cut_brick_v1)'}
+    names = {'align_v3': 'Point to\npoint\n(align_v3)', 'traj_v1': 'Continuous,\n50 mm/s\n(traj_v1)',
+             'cut_brick_v1': 'Continuous,\n5.5 mm/s\n(cut_brick_v1)'}
     x = np.arange(len(rows))
     w = 0.36
     for k, (key, lab, role) in enumerate(

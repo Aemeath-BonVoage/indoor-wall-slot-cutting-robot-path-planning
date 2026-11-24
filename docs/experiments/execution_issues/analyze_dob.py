@@ -97,7 +97,7 @@ def plot(runs):
               ('arm_drift_mm_max', 'Base drift during arm motion, max (mm)'),
               ('hold_yaw_max_deg', 'Base yaw during hold, max (deg)')]
     fig, axes = fs.subplots(1, len(panels), width='double', height=2.2)
-    for ax, (k, label) in zip(axes, panels):
+    for letter, ax, (k, label) in zip('abcde', axes, panels):
         for i, (cfg, name, role, _) in enumerate(CONFIGS):
             for j, plan in enumerate(('joint', 'rule')):
                 v = [r[k] for r in runs if r['config'] == cfg and r['plan'] == plan]
@@ -109,7 +109,9 @@ def plot(runs):
         ax.set_xlim(-0.6, 1.6)
         ax.set_ylabel(label)
         fs.light_grid(ax, axis='y')
-    axes[0].legend(loc='upper left', fontsize=6)
+        fs.panel_label(ax, letter)
+    h, lab = axes[0].get_legend_handles_labels()
+    axes[4].legend(h, lab, loc='center', bbox_to_anchor=(0.5, 0.36), fontsize=7)
     fs.save(fig, os.path.join(HERE, 'fig_dob_dryrun.png'))
 
 
