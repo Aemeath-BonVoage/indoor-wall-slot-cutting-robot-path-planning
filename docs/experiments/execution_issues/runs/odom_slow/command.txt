@@ -1,0 +1,1 @@
+ros2 launch scr_description gazebo.launch.py gui:=false odom_seed:=1

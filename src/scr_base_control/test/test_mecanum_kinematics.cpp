@@ -108,3 +108,36 @@ TEST(EncoderErrorModel, SlipProcessIsStationaryWithGivenSigma)
   EXPECT_NEAR(mean, 0.0, 0.003);
   EXPECT_NEAR(sd, 0.02, 0.002);
 }
+
+// 发布的 twist 取两次发布之间的平均：速度中与发布同相位的周期分量不再造成偏差，
+// twist × 周期 等于位移（瞬时采样会把这一分量当作常值速度）
+TEST(TwistAverager, MeanMatchesDisplacementUnderPhaseLockedRipple)
+{
+  scr_base_control::TwistAverager avg;
+  const double dt = 0.001;
+  const int per = 20;                       // 1 kHz 积分，50 Hz 发布
+  double disp = 0.0, sampled = 0.0, averaged = 0.0;
+  for (int k = 0; k < 50 * per; ++k) {
+    // 0.2 mm/s 的平均运动 + 与发布同相位的 ±1 mm/s 波动（周期 20 ms）
+    const double v = 0.0002 + 0.001 * std::cos(2.0 * M_PI * (k % per) / per);
+    disp += v * dt;
+    avg.add({v, 0.0, 0.0}, dt);
+    if (k % per == per - 1) {
+      sampled += v * per * dt;              // 只取发布这一拍
+      averaged += avg.take().vx * per * dt;
+    }
+  }
+  EXPECT_NEAR(averaged, disp, 1e-12);
+  EXPECT_GT(std::abs(sampled - disp), 10.0 * std::abs(averaged - disp) + 1e-5);
+}
+
+TEST(TwistAverager, EmptyIntervalReturnsLastSample)
+{
+  scr_base_control::TwistAverager avg;
+  avg.add({0.1, -0.2, 0.3}, 0.01);
+  avg.take();
+  const auto v = avg.take();
+  EXPECT_DOUBLE_EQ(v.vx, 0.1);
+  EXPECT_DOUBLE_EQ(v.vy, -0.2);
+  EXPECT_DOUBLE_EQ(v.wz, 0.3);
+}

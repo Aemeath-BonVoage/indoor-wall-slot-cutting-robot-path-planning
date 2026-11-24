@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 第 3 节的对照实验用：把所有可靠写端的心跳周期由 Fast DDS 默认的 3 s 缩短为 0.1 s。
+     丢失的样本要等写端下一次心跳、读端回复 NACK 后才重传；若切割阶段的停顿来自这样的
+     重传，停顿应从约 3 s 缩短到约 0.1 s。用法：FASTRTPS_DEFAULT_PROFILES_FILE=<本文件> -->
+<profiles xmlns="http://www.eprosima.com/XMLSchemas/fastRTPS_Profiles">
+  <publisher profile_name="heartbeat_100ms" is_default_profile="true">
+    <times>
+      <heartbeatPeriod>
+        <sec>0</sec>
+        <nanosec>100000000</nanosec>
+      </heartbeatPeriod>
+    </times>
+  </publisher>
+</profiles>

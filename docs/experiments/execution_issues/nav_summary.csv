@@ -1,0 +1,13 @@
+config,goal,legs,succeeded,time_mean_s,time_median_s,time_std_s,time_max_s,legs_with_recovery,recoveries,spins,waits,ack_timeouts,legs_with_ack_timeout,tail_still_mean_s,final_true_xy_max_m,final_loc_err_max_m
+nav_default,marker,12,12,24.48,24.8,1.2,26.2,0,0,0,0,0,0,0.0,0.297,0.148
+nav_default,start,12,12,23.64,23.2,1.12,25.9,0,0,0,0,0,0,0.0,0.187,0.18
+nav_default,all,24,24,24.06,24.0,1.21,26.2,0,0,0,0,0,0,0.0,0.297,0.18
+nav_timeout,marker,12,12,24.59,24.8,1.22,26.4,0,0,0,0,0,0,0.0,0.148,0.107
+nav_timeout,start,12,12,23.6,23.1,1.05,25.7,0,0,0,0,0,0,0.0,0.171,0.204
+nav_timeout,all,24,24,24.1,23.95,1.22,26.4,0,0,0,0,0,0,0.0,0.171,0.204
+nav_stress_default,marker,12,12,24.27,24.45,1.27,26.0,0,0,0,0,0,0,0.0,0.138,0.136
+nav_stress_default,start,12,12,23.55,23.05,1.13,25.8,1,1,0,0,1,1,0.0,0.239,0.208
+nav_stress_default,all,24,24,23.91,23.7,1.24,26.0,1,1,0,0,1,1,0.0,0.239,0.208
+nav_stress_timeout,marker,12,12,24.43,24.55,1.13,26.1,0,0,0,0,0,0,0.0,0.121,0.135
+nav_stress_timeout,start,12,12,23.6,23.05,1.16,25.9,0,0,0,0,0,0,0.0,0.19,0.189
+nav_stress_timeout,all,24,24,24.01,24.0,1.2,26.1,0,0,0,0,0,0,0.0,0.19,0.189

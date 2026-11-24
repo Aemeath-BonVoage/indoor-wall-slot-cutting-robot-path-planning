@@ -803,7 +803,7 @@ ros2 lifecycle get /bt_navigator                    # 应为 active
 
 - 确认用的是默认精对位参数：启动日志中技能服务器应报告加载了标记地图（标记个数与最大间距）；`/task_skills/wall_estimate` 的 `scale_estimated` 为 `true`，`lateral_scale` 在几站之后收敛到约 −3 %（`sigma_scale` 约 0.3 %）；
 - 看 `stations.csv` 的 `tags_used` 与 `since_fix_m`：某些站没有用到标记、无标记行程大，说明这一段没有可见标记，应缩小标记间距（[6.4](#64-定位标记地图与横移比例估计)）；
-- 确认技能服务器的局部闭环用的是 `/wheel/odom`（启动日志中技能服务器的 `odom_topic`）。若用 EKF 的 `/odom`，定点保持会随 EKF 在慢速运动下的偏差一起漂移；
+- 确认技能服务器的局部闭环用的是 `/wheel/odom`（启动日志中技能服务器的 `odom_topic`）。EKF 的 `/odom` 在仿真中只有约 10 Hz，不适合 50 Hz 的定点保持；底盘控制器的 `average_twist` 若被设为 `false`，EKF 在 mm/s 级运动下还会有约 0.3–0.5 mm/s 的偏差（[执行层排查](experiments/execution_issues/README.md) 第 5 节）；
 - 需要排除里程计误差时用 `odom_error:=false` 或早期配置 `base_control:=plugin`。
 
 按行程重新对位（`realign_distance`）不能修正这种误差，只增加耗时。
@@ -820,6 +820,14 @@ fastdds shm clean
 ### 10.12 机械臂动作时底盘缓慢转动或漂移（早期配置）
 
 Gazebo 中底盘有一部分转动（零速度指令下约 0.08°/s）只出现在位姿里、不出现在连杆速度里。默认的 ros2_control 底盘用位姿差分得到的实际速度做速度闭环、生成编码器与陀螺读数，因而不受影响；早期配置（`base_control:=plugin`）仍有这一现象，由定点保持在位置环中修正。排查过程见 [系统层现代化报告](experiments/system_modernization/README.md#24-轮式里程计陀螺与-ekf) 2.4 节。
+
+### 10.13 导航在目标附近原地慢转或停住 10–15 s 才报告到达
+
+`bt_navigator` 的日志中出现 `Timed out while waiting for action server to acknowledge goal request for follow_path`，随后 `Running spin`：行为树把控制器的目标误判为失败，`Spin` 与仍在执行的控制器同时发速度指令。原因是确认时限按仿真时间计，而 `/clock` 每 0.1 s 才更新一次。检查 Nav2 参数文件中 `bt_navigator` 的 `default_server_timeout`：本项目默认 1000 ms；自己的参数文件若沿用 Nav2 的 20 ms 就会偶发这一现象。排查过程见 [执行层排查](experiments/execution_issues/README.md) 第 2 节。
+
+### 10.14 启动时 Nav2 一直没有激活、行为树执行器 300 s 后退出
+
+启动日志中没有任何 `Loaded node '...' in container '/nav2_container'`，组件容器的日志里也没有 `Load Library`：第一个组件加载请求没有得到处理，而 `launch_ros` 等待它的响应没有超时。本机约 150 次启动中出现过 1 次。结束全部进程、执行 `fastdds shm clean` 后重新启动即可；批量实验脚本的启动看门狗会自动重跑（记录在 `startup_failures.txt`）。见 [执行层排查](experiments/execution_issues/README.md) 第 4 节。
 
 ---
 

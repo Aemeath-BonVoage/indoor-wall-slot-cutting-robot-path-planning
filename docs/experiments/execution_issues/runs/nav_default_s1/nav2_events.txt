@@ -1,0 +1,36 @@
+   30.999 [bt_navigator] Begin navigating from current location (-0.01, 0.01) to (8.42, -2.72)
+   57.078 [controller_server] Reached the goal!
+   57.111 [bt_navigator] Goal succeeded
+   60.622 [bt_navigator] Begin navigating from current location (8.32, -2.64) to (0.00, 0.00)
+   85.048 [controller_server] Reached the goal!
+   85.084 [bt_navigator] Goal succeeded
+   88.605 [bt_navigator] Begin navigating from current location (0.09, 0.08) to (8.42, -2.72)
+  116.430 [controller_server] Reached the goal!
+  116.467 [bt_navigator] Goal succeeded
+  119.980 [bt_navigator] Begin navigating from current location (8.33, -2.64) to (0.00, 0.00)
+  145.057 [controller_server] Reached the goal!
+  145.091 [bt_navigator] Goal succeeded
+  148.605 [bt_navigator] Begin navigating from current location (0.05, 0.06) to (8.42, -2.72)
+  174.084 [controller_server] Reached the goal!
+  174.116 [bt_navigator] Goal succeeded
+  177.645 [bt_navigator] Begin navigating from current location (8.37, -2.67) to (0.00, 0.00)
+  203.526 [controller_server] Reached the goal!
+  203.556 [bt_navigator] Goal succeeded
+  207.080 [bt_navigator] Begin navigating from current location (0.06, -0.01) to (8.42, -2.72)
+  233.715 [controller_server] Reached the goal!
+  233.751 [bt_navigator] Goal succeeded
+  237.271 [bt_navigator] Begin navigating from current location (8.32, -2.62) to (0.00, 0.00)
+  262.297 [controller_server] Reached the goal!
+  262.332 [bt_navigator] Goal succeeded
+  265.852 [bt_navigator] Begin navigating from current location (0.05, 0.15) to (8.42, -2.72)
+  289.730 [controller_server] Reached the goal!
+  289.762 [bt_navigator] Goal succeeded
+  293.283 [bt_navigator] Begin navigating from current location (8.26, -2.48) to (0.00, 0.00)
+  321.164 [controller_server] Reached the goal!
+  321.193 [bt_navigator] Goal succeeded
+  324.717 [bt_navigator] Begin navigating from current location (0.04, -0.04) to (8.42, -2.72)
+  351.046 [controller_server] Reached the goal!
+  351.077 [bt_navigator] Goal succeeded
+  354.604 [bt_navigator] Begin navigating from current location (8.38, -2.69) to (0.00, 0.00)
+  379.379 [controller_server] Reached the goal!
+  379.415 [bt_navigator] Goal succeeded

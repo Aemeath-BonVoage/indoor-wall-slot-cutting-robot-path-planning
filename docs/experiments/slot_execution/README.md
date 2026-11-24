@@ -2,7 +2,7 @@
 
 ![两条槽的执行结果（优化方案）](execution.png)
 
-*图 1：room3 南墙上两条槽在 Gazebo 中按优化方案执行的结果（力控仿真，main a43d3dd）。浅红粗线是规划槽线（直角折线），蓝点是切割阶段的真值刀尖，虚线是线管在槽内按 R12 cm 弯过的中心线（仅示意，不切），底部色块是 11 个停靠站各自负责的墙面窗口；下排为拐角放大、每站真值停靠误差、每站耗时。该图的刀尖轨迹原始数据（`tool_trace.csv`）未随仓库提交，图为当时生成的版本。*
+*图 1：room3 南墙上两条槽在 Gazebo 中按优化方案执行的结果（仿真配置 v2，main a43d3dd，机械臂逐点执行）。浅红粗线是规划槽线（直角折线），蓝点是切割阶段的真值刀尖，虚线是线管在槽内按 R12 cm 弯过的中心线（仅示意，不切），底部色块是 11 个停靠站各自负责的墙面窗口；下排为拐角放大、每站真值停靠误差、每站耗时。该图的刀尖轨迹原始数据（`tool_trace.csv`）未随仓库提交，图为当时生成的版本。*
 
 ## 范围
 
@@ -18,14 +18,14 @@
 ```
 
 - **规划**：`scr_planner/scripts/plan_wall_slots.py`，命令行工具，不需要 ROS。也可以用 `wall_slot_planner_node.py`，它额外在 `/wall_slot_plan/markers` 上发布 RViz 显示。
-- **执行（唯一主路径）**：`ros2 run scr_arm_controller navigation_cutting_task <plan.yaml> --dry-run-gap=0.01`。主任务识别到规划文件（含 `wall` / `stations`）就走多站流程 `NavigationCuttingTask.run_slot_plan`；给它单站任务文件（如 `task_at_target.yaml`）则仍走原来的单站流程。多站流程全部复用主任务已有的模块：
+- **执行**：`ros2 run scr_arm_controller navigation_cutting_task <plan.yaml> --dry-run-gap=0.01`。它识别到规划文件（含 `wall` / `stations`）后把规划发给行为树任务执行器（`/execute_slot_plan`，行为树 `scr_task/behavior_trees/slot_plan.xml`，见 [system_modernization](../system_modernization/README.md)）；给它单站任务文件（如 `task_at_target.yaml`）则走单站任务。多站流程：
   1. **Nav2** 导航到定位标记正前方 1.2 m；
   2. **精对位**（AprilTag + 激光 EKF，见 [`fine_alignment`](../fine_alignment/README.md)）到标记前 0.70 m；墙面坐标原点取 EKF 估计的标记位置（第一版取对位停车时的里程计位姿，见“精对位改进后的复测”）；
   3. 逐站：
-     - **到站**：沿墙横移（墙面相对状态 EKF：沿墙位置由里程计外推，离墙距离与朝向由激光更新；经激光**防碰撞守护**限速）；站间距离超过 `--max-strafe`（默认 1.5 m）时，先缩回机械臂、退到离墙 1.2 m 用 **Nav2** 过去，再横移 / 接近到站；
-     - **定点保持**：`base_hold.py`（力控底盘整定的 P 5 / 6、50 Hz）；
+     - **到站**：沿墙横移（墙面相对状态 EKF：沿墙位置由里程计外推，离墙距离与朝向由激光更新，当前默认还用多标记地图更新沿墙位置并在线估计横移比例，见 [along_wall_accuracy](../along_wall_accuracy/README.md)；经激光**防碰撞守护**限速）；站间距离超过 `--max-strafe`（默认 1.5 m）时，先缩回机械臂、退到离墙 1.2 m 用 **Nav2** 过去，再横移 / 接近到站；
+     - **定点保持**：`base_hold.py`（力控底盘整定的 P 5 / 6，由每条轮式里程计消息触发，约 50 Hz）；
      - **残差补偿**：用传感器测出横向 / 离墙 / 朝向残余误差，修正本站的机械臂点（刀尖离底盘中心约 0.69 m，0.5° 朝向误差就会让刀尖横移约 6 mm）；
-     - **切割**：逐点执行；`--dry-run-gap` 为空切。
+     - **切割**：当前默认把一站的机械臂点作为一条连续轨迹执行（[arm_trajectory](../arm_trajectory/README.md)）；本报告前几节的数据取自逐点执行（每点 2 s，现保留为 `arm_motion.mode = point_to_point`）。`--dry-run-gap` 为空切。
 - **实验记录器**：`scr_planner/scripts/execute_slot_plan.py` 不再有自己的执行逻辑。它继承主任务、调用同一个 `run_slot_plan`，只额外订阅 Gazebo 真值，记录刀尖轨迹、每站到位误差、底盘漂移，并与规划槽线比较，输出 `stations.csv` / `tool_trace.csv` / `summary.yaml`。本报告的数据都由它产生。
 - 每站的 `points` 与 `navigation_cutting_task` 单站任务 YAML 的格式相同；pytest（`test_main_task_executes_plan_file`、`test_main_task_compensation_cancels_station_error`）检查主任务对规划文件的解析、空切位置和补偿公式。
 
@@ -74,15 +74,15 @@
 
 （本小节为第一版精对位下的标定，现保存为预设 `align_v1`；精对位第二版下的重标定见下文“时间模型重标定”。）
 
-用力控仿真（main a43d3dd）上、经主任务执行路径的四次完整执行（54 个停靠站）最小二乘拟合：**t_settle = 4.40 s，v_strafe = 0.0945 m/s，t_point = 2.034 s，R² = 1.000，每站 RMSE 0.10 s**（`calibrate_time_model.py`，已写入 `slot_plan.TimeModel`）。
+用仿真配置 v2（main a43d3dd）上、经主任务执行路径的四次完整执行（54 个停靠站）最小二乘拟合：**t_settle = 4.40 s，v_strafe = 0.0945 m/s，t_point = 2.034 s，R² = 1.000，每站 RMSE 0.10 s**（`calibrate_time_model.py`，已写入 `slot_plan.TimeModel`）。
 
 | 标定数据 | t_settle | v_strafe | t_point | 每站 RMSE |
 |---|---|---|---|---|
-| 旧仿真，合并 main 12a14f6 之前（27 站） | 6.85 s | 0.172 m/s | 2.14 s | — （R² 0.956） |
-| 旧仿真，合并 12a14f6 之后（27 站） | 4.88 s | 0.110 m/s | 2.04 s | 0.55 s |
-| **力控仿真 a43d3dd，主任务执行路径（54 站）** | **4.40 s** | **0.0945 m/s** | **2.034 s** | **0.10 s** |
+| 仿真配置 v1，合并 main 12a14f6 之前（27 站） | 6.85 s | 0.172 m/s | 2.14 s | — （R² 0.956） |
+| 仿真配置 v1，合并 12a14f6 之后（27 站） | 4.88 s | 0.110 m/s | 2.04 s | 0.55 s |
+| **仿真配置 v2（a43d3dd），主任务执行路径（54 站）** | **4.40 s** | **0.0945 m/s** | **2.034 s** | **0.10 s** |
 
-- 上一版模型用于新仿真时整体偏高 1.6 %（每站 0.32 s），差别不大；但每站耗时的离散程度从 0.55 s 降到 0.10 s，执行变得非常确定（见下文“新旧仿真对比”）。
+- 上一版模型用于仿真配置 v2 时整体偏高 1.6 %（每站 0.32 s），差别不大；但每站耗时的离散程度从 0.55 s 降到 0.10 s，执行变得非常确定（见下文“仿真配置 v1 与 v2 的对比”）。
 - 换用新参数后，示例任务两种方案的划分与停靠站**完全不变**，只是预测值从 288.0 / 253.9 s 变为 283.3 / 250.0 s。
 - 规律：仿真或执行代码改动后都应重标定。各版本数据都保存在 `runs/` 中。
 
@@ -123,14 +123,14 @@
 - 4 次运行的全部 54 个停靠站都到位、切完，横移全部在容差内收敛，没有一个点被关节限位钳制。
 - 不带记录器、直接用主任务命令行（`navigation_cutting_task <plan.yaml>`）再跑一次优化方案：11 / 11 站完成，各站耗时之和 246.7 s。比记录器少约 3 s，是因为记录器每站到位后停 0.3 s 采真值（11 站 × 0.3 s）；所以时间模型的 t_settle 里含有这 0.3 s。
 - 刀尖在切割阶段离墙 8.9–10 mm（空切间隙 10 mm），没有接触墙面。
-- 同一方案两次运行的总耗时相差 ≤ 0.6 s。模型预测与实测相差 ≤ 0.4 s，但这些运行同时也是标定数据，属于样本内检验；用上一版（旧仿真标定的）模型做样本外预测，偏高 1.6 %。
+- 同一方案两次运行的总耗时相差 ≤ 0.6 s。模型预测与实测相差 ≤ 0.4 s，但这些运行同时也是标定数据，属于样本内检验；用上一版（仿真配置 v1 上标定的）模型做样本外预测，偏高 1.6 %。
 - 覆盖率（规划槽线每 5 mm 取样，3 mm 内有刀尖经过即算已切）对参考偏差很敏感：基线第二次运行的参考偏差是 2.3 mm（见下文），离 3 mm 阈值不远，所以覆盖率降到 90 %，轨迹误差最大值仍只有 2.7 mm。
 
-### 新旧仿真对比
+### 仿真配置 v1 与 v2 的对比
 
-同一示例任务、同一组规划文件，执行代码分别是旧版 `execute_slot_plan.py`（旧仿真）和主任务执行路径（新仿真）。
+同一示例任务、同一组规划文件，执行代码分别是早期的 `execute_slot_plan.py`（仿真配置 v1）和主任务执行路径（仿真配置 v2）。
 
-| 指标 | 旧仿真（main 12a14f6，`runs/oldsim_*`） | 力控仿真（main a43d3dd，本次） |
+| 指标 | 仿真配置 v1（main 12a14f6，`runs/oldsim_*`） | 仿真配置 v2（main a43d3dd） |
 |---|---|---|
 | 优化方案总耗时 | 254 s | 249.8 / 249.9 s |
 | 基线总耗时 | 288 s | 283.1 / 283.7 s |
@@ -266,9 +266,9 @@
 
 反过来，`align_v2` 用于第一版的 54 站时每站偏低 1.54 s，即两个预设各自只适用于对应的执行路径。对本节使用的 11 站规划（`runs/dp/slot_plan.yaml`），`align_v1` 预测 250.0 s，`align_v2` 预测 233.5 s，三次实测 233.2–233.7 s（样本内）。
 
-- 两个预设保存在 `slot_plan.TIME_MODELS`，`TimeModel()` 的默认值为 `align_v2`；`plan_wall_slots.py --time-model=align_v1` 等可复现此前的报告数字。
+- 两个预设保存在 `slot_plan.TIME_MODELS`，当时 `TimeModel()` 的默认值为 `align_v2`（之后依次改为 `align_v3` 与连续轨迹下的 `traj_v1`，见 [plan_validation](../plan_validation/README.md)、[arm_trajectory](../arm_trajectory/README.md)）；`plan_wall_slots.py --time-model=align_v1` 等可复现此前的报告数字。
 - 重标定只改变 t_settle（4.40 → 2.83 s），t_point 与 v_strafe 基本不变：站数在总时间中的权重下降，机械臂点数的权重相对上升。
-- **局限**：只有一份规划（11 站）、3 次运行；横移距离只覆盖 0.055–0.23 m，站间相距 1 m 以上时 v_strafe 是外推值；停顿的原因没有排查。用新模型规划的任务尚未在 Gazebo 中做样本外验证。任务级规划在新模型下的结果见 [task_planning](../task_planning/README.md#时间模型重标定精对位第二版)。
+- **局限**：只有一份规划（11 站）、3 次运行；横移距离只覆盖 0.055–0.23 m，站间相距 1 m 以上时 v_strafe 是外推值；偶发停顿的原因当时没有排查（后来的排查见 [execution_issues](../execution_issues/README.md) 第 3 节）。用新模型规划的任务尚未在 Gazebo 中做样本外验证。任务级规划在新模型下的结果见 [task_planning](../task_planning/README.md#时间模型重标定精对位第二版)。
 
 ```bash
 python3 src/scr_planner/scripts/calibrate_time_model.py docs/experiments/slot_execution/runs/fine_align_dp \
@@ -276,9 +276,11 @@ python3 src/scr_planner/scripts/calibrate_time_model.py docs/experiments/slot_ex
     --method=phases --compare=align_v1,align_v2 --loo
 ```
 
-## 单条槽的执行精度（补偿方法的验证，旧仿真）
+## 单条槽的执行精度
 
-在单条槽示例上，切割方式与补偿方法逐步改进的结果（旧仿真上测得，未重测）：
+### 早期结果（仿真配置 v1）
+
+在单条槽示例（room3 南墙第一个任务：已有插座 A → 新插座 A，1.58 m，10 个停靠站）上，切割方式与补偿方法逐步改进的结果，在仿真配置 v1 上测得（运行次数未记录，只保留了最后一种的一次运行数据）：
 
 | 版本 | 平均偏差 | 95 分位 | 最大 |
 |---|---|---|---|
@@ -286,13 +288,35 @@ python3 src/scr_planner/scripts/calibrate_time_model.py docs/experiments/slot_ex
 | 圆弧拐角，定点保持 | 6.8 mm | 20 mm | 22 mm |
 | **直角折线 + 定点保持 + 补偿** | **1.5 mm** | **12.8 mm** | **15.7 mm** |
 
-仿真中发现并解决的问题：
+数据在 [`runs/single_slot`](runs/single_slot)（最后一行，n = 1）。
 
-- **为什么必须空切**：真的下刀到切深时，刚体墙会把整台机器人顶开（旧仿真约 35 mm，力控仿真约 9 mm、3–4°），接触力还会扭曲轨迹。空切时刀尖始终离墙 9–10 mm，没有接触。
-- **机械臂运动时底盘漂移**：旧仿真中不加保持时一站内最多漂 11 cm，与机械臂关节被运动学驱动有关（已由 a43d3dd 修复）。现在到站即用 `BaseHold` 定点保持，切割期间漂移 ≤ 0.32 mm。
+### 在当前默认配置上复测
+
+规划器已不再生成圆弧拐角，“底盘不保持”也不再是执行路径中的选项，所以只复测最后一行。规划由当前的 `plan_wall_slots.py` 从只含这一个任务的墙面任务文件生成（[`execution_issues/plans/`](../execution_issues/plans/)），槽线与早期运行完全相同（同一条直角折线，同样 10 个停靠站）；其余全部取当前默认：仿真配置 v2、底盘 ros2_control + 编码器误差模型 + EKF、Nav2 Smac 2D + MPPI、精对位第二版 + 多标记地图 + 横移比例估计、连续轨迹切割、比例定点保持、空切间隙 10 mm、补偿开。种子 1–3（编码器打滑过程），每个种子 1 次（[`execution_issues/runs/single_slot_s*`](../execution_issues/runs/)，汇总脚本 [`analyze_single_slot.py`](../execution_issues/analyze_single_slot.py)）。
+
+| 指标 | 早期（仿真配置 v1，n = 1） | 当前默认（n = 3，各次值） | 当前平均 |
+|---|---|---|---|
+| 刀尖轨迹误差 平均 | 1.55 mm | 0.20 / 0.16 / 0.17 mm | 0.18 mm |
+| 刀尖轨迹误差 95 分位 | 12.8 mm | 0.28 / 0.20 / 0.20 mm | 0.23 mm |
+| 刀尖轨迹误差 最大 | 15.7 mm | 1.48 / 1.45 / 1.50 mm | 1.48 mm |
+| 到站沿墙误差 平均 / 最大（绝对值） | 7.2 / 17.0 mm | 0.86 / 0.80 / 0.73；1.35 / 1.37 / 1.51 mm | 0.80 / 1.41 mm |
+| 到站离墙误差 平均 / 最大 | 1.24 / 3.50 mm | 0.26 / 0.35 / 0.25；0.74 / 0.63 / 0.59 mm | 0.29 / 0.65 mm |
+| 到站朝向误差 平均 / 最大 | 0.41 / 0.81° | 0.04 / 0.06 / 0.06；0.10 / 0.12 / 0.11° | 0.05 / 0.11° |
+| 切割期间底盘漂移 平均 / 最大 | 2.39 / 4.99 mm | 0.33 / 0.33 / 0.35；0.36 / 0.37 / 0.39 mm | 0.34 / 0.37 mm |
+| 覆盖率 | 68 %（逐点距离口径） | 100 % / 100 % / 100 % | 100 % |
+| 完成站数 | 10 / 10 | 10 / 10（三次） | — |
+| 各站耗时之和 | — | 115.6 / 117.3 / 117.3 s | 116.7 s（预测 117.0 s） |
+
+（Gazebo，真值评估。早期运行的覆盖率按“刀尖样本 3 mm 内”逐点计，当前按刀尖轨迹折线计（[arm_trajectory](../arm_trajectory/README.md) 3.6 节），两者口径不同。）
+
+- 平均误差降到约 1/9，95 分位与最大误差降到约 1/50 与 1/10：早期的 95 分位与最大误差来自到站沿墙误差（最大 17 mm）与切割期间约 5 mm 的底盘漂移；当前两者分别为 ≤ 1.5 mm 与 ≤ 0.4 mm。这一差别是多处改动的总和（仿真配置 v1 → v2、定点保持按力控底盘整定、精对位第二版、标记地图、连续轨迹），本次没有拆开；多站任务上各项改动各自的作用见本报告前文与 [along_wall_accuracy](../along_wall_accuracy/README.md)、[arm_trajectory](../arm_trajectory/README.md)。
+- 当前的最大误差约 1.5 mm，三次一致；平均值 0.18 mm 与两条槽的多站任务（0.16–0.20 mm，[execution_issues](../execution_issues/README.md) 第 6 节）相同。
+
+仿真中发现并解决的问题（早期）：
+
+- **为什么必须空切**：真的下刀到切深时，刚体墙会把整台机器人顶开（仿真配置 v1 约 35 mm，v2 约 9 mm、3–4°），接触力还会扭曲轨迹。空切时刀尖始终离墙 9–10 mm，没有接触。带切割力的仿真见 [cutting_force](../cutting_force/README.md)。
+- **机械臂运动时底盘漂移**：仿真配置 v1 中不加保持时一站内最多漂 11 cm，与机械臂关节被运动学驱动有关（已由 a43d3dd 修复）。现在到站即用 `BaseHold` 定点保持，切割期间漂移 ≤ 0.4 mm（上表）。
 - **朝向误差 × 力臂**：激光测得的朝向与真值相差 ≤ 0.15°，所以按测量值补偿有效。
-
-数据在 [`runs/single_slot`](runs/single_slot)。
 
 ## 本次端到端打通中发现并修复的问题
 
@@ -310,7 +334,7 @@ python3 src/scr_planner/scripts/calibrate_time_model.py docs/experiments/slot_ex
 - **时间模型来自仿真**：54 个停靠站、两种方案；示例任务的预测是样本内检验。真机上需要重新标定。DP 不考虑横移距离，所以在完整模型下只是近似最优。
 - **离线对比有选择偏差**：100 面墙是从 175 面中选出的。其余 75 面至少有一条槽在可切高度内找不到合规路线（在 0.53 m 高的带内，“横槽 ≤ 50 cm”和“两弯间 ≥ 24 cm”很难同时满足），被跳过。所以非承重多槽墙在样本中偏少（49 面，承重墙 51 面）。
 - **多条槽按任务顺序依次规划**：先规划的槽占用了位置，后面的槽可能因此无解。没有做联合规划，也没有调整规划顺序。
-- **单一定位标记**：整面墙以一个标记为参考，远站靠里程计保持横向参考；本仿真中 10 段 Nav2 往返没有可见漂移，但真机上的里程计漂移更大，跨数米的墙面可能需要多个标记或在远站重新对位。
+- **单一定位标记**：本报告的运行以一个标记为参考，远站靠理想里程计保持横向参考。换成含打滑的编码器模型后沿墙误差随距离累积到 25 mm，当前默认改为多标记地图 + 横移比例在线估计（[along_wall_accuracy](../along_wall_accuracy/README.md)）。
 - **到站后的残差可能超出余量**：残差超过机械臂 1 cm 的横向余量时，补偿量会被关节限位钳制（主任务会记录被钳制的点数；本次 5 次运行均为 0）。
 - **停靠站碰撞检查**：停靠站位姿还没有与占用地图做碰撞检查。
 
@@ -348,6 +372,12 @@ ros2 launch scr_bringup sim_nav.launch.py gui:=false rviz:=false base_control:=p
     params_file:=$(ros2 pkg prefix scr_navigation)/share/scr_navigation/config/nav2_params_dwb.yaml \
     alignment_params:=/tmp/fine_alignment_nofold.yaml
 ros2 run scr_planner execute_slot_plan.py docs/experiments/slot_execution/runs/dp/slot_plan.yaml /tmp/run_nofold --dry-run-gap=0.01
+#   单条槽复测（当前默认配置，种子 1–3；每次约 5 min 墙钟）：
+python3 src/scr_planner/scripts/plan_wall_slots.py docs/experiments/execution_issues/plans/wall_task_single_slot.yaml \
+    docs/experiments/execution_issues/plans/plan_single_slot.yaml
+python3 docs/experiments/execution_issues/run_full_wall.py docs/experiments/execution_issues/plans/plan_single_slot.yaml \
+    docs/experiments/execution_issues/runs/single_slot_s1 --seed 1
+python3 docs/experiments/execution_issues/analyze_single_slot.py
 
 # 3. 标定时间模型、离线对比、作图
 python3 src/scr_planner/scripts/calibrate_time_model.py /tmp/run_naive /tmp/run_dp
@@ -358,4 +388,4 @@ python3 src/scr_planner/scripts/plot_station_order.py /tmp/run_naive /tmp/run_dp
     docs/experiments/slot_execution/station_order_results.csv docs/experiments/slot_execution/station_order.png
 ```
 
-数据目录：`runs/fine_align_dp`、`runs/fine_align_dp_repeat`、`runs/fine_align_dp_nofold` 为精对位改进后的复测（未保存约 0.7 MB 的 `tool_trace.csv`，与其他运行一致）；`runs/dp`、`runs/dp_repeat`、`runs/per_slot`、`runs/per_slot_repeat`、`runs/dp_nav2_each_station` 为第一版精对位下的力控仿真数据；`runs/oldsim_*` 为旧仿真（main 12a14f6）数据，`runs/v1_*` 为更早（合并 12a14f6 之前）的数据。
+数据目录：`runs/fine_align_dp`、`runs/fine_align_dp_repeat`、`runs/fine_align_dp_nofold` 为精对位改进后的复测（未保存约 0.7 MB 的 `tool_trace.csv`，与其他运行一致）；`runs/dp`、`runs/dp_repeat`、`runs/per_slot`、`runs/per_slot_repeat`、`runs/dp_nav2_each_station` 为第一版精对位下、仿真配置 v2 的数据；`runs/oldsim_*` 为仿真配置 v1（main 12a14f6）数据，`runs/v1_*` 为更早（合并 12a14f6 之前）的数据。

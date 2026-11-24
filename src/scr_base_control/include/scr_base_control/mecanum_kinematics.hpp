@@ -67,6 +67,46 @@ struct Odometry2D
   }
 };
 
+// 两次发布之间机体速度的时间平均（里程计消息的 twist）.
+//
+// 控制器每个周期（1 kHz）积分位姿，但每 20 ms 才发布一次里程计。若 twist 只取发布那一拍
+// 的瞬时速度，速度中与发布同相位的周期分量（例如由同一里程计消息触发的定点保持指令引起的
+// 速度波动）在采样后不再平均为零，twist 的积分就与位姿的变化不一致：融合 twist 的 EKF 在
+// mm/s 级运动下因此偏差约 0.5 mm/s（docs/experiments/execution_issues 第 5 节）。取平均后
+// twist × 发布周期 等于这段时间内（机体系下）的位移，与位姿积分一致。
+class TwistAverager
+{
+public:
+  void add(const Twist2D & v, double dt)
+  {
+    if (!(dt > 0.0)) {
+      return;
+    }
+    sum_.vx += v.vx * dt;
+    sum_.vy += v.vy * dt;
+    sum_.wz += v.wz * dt;
+    t_ += dt;
+    last_ = v;
+  }
+
+  // 自上次 take() 以来的平均速度；这段时间内没有积分时返回最近一次的瞬时速度
+  Twist2D take()
+  {
+    Twist2D out = last_;
+    if (t_ > 0.0) {
+      out = {sum_.vx / t_, sum_.vy / t_, sum_.wz / t_};
+    }
+    sum_ = Twist2D();
+    t_ = 0.0;
+    return out;
+  }
+
+private:
+  Twist2D sum_;
+  Twist2D last_;
+  double t_{0.0};
+};
+
 }  // namespace scr_base_control
 
 #endif  // SCR_BASE_CONTROL__MECANUM_KINEMATICS_HPP_

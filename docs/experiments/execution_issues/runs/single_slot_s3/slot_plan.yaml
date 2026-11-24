@@ -1,0 +1,531 @@
+status: success
+frame_id: map
+wall:
+  left_end:
+  - 9.925
+  - -3.925
+  right_end:
+  - 5.075
+  - -3.925
+  length: 4.85
+  load_bearing: false
+slot_spec:
+  depth: 0.035
+  width: 0.035
+  bend_radius: 0.12
+routes: rule
+slots:
+- label: 已有插座A→新插座A
+  status: success
+  circuit: strong
+  planner:
+    turns: 4
+    cost: 345.09126984126993
+    expansions: 1905
+    time_ms: 4.645932
+  length: 1.58
+  cut_path:
+  - - 1.205
+    - 0.345
+  - - 1.585
+    - 0.345
+  - - 1.585
+    - 0.585
+  - - 2.085
+    - 0.585
+  - - 2.085
+    - 0.345
+  - - 2.305
+    - 0.345
+  conduit_display:
+  - - 1.205
+    - 0.345
+  - - 1.465
+    - 0.345
+  - - 1.4961
+    - 0.3491
+  - - 1.525
+    - 0.3611
+  - - 1.5499
+    - 0.3801
+  - - 1.5689
+    - 0.405
+  - - 1.5809
+    - 0.4339
+  - - 1.585
+    - 0.465
+  - - 1.5891
+    - 0.4961
+  - - 1.6011
+    - 0.525
+  - - 1.6201
+    - 0.5499
+  - - 1.645
+    - 0.5689
+  - - 1.6739
+    - 0.5809
+  - - 1.705
+    - 0.585
+  - - 1.965
+    - 0.585
+  - - 1.9961
+    - 0.5809
+  - - 2.025
+    - 0.5689
+  - - 2.0499
+    - 0.5499
+  - - 2.0689
+    - 0.525
+  - - 2.0809
+    - 0.4961
+  - - 2.085
+    - 0.465
+  - - 2.0891
+    - 0.4339
+  - - 2.1011
+    - 0.405
+  - - 2.1201
+    - 0.3801
+  - - 2.145
+    - 0.3611
+  - - 2.1739
+    - 0.3491
+  - - 2.205
+    - 0.345
+  - - 2.305
+    - 0.345
+length: 1.58
+unreachable_length: 0.0
+unreachable: []
+partition: dp
+order: sweep
+start_u: 1.505
+prediction:
+  stations: 10
+  points: 52
+  travel_m: 1.2102
+  t_move: 59.4
+  t_cut: 57.7
+  t_total: 117.0
+robot:
+  standoff: 0.7
+  reach_band:
+  - 0.2693
+  - 0.7993
+  window_width: 0.12
+  x_cut: 0.5756
+  x_retract: 0.52
+  tool_offset: 0.1594
+stations:
+- index: 0
+  u_c: 1.2749
+  window:
+  - 1.205
+  - 1.225
+  pose:
+    x: 8.6502
+    y: -3.225
+    yaw: -1.5708
+  cut_length: 0.02
+  pieces:
+  - - - 1.205
+      - 0.345
+    - - 1.225
+      - 0.345
+  points:
+  - x: 0.52
+    y: 0.06985
+    z: 0.2425
+    rotation: 90.0
+  - x: 0.5756
+    y: 0.06985
+    z: 0.2425
+    rotation: 90.0
+  - x: 0.5756
+    y: 0.04985
+    z: 0.2425
+    rotation: 90.0
+  - x: 0.52
+    y: 0.04985
+    z: 0.2425
+    rotation: 90.0
+  motion:
+    duration: 2.0
+    return_home: false
+- index: 1
+  u_c: 1.2949
+  window:
+  - 1.225
+  - 1.345
+  pose:
+    x: 8.6302
+    y: -3.225
+    yaw: -1.5708
+  cut_length: 0.12
+  pieces:
+  - - - 1.225
+      - 0.345
+    - - 1.345
+      - 0.345
+  points:
+  - x: 0.52
+    y: 0.06985
+    z: 0.2425
+    rotation: 90.0
+  - x: 0.5756
+    y: 0.06985
+    z: 0.2425
+    rotation: 90.0
+  - x: 0.5756
+    y: -0.05015
+    z: 0.2425
+    rotation: 90.0
+  - x: 0.52
+    y: -0.05015
+    z: 0.2425
+    rotation: 90.0
+  motion:
+    duration: 2.0
+    return_home: false
+- index: 2
+  u_c: 1.4148
+  window:
+  - 1.345
+  - 1.465
+  pose:
+    x: 8.5102
+    y: -3.225
+    yaw: -1.5708
+  cut_length: 0.12
+  pieces:
+  - - - 1.345
+      - 0.345
+    - - 1.465
+      - 0.345
+  points:
+  - x: 0.52
+    y: 0.06985
+    z: 0.2425
+    rotation: 90.0
+  - x: 0.5756
+    y: 0.06985
+    z: 0.2425
+    rotation: 90.0
+  - x: 0.5756
+    y: -0.05015
+    z: 0.2425
+    rotation: 90.0
+  - x: 0.52
+    y: -0.05015
+    z: 0.2425
+    rotation: 90.0
+  motion:
+    duration: 2.0
+    return_home: false
+- index: 3
+  u_c: 1.5349
+  window:
+  - 1.465
+  - 1.585
+  pose:
+    x: 8.3902
+    y: -3.225
+    yaw: -1.5708
+  cut_length: 0.12
+  pieces:
+  - - - 1.465
+      - 0.345
+    - - 1.585
+      - 0.345
+  points:
+  - x: 0.52
+    y: 0.06985
+    z: 0.2425
+    rotation: 90.0
+  - x: 0.5756
+    y: 0.06985
+    z: 0.2425
+    rotation: 90.0
+  - x: 0.5756
+    y: -0.05015
+    z: 0.2425
+    rotation: 90.0
+  - x: 0.52
+    y: -0.05015
+    z: 0.2425
+    rotation: 90.0
+  motion:
+    duration: 2.0
+    return_home: false
+- index: 4
+  u_c: 1.6548
+  window:
+  - 1.585
+  - 1.705
+  pose:
+    x: 8.2702
+    y: -3.225
+    yaw: -1.5708
+  cut_length: 0.36
+  pieces:
+  - - - 1.585
+      - 0.345
+    - - 1.585
+      - 0.585
+    - - 1.705
+      - 0.585
+  points:
+  - x: 0.52
+    y: 0.06985
+    z: 0.2425
+    rotation: 0.0
+  - x: 0.5756
+    y: 0.06985
+    z: 0.2425
+    rotation: 0.0
+  - x: 0.5756
+    y: 0.06985
+    z: 0.4825
+    rotation: 0.0
+  - x: 0.52
+    y: 0.06985
+    z: 0.4825
+    rotation: 0.0
+  - x: 0.52
+    y: 0.06985
+    z: 0.4825
+    rotation: 90.0
+  - x: 0.5756
+    y: 0.06985
+    z: 0.4825
+    rotation: 90.0
+  - x: 0.5756
+    y: -0.05015
+    z: 0.4825
+    rotation: 90.0
+  - x: 0.52
+    y: -0.05015
+    z: 0.4825
+    rotation: 90.0
+  motion:
+    duration: 2.0
+    return_home: false
+- index: 5
+  u_c: 1.7749
+  window:
+  - 1.705
+  - 1.825
+  pose:
+    x: 8.1502
+    y: -3.225
+    yaw: -1.5708
+  cut_length: 0.12
+  pieces:
+  - - - 1.705
+      - 0.585
+    - - 1.825
+      - 0.585
+  points:
+  - x: 0.52
+    y: 0.06985
+    z: 0.4825
+    rotation: 90.0
+  - x: 0.5756
+    y: 0.06985
+    z: 0.4825
+    rotation: 90.0
+  - x: 0.5756
+    y: -0.05015
+    z: 0.4825
+    rotation: 90.0
+  - x: 0.52
+    y: -0.05015
+    z: 0.4825
+    rotation: 90.0
+  motion:
+    duration: 2.0
+    return_home: false
+- index: 6
+  u_c: 1.8948
+  window:
+  - 1.825
+  - 1.945
+  pose:
+    x: 8.0302
+    y: -3.225
+    yaw: -1.5708
+  cut_length: 0.12
+  pieces:
+  - - - 1.825
+      - 0.585
+    - - 1.945
+      - 0.585
+  points:
+  - x: 0.52
+    y: 0.06985
+    z: 0.4825
+    rotation: 90.0
+  - x: 0.5756
+    y: 0.06985
+    z: 0.4825
+    rotation: 90.0
+  - x: 0.5756
+    y: -0.05015
+    z: 0.4825
+    rotation: 90.0
+  - x: 0.52
+    y: -0.05015
+    z: 0.4825
+    rotation: 90.0
+  motion:
+    duration: 2.0
+    return_home: false
+- index: 7
+  u_c: 2.0149
+  window:
+  - 1.945
+  - 2.065
+  pose:
+    x: 7.9102
+    y: -3.225
+    yaw: -1.5708
+  cut_length: 0.12
+  pieces:
+  - - - 1.945
+      - 0.585
+    - - 2.065
+      - 0.585
+  points:
+  - x: 0.52
+    y: 0.06985
+    z: 0.4825
+    rotation: 90.0
+  - x: 0.5756
+    y: 0.06985
+    z: 0.4825
+    rotation: 90.0
+  - x: 0.5756
+    y: -0.05015
+    z: 0.4825
+    rotation: 90.0
+  - x: 0.52
+    y: -0.05015
+    z: 0.4825
+    rotation: 90.0
+  motion:
+    duration: 2.0
+    return_home: false
+- index: 8
+  u_c: 2.1349
+  window:
+  - 2.065
+  - 2.185
+  pose:
+    x: 7.7902
+    y: -3.225
+    yaw: -1.5708
+  cut_length: 0.36
+  pieces:
+  - - - 2.065
+      - 0.585
+    - - 2.085
+      - 0.585
+    - - 2.085
+      - 0.345
+    - - 2.185
+      - 0.345
+  points:
+  - x: 0.52
+    y: 0.06985
+    z: 0.4825
+    rotation: 90.0
+  - x: 0.5756
+    y: 0.06985
+    z: 0.4825
+    rotation: 90.0
+  - x: 0.5756
+    y: 0.04985
+    z: 0.4825
+    rotation: 90.0
+  - x: 0.52
+    y: 0.04985
+    z: 0.4825
+    rotation: 90.0
+  - x: 0.52
+    y: 0.04985
+    z: 0.4825
+    rotation: 0.0
+  - x: 0.5756
+    y: 0.04985
+    z: 0.4825
+    rotation: 0.0
+  - x: 0.5756
+    y: 0.04985
+    z: 0.2425
+    rotation: 0.0
+  - x: 0.52
+    y: 0.04985
+    z: 0.2425
+    rotation: 0.0
+  - x: 0.52
+    y: 0.04985
+    z: 0.2425
+    rotation: 90.0
+  - x: 0.5756
+    y: 0.04985
+    z: 0.2425
+    rotation: 90.0
+  - x: 0.5756
+    y: -0.05015
+    z: 0.2425
+    rotation: 90.0
+  - x: 0.52
+    y: -0.05015
+    z: 0.2425
+    rotation: 90.0
+  motion:
+    duration: 2.0
+    return_home: false
+- index: 9
+  u_c: 2.2549
+  window:
+  - 2.185
+  - 2.305
+  pose:
+    x: 7.6702
+    y: -3.225
+    yaw: -1.5708
+  cut_length: 0.12
+  pieces:
+  - - - 2.185
+      - 0.345
+    - - 2.305
+      - 0.345
+  points:
+  - x: 0.52
+    y: 0.06985
+    z: 0.2425
+    rotation: 90.0
+  - x: 0.5756
+    y: 0.06985
+    z: 0.2425
+    rotation: 90.0
+  - x: 0.5756
+    y: -0.05015
+    z: 0.2425
+    rotation: 90.0
+  - x: 0.52
+    y: -0.05015
+    z: 0.2425
+    rotation: 90.0
+  motion:
+    duration: 2.0
+    return_home: false
+obstacles:
+- kind: box
+  label: 黄色定位标记
+  u: 1.48
+  v: 0.57
+  w: 0.05
+  h: 0.05
+marker_u: 1.505
