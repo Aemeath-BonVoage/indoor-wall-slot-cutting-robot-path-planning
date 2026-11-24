@@ -48,7 +48,11 @@ bt_navigator:
     robot_base_frame: base_link
     odom_topic: /odom
     bt_loop_duration: 10
-    default_server_timeout: 20
+    # 等待各服务器确认目标的时限（ms）。bt_navigator 用节点时钟（仿真时间）计时，而 /clock 每 0.1 s
+    # 才跳一次：取 20 ms 时，确认过程只要跨过一次跳变就被判为超时，控制器其实已接受目标并继续
+    # 执行，行为树却转入恢复（Spin 与仍在运行的控制器相互抵消，到达前停滞 10–15 s）。
+    # 取 1000 ms（10 个 /clock 周期），见 docs/experiments/execution_issues 第 2 节
+    default_server_timeout: 1000
     navigators: ["navigate_to_pose", "navigate_through_poses"]
     navigate_to_pose:
       plugin: "nav2_bt_navigator/NavigateToPoseNavigator"
