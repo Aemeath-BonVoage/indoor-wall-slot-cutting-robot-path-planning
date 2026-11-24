@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""技术报告的新增图：系统架构图、结果汇总图。其余图直接引用各实验报告中的原图.
+"""技术报告的新增图：系统架构图、结果汇总图（3 × 2）。其余图直接引用各实验报告中的原图.
 
   python3 docs/report/make_figures.py
 
@@ -140,8 +140,9 @@ def fig_architecture(out):
     subs = [('Fine alignment', ['AprilTag + LiDAR', 'EKF (d, u, ψ, s)', 'saturated law',
                                 'convergence test']),
             ('Strafe / hold', ['same wall EKF', 'multi-marker map', 'scale correction',
-                               'hold at 50 Hz']),
-            ('Cutting', ['residual comp.', 'one axis per cut', 'dry cut in sim.'])]
+                               'hold: P or DOB']),
+            ('Cutting', ['residual comp.', 'S-curve trajectory', 'per station',
+                         'dry cut in sim.'])]
     for i, (t, ls) in enumerate(subs):
         box(ax, 0.311 + i * 0.1125, 0.474, 0.103, 0.16, t, ls, title_size=7.5)
 
@@ -180,8 +181,9 @@ def fig_architecture(out):
     box(ax, 0.702, 0.185, 0.28, 0.076, 'Earlier: base_control:=plugin',
         ['scr_planar_move force plugin, /odom = truth'], fc='#FBF8FC')
     box(ax, 0.702, 0.026, 0.28, 0.12, 'Other launch options',
-        ['plant:=wheels (wheel-driven, experimental)', 'localization:=wheel (wheel odom only)',
-         'odom_error:=false (ideal encoders)'], fc='#FBF8FC')
+        ['cutting_force:=true (cutting-force plugin)', 'plant:=wheels (wheel-driven, experimental)',
+         'localization:=wheel (wheel odom only)', 'odom_error:=false (ideal encoders)'],
+        fc='#FBF8FC', dy=0.0215)
 
     # 技能服务器 ↔ 传感器 / 机械臂 / 底盘
     arrow(ax, (0.347, 0.265), (0.347, 0.47), '/scan,\nimage', dashed=True, tx=(0.347, 0.37))
@@ -200,7 +202,7 @@ def fig_architecture(out):
 # 结果汇总图
 # ---------------------------------------------------------------------------
 def fig_summary(out):
-    fig, axs = fs.subplots(2, 2, width='double', height=5.2)
+    fig, axs = fs.subplots(3, 2, width='double', height=7.8)
 
     # (a) 精对位：第一版 vs 第二版，各条件位置误差
     rows = load(os.path.join(EXP, 'alignment_robustness', 'summary.csv'))
@@ -285,31 +287,87 @@ def fig_summary(out):
     ax.set_aspect('equal', adjustable='datalim')
     fs.panel_label(ax, 'c', f'Time model: {len(y)} held-out stations (5 runs)')
 
-    # (d) 任务级规划：配对墙上的平均预测时间（三种时间模型）
+    # (d) 真实里程计下的沿墙精度：各配置每次运行的最大到站沿墙误差
     ax = axs[1, 1]
-    meth = [('per_slot', 'Per-slot\n(naive)'), ('current', 'Rule-based\nroutes + DP'),
-            ('joint', 'Joint\nplanning'), ('lower_bound', 'Lower\nbound')]
-    sets = [('align_v1', os.path.join(EXP, 'task_planning', 'summary.csv'), 'baseline'),
-            ('align_v2', os.path.join(EXP, 'task_planning', 'align_v2', 'summary.csv'), 'neutral'),
-            ('align_v3', os.path.join(EXP, 'task_planning', 'align_v3', 'summary.csv'),
-             'proposed')]
-    x = np.arange(len(meth))
-    w = 0.27
-    for j, (name, path, role) in enumerate(sets):
-        if not os.path.exists(path):
-            continue
-        S = {r['method']: r for r in load(path)}
-        vals = [float(S[m]['t_mean']) for m, _ in meth]
-        ax.bar(x + (j - 1) * w, vals, w - 0.02, label=f'{name} (n = {S["joint"]["n"]})',
-               **fs.bar(role))
-        for xi, v in zip(x + (j - 1) * w, vals):
-            ax.text(xi, v + 2, f'{v:.0f}', ha='center', va='bottom', fontsize=7)
+    cfgs = [('single_off', 'Single tag, odometry only', 'baseline'),
+            ('single_on', 'Single tag, tag updates', 'neutral'),
+            ('realign_0.3', 'Single tag + re-align 0.3 m', 'alt2'),
+            ('tags_1.2', 'Tag map, 1.2 m spacing', 'alt'),
+            ('tags_0.6', 'Tag map, 0.6 m spacing', 'alt'),
+            ('tags_0.6_err3', 'Tag map 0.6 m, ±3 mm error', 'alt'),
+            ('scale_single', 'Single tag + scale estimate', 'alt3'),
+            ('scale_tags_0.6', 'Tag map 0.6 m + scale (default)', 'proposed'),
+            ('default', 'Default, re-run', 'proposed')]
+    runs = load(os.path.join(EXP, 'along_wall_accuracy', 'runs_summary.csv'))
+    for i, (c, lab, role) in enumerate(cfgs):
+        v = [float(r['lateral_max_abs_mm']) for r in runs if r['config'] == c]
+        ax.plot(v, [i] * len(v), **fs.marker(role, ms=3.5))
+        ax.text(1.0, i, f'{np.mean(v):.1f}', ha='right', va='center', fontsize=7,
+                transform=ax.get_yaxis_transform())
+    ax.set_xscale('log')
+    ax.set_xlim(0.5, 80)
+    ax.set_yticks(range(len(cfgs)))
+    ax.set_yticklabels([c[1] for c in cfgs], fontsize=7)
+    ax.set_ylim(len(cfgs) - 0.5, -0.5)
+    ax.set_xlabel(fs.label('Max. along-wall arrival error, 11 stations', 'mm'))
+    fs.panel_label(ax, 'd', 'Encoder odometry (value: mean of 2 runs)')
+
+    # (e) 切割力：各定点保持方式的横槽刀尖偏移（每次运行）
+    ax = axs[2, 0]
+    runs = load(os.path.join(EXP, 'cutting_force', 'station_runs.csv'))
+    cfgs = [('dry_f5.5', 'No cutting\nforce', 'neutral'), ('p_f5.5', 'P hold\n(earlier)', 'baseline'),
+            ('dob_f5.5', 'Disturbance\nobserver', 'alt'),
+            ('dobff_f5.5', 'Observer +\n70 % feed-fwd.', 'proposed')]
+    for i, (c, lab, role) in enumerate(cfgs):
+        rr = [r for r in runs if r['config'] == c]
+        pk = [float(r['tip_peak_horizontal_mm']) for r in rr]
+        rm = [float(r['tip_rms_horizontal_mm']) for r in rr]
+        dx = np.linspace(-0.12, 0.12, len(rr)) if len(rr) > 1 else [0.0]
+        ax.plot(i - 0.17 + np.asarray(dx) * 0.6, pk, ls='none', marker=fs.MARKER[role],
+                ms=3.6, color=fs.color(role), mfc=fs.color(role))
+        ax.plot(i + 0.17 + np.asarray(dx) * 0.6, rm, ls='none', marker=fs.MARKER[role],
+                ms=3.6, color=fs.color(role), mfc='white')
+    ax.plot([], [], ls='none', marker='o', color=INK2, ms=3.6, label='peak')
+    ax.plot([], [], ls='none', marker='o', color=INK2, mfc='white', ms=3.6, label='RMS')
+    ax.set_yscale('log')
+    ax.set_ylim(0.05, 200)
+    ax.set_xticks(range(len(cfgs)))
+    ax.set_xticklabels([c[1] for c in cfgs], fontsize=7)
+    ax.set_xlim(-0.5, len(cfgs) - 0.5)
+    ax.set_ylabel(fs.label('Tool-tip offset, horizontal cuts', 'mm'))
+    ax.legend(loc='upper left')
+    fs.panel_label(ax, 'e', 'Cutting force in Gazebo (brick, 5.5 mm/s)')
+
+    # (f) 规划收益随时间模型（执行方式）的变化
+    ax = axs[2, 1]
+    rows = load(os.path.join(EXP, 'cutting_force', 'planning_gain.csv'))
+    names = {'align_v3': 'Point to point\n(align_v3)', 'traj_v1': 'Continuous, 50 mm/s\n(traj_v1)',
+             'cut_brick_v1': 'Continuous, 5.5 mm/s\n(cut_brick_v1)'}
+    x = np.arange(len(rows))
+    w = 0.36
+    for k, (key, lab, role) in enumerate(
+            [('joint_vs_rule_pct', 'Joint vs. rule-based + DP (non-load-bearing, n = 156)',
+              'proposed'),
+             ('rule_vs_per_slot_pct', 'Rule-based + DP vs. per-slot (n = 275)', 'neutral')]):
+        vals = np.array([float(r[key]) for r in rows])
+        xi = x + (k - 0.5) * w
+        if key == 'joint_vs_rule_pct':
+            ci = np.array([[float(t) for t in r['joint_vs_rule_pct_ci'].split('..')] for r in rows])
+            err = np.vstack([vals - ci[:, 0], ci[:, 1] - vals])
+            ax.bar(xi, vals, w - 0.03, yerr=err, error_kw=dict(lw=0.6, capsize=1.5),
+                   label=lab, **fs.bar(role))
+            tops = ci[:, 1]
+        else:
+            ax.bar(xi, vals, w - 0.03, label=lab, **fs.bar(role))
+            tops = vals
+        for xx, v, t in zip(xi, vals, tops):
+            ax.text(xx, t + 0.3, f'{v:.1f}', ha='center', va='bottom', fontsize=7)
     ax.set_xticks(x)
-    ax.set_xticklabels([m[1] for m in meth], fontsize=7)
-    ax.set_ylabel(fs.label('Mean predicted execution time', 's'))
-    ax.set_ylim(0, 230)
-    ax.legend(loc='upper right', ncol=3, columnspacing=0.6, handlelength=1.4)
-    fs.panel_label(ax, 'd', '400 random walls (offline prediction)')
+    ax.set_xticklabels([names[r['time_model']] for r in rows], fontsize=7)
+    ax.set_ylabel(fs.label('Mean predicted saving', '%'))
+    ax.set_ylim(0, 14.5)
+    ax.legend(loc='upper right')
+    fs.panel_label(ax, 'f', '400 random walls (offline prediction)')
     fs.save(fig, out)
 
 
