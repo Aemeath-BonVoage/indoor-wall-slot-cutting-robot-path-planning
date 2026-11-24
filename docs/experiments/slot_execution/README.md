@@ -2,7 +2,7 @@
 
 ![两条槽的执行结果（优化方案）](execution.png)
 
-*图 1：room3 南墙上两条槽在 Gazebo 中按优化方案执行的结果（仿真配置 v2，main a43d3dd，机械臂逐点执行）。浅红粗线是规划槽线（直角折线），蓝点是切割阶段的真值刀尖，虚线是线管在槽内按 R12 cm 弯过的中心线（仅示意，不切），底部色块是 11 个停靠站各自负责的墙面窗口；下排为拐角放大、每站真值停靠误差、每站耗时。该图的刀尖轨迹原始数据（`tool_trace.csv`）未随仓库提交，图为当时生成的版本。*
+*图 1：room3 南墙上两条槽在 Gazebo 中按优化方案执行的结果（仿真配置 v2，第一版精对位，机械臂逐点执行）。浅红粗线是规划槽线（直角折线），蓝点是切割阶段的真值刀尖，虚线是线管在槽内按 R12 cm 弯过的中心线（仅示意，不切），底部色块是 11 个停靠站各自负责的墙面窗口；下排为拐角放大、每站真值停靠误差、每站耗时。该图的刀尖轨迹原始数据（`tool_trace.csv`）未随仓库提交，图为当时生成的版本。*
 
 ## 范围
 
@@ -29,7 +29,7 @@
 - **实验记录器**：`scr_planner/scripts/execute_slot_plan.py` 不再有自己的执行逻辑。它继承主任务、调用同一个 `run_slot_plan`，只额外订阅 Gazebo 真值，记录刀尖轨迹、每站到位误差、底盘漂移，并与规划槽线比较，输出 `stations.csv` / `tool_trace.csv` / `summary.yaml`。本报告的数据都由它产生。
 - 每站的 `points` 与 `navigation_cutting_task` 单站任务 YAML 的格式相同；pytest（`test_main_task_executes_plan_file`、`test_main_task_compensation_cancels_station_error`）检查主任务对规划文件的解析、空切位置和补偿公式。
 
-此前有两套执行器：`execute_slot_plan.py` 自带横移、定点保持（k = 1.0、20 Hz，按旧的运动学仿真整定）和补偿；主任务只有单站流程。现在合并为主任务一条路径，记录器只做评估。
+此前有两套执行器：`execute_slot_plan.py` 自带横移、定点保持（k = 1.0、20 Hz，按仿真配置 v1 整定）和补偿；主任务只有单站流程。现在合并为主任务一条路径，记录器只做评估。
 
 ## 任务约束：可切高度
 
@@ -74,13 +74,13 @@
 
 （本小节为第一版精对位下的标定，现保存为预设 `align_v1`；精对位第二版下的重标定见下文“时间模型重标定”。）
 
-用仿真配置 v2（main a43d3dd）上、经主任务执行路径的四次完整执行（54 个停靠站）最小二乘拟合：**t_settle = 4.40 s，v_strafe = 0.0945 m/s，t_point = 2.034 s，R² = 1.000，每站 RMSE 0.10 s**（`calibrate_time_model.py`，已写入 `slot_plan.TimeModel`）。
+用仿真配置 v2 上、经主任务执行路径的四次完整执行（54 个停靠站）最小二乘拟合：**t_settle = 4.40 s，v_strafe = 0.0945 m/s，t_point = 2.034 s，R² = 1.000，每站 RMSE 0.10 s**（`calibrate_time_model.py`，已写入 `slot_plan.TimeModel`）。
 
 | 标定数据 | t_settle | v_strafe | t_point | 每站 RMSE |
 |---|---|---|---|---|
-| 仿真配置 v1，合并 main 12a14f6 之前（27 站） | 6.85 s | 0.172 m/s | 2.14 s | — （R² 0.956） |
-| 仿真配置 v1，合并 12a14f6 之后（27 站） | 4.88 s | 0.110 m/s | 2.04 s | 0.55 s |
-| **仿真配置 v2（a43d3dd），主任务执行路径（54 站）** | **4.40 s** | **0.0945 m/s** | **2.034 s** | **0.10 s** |
+| 仿真配置 v1，较早的执行代码（`runs/v1_*`，27 站） | 6.85 s | 0.172 m/s | 2.14 s | — （R² 0.956） |
+| 仿真配置 v1，较晚的执行代码（`runs/oldsim_*`，27 站） | 4.88 s | 0.110 m/s | 2.04 s | 0.55 s |
+| **仿真配置 v2，主任务执行路径（54 站）** | **4.40 s** | **0.0945 m/s** | **2.034 s** | **0.10 s** |
 
 - 上一版模型用于仿真配置 v2 时整体偏高 1.6 %（每站 0.32 s），差别不大；但每站耗时的离散程度从 0.55 s 降到 0.10 s，执行变得非常确定（见下文“仿真配置 v1 与 v2 的对比”）。
 - 换用新参数后，示例任务两种方案的划分与停靠站**完全不变**，只是预测值从 288.0 / 253.9 s 变为 283.3 / 250.0 s。
@@ -130,7 +130,7 @@
 
 同一示例任务、同一组规划文件，执行代码分别是早期的 `execute_slot_plan.py`（仿真配置 v1）和主任务执行路径（仿真配置 v2）。
 
-| 指标 | 仿真配置 v1（main 12a14f6，`runs/oldsim_*`） | 仿真配置 v2（main a43d3dd） |
+| 指标 | 仿真配置 v1（`runs/oldsim_*`） | 仿真配置 v2（`runs/dp*`、`runs/per_slot*`） |
 |---|---|---|
 | 优化方案总耗时 | 254 s | 249.8 / 249.9 s |
 | 基线总耗时 | 288 s | 283.1 / 283.7 s |
@@ -144,7 +144,7 @@
 | 横移 + 到位平均耗时 | 4.8–5.0 s | 4.5–4.9 s |
 | 每站耗时 RMSE（时间模型拟合） | 0.55 s | 0.10 s |
 
-**仿真配置变化**（仿真配置 v1 → v2，提交 a43d3dd）：
+**仿真配置变化**（仿真配置 v1 → v2，定义见 [项目演进](../../EVOLUTION.md#4-仿真保真度底盘漂移与旋转失真) 第 4 节）：
 
 - 机械臂关节从 gazebo_ros2_control 的 position 接口（每周期直接设关节位置）改为 `position_pid` 力控；轮子改 `velocity_pid`；
 - 底盘从 `gazebo_ros_planar_move`（给所有连杆设同一速度）换成力控插件 `scr_planar_move`（速度 P 环，只对底盘施加力 / 力矩）；
@@ -156,7 +156,7 @@
 1. **耗时与顺序优化的收益基本不变**（节省 11.9 % → 11.8 %）。每站时间主要由机械臂点数决定（2.03 s / 点），转向失真对这部分没有影响；横移只略快一点。
 2. **精度明显提高**：95 分位轨迹误差从 2.4–4.0 mm 降到 0.4–2.2 mm，最大误差从 6.5–11.9 mm 降到 1.2–2.7 mm。直接原因是到站朝向误差减半、切割期间底盘几乎不动（漂移最大 0.32 mm）。这同时来自两处改动，本实验没有拆开：
    - 仿真修复：底盘能按指令转向，横移收敛时朝向残差更小；
-   - 执行路径统一后改用主任务的 `BaseHold`（按力控底盘整定）代替记录器里那套旧增益的保持器。
+   - 执行路径统一后改用主任务的 `BaseHold`（按力控底盘整定）代替记录器里那套按仿真配置 v1 整定的保持器。
 3. **剩下的主要误差是每次运行的参考偏差**：到站横向误差在一次运行内几乎是常数（例如 +1.2 ± 0.4 mm、+2.3 ± 0.5 mm），各站相对参考的重复性是 0.4–0.5 mm。这个常值就是起点视觉对位停下时沿墙方向的残余误差：
 
    | 运行 | 对位真值误差（沿墙 / 法向） | 到站横向误差（平均） | 相机横向感知误差 |
@@ -219,15 +219,15 @@
 2. **墙面坐标原点改为 EKF 估计的标记位置**：停车时的沿墙残差保留在估计状态中，各站目标直接取规划的 u（相对标记），而不是以停车位姿为原点（`alignment.fold_residual`，默认开）；
 3. 站间横移改用同一个 EKF（里程计预测 + 激光更新，站间不用标记）与平方根整形控制律，到站残差与机械臂点补偿也改用 EKF 估计。
 
-第 2 项单独做了消融：`fold_residual:=false` 恢复“以停车位姿为原点”，其余与新版相同。
+第 2 项单独做了消融：`fold_residual:=false` 恢复“以停车位姿为原点”，其余与第二版相同。
 
 | 运行 | 精对位 | 原点 | 起点停车残差（估计） | **到站横向误差 均值 ± 站间标准差** | 到站朝向 平均 / 最大 | 刀尖轨迹误差（平均 / 95 分位 / 最大） | 覆盖率 | 各站耗时之和 |
 |---|---|---|---|---|---|---|---|---|
 | `dp`（第一版，存档） | 第一版 | 停车位姿 | — | +1.26 ± 0.38 mm | 0.29° / 0.57° | 0.33 / 0.98 / 1.29 mm | 99.3 % | 249.8 s |
 | `dp_repeat`（第一版，存档） | 第一版 | 停车位姿 | — | +0.65 ± 0.41 mm | 0.36° / 0.51° | 0.24 / 0.37 / 1.18 mm | 98.2 % | 249.9 s |
-| `fine_align_dp` | 新版 | **标记** | +0.19 mm | **+0.24 ± 0.12 mm** | 0.06° / 0.11° | 0.20 / 0.22 / 0.93 mm | 99.6 % | 233.5 s |
-| `fine_align_dp_repeat` | 新版 | **标记** | +0.46 mm | **−0.18 ± 0.18 mm** | 0.06° / 0.13° | 0.24 / 0.53 / 0.77 mm | 99.8 % | 233.2 s |
-| `fine_align_dp_nofold`（消融） | 新版 | 停车位姿 | +0.50 mm | +0.86 ± 0.18 mm | 0.05° / 0.08° | 0.35 / 1.11 / 1.28 mm | 96.9 % | 233.7 s |
+| `fine_align_dp` | 第二版 | **标记** | +0.19 mm | **+0.24 ± 0.12 mm** | 0.06° / 0.11° | 0.20 / 0.22 / 0.93 mm | 99.6 % | 233.5 s |
+| `fine_align_dp_repeat` | 第二版 | **标记** | +0.46 mm | **−0.18 ± 0.18 mm** | 0.06° / 0.13° | 0.24 / 0.53 / 0.77 mm | 99.8 % | 233.2 s |
+| `fine_align_dp_nofold`（消融） | 第二版 | 停车位姿 | +0.50 mm | +0.86 ± 0.18 mm | 0.05° / 0.08° | 0.35 / 1.11 / 1.28 mm | 96.9 % | 233.7 s |
 
 （每次 11 / 11 站完成，0 个点被关节限位钳制；仿真配置 v2，Nav2 流程 `rtf` 1；数据在 `runs/fine_align_*`。）
 
@@ -315,7 +315,7 @@ python3 src/scr_planner/scripts/calibrate_time_model.py docs/experiments/slot_ex
 仿真中发现并解决的问题（早期）：
 
 - **为什么必须空切**：真的下刀到切深时，刚体墙会把整台机器人顶开（仿真配置 v1 约 35 mm，v2 约 9 mm、3–4°），接触力还会扭曲轨迹。空切时刀尖始终离墙 9–10 mm，没有接触。带切割力的仿真见 [cutting_force](../cutting_force/README.md)。
-- **机械臂运动时底盘漂移**：仿真配置 v1 中不加保持时一站内最多漂 11 cm，与机械臂关节被运动学驱动有关（已由 a43d3dd 修复）。现在到站即用 `BaseHold` 定点保持，切割期间漂移 ≤ 0.4 mm（上表）。
+- **机械臂运动时底盘漂移**：仿真配置 v1 中不加保持时一站内最多漂 11 cm，与机械臂关节被运动学驱动有关（仿真配置 v2 已修正）。现在到站即用 `BaseHold` 定点保持，切割期间漂移 ≤ 0.4 mm（上表）。
 - **朝向误差 × 力臂**：激光测得的朝向与真值相差 ≤ 0.15°，所以按测量值补偿有效。
 
 ## 本次端到端打通中发现并修复的问题
@@ -323,7 +323,7 @@ python3 src/scr_planner/scripts/calibrate_time_model.py docs/experiments/slot_ex
 | 问题 | 现象 | 根因 | 修复 |
 |---|---|---|---|
 | 两套执行器 | 多站执行在 `execute_slot_plan.py` 里，主任务只能跑单站；两边各有一套定点保持 | 多站功能最初作为独立实验脚本开发 | 多站流程并入 `NavigationCuttingTask.run_slot_plan`，主任务直接读规划文件；记录器只做真值评估 |
-| 定点保持增益过时 | 记录器自带的保持器 k = 1.0、20 Hz、限速 0.05 m/s | 按旧的运动学仿真整定，没有跟着 a43d3dd 更新 | 统一用 `base_hold.py`（P 5 / 6、50 Hz），漂移最大值 2.18 → 0.32 mm |
+| 定点保持增益过时 | 记录器自带的保持器 k = 1.0、20 Hz、限速 0.05 m/s | 按仿真配置 v1 整定，换成仿真配置 v2 后没有重新整定 | 统一用 `base_hold.py`（P 5 / 6、50 Hz），漂移最大值 2.18 → 0.32 mm |
 | 导航目标被拒绝 | 仿真启动后立即运行任务，第一个 Nav2 目标被拒绝，任务直接失败 | `navigate_to_pose` action 服务器先于 bt_navigator 激活出现，`wait_for_server` 已返回但目标会被拒绝 | `navigate_to_pose` 被拒时等 3 s 重试（最多 10 次） |
 | 退出时 abort | 记录器在执行失败的提前退出路径上 `terminate called without an active exception` | 定点保持的后台线程没停就退出 | 所有退出路径按顺序停线程、销毁节点 |
 
@@ -363,7 +363,7 @@ ros2 run scr_arm_controller navigation_cutting_task /tmp/plan_dp.yaml --dry-run-
 ros2 run scr_planner execute_slot_plan.py /tmp/plan_dp.yaml /tmp/run_dp --dry-run-gap=0.01
 #   每站都走 Nav2 的对照：再加 --max-strafe=0.1
 #   第一版精对位下的运行（runs/dp、per_slot 等）：当前多站行为树只使用精对位第二版，
-#   复现这些数据需检出 a44d354 并按当时的命令运行
+#   复现这些数据需检出行为树任务层引入之前、仍含第一版精对位多站路径的版本，并按该版本的命令运行
 #   精对位改进后的复测（runs/fine_align_*）：
 ros2 run scr_planner execute_slot_plan.py docs/experiments/slot_execution/runs/dp/slot_plan.yaml /tmp/run_fine_align --dry-run-gap=0.01
 #   原点消融（runs/fine_align_dp_nofold）：精对位参数属于技能服务器，在启动时传入
@@ -388,4 +388,4 @@ python3 src/scr_planner/scripts/plot_station_order.py /tmp/run_naive /tmp/run_dp
     docs/experiments/slot_execution/station_order_results.csv docs/experiments/slot_execution/station_order.png
 ```
 
-数据目录：`runs/fine_align_dp`、`runs/fine_align_dp_repeat`、`runs/fine_align_dp_nofold` 为精对位改进后的复测（未保存约 0.7 MB 的 `tool_trace.csv`，与其他运行一致）；`runs/dp`、`runs/dp_repeat`、`runs/per_slot`、`runs/per_slot_repeat`、`runs/dp_nav2_each_station` 为第一版精对位下、仿真配置 v2 的数据；`runs/oldsim_*` 为仿真配置 v1（main 12a14f6）数据，`runs/v1_*` 为更早（合并 12a14f6 之前）的数据。
+数据目录：`runs/fine_align_dp`、`runs/fine_align_dp_repeat`、`runs/fine_align_dp_nofold` 为精对位改进后的复测（未保存约 0.7 MB 的 `tool_trace.csv`，与其他运行一致）；`runs/dp`、`runs/dp_repeat`、`runs/per_slot`、`runs/per_slot_repeat`、`runs/dp_nav2_each_station` 为第一版精对位下、仿真配置 v2 的数据；`runs/oldsim_*` 为仿真配置 v1 数据，`runs/v1_*` 为仿真配置 v1 上更早一版执行代码的数据。

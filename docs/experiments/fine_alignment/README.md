@@ -168,14 +168,19 @@ c[k]   = −k·e[k]
 排查记录：最初把偏角写在相机传感器的 `<pose>` 里，示教得到的沿墙偏置只有 −0.15 mm（与名义相同），`gz model -i` 显示传感器朝向仍为 0。原因是 URDF → SDF 合并固定关节（`camera_link` 并入 `link1`）时，传感器位姿被关节偏移整体覆盖。改为修改关节 origin 后，示教得到 −9.56 ± 0.12 mm，与上面 9.6 mm 的估算一致。
 
 ```bash
+# 示教（只需仿真，不需要 Nav2）；camera_yaw_error_deg 只由 gazebo.launch.py 提供，用于对位实验
 ros2 launch scr_description gazebo.launch.py gui:=false camera_yaw_error_deg:=1.0
-ros2 run scr_arm_controller teach_alignment_offset --out taught.yaml
-ros2 run scr_arm_controller navigation_cutting_task task.yaml --ros-args --params-file taught.yaml
+ros2 run scr_arm_controller teach_alignment_offset --out /tmp/fine_alignment_taught.yaml --seconds 30
+# 对位实验脚本直接读取示教结果
+ros2 run scr_arm_controller alignment_benchmark --ros-args --params-file /tmp/fine_alignment_taught.yaml
+# 完整任务：精对位参数属于技能服务器，在启动时传入（文件中没有的参数取默认值）
+ros2 launch scr_bringup sim_nav.launch.py gui:=false alignment_params:=/tmp/fine_alignment_taught.yaml
+ros2 run scr_arm_controller navigation_cutting_task task_at_target.yaml
 ```
 
 ### 2.7 多站执行的墙面坐标原点
 
-第一版以“对位停车时的里程计位姿”为墙面坐标原点，停车时的沿墙残差 e_u 被所有停靠站继承。本版 EKF 的 u 本来就以标记为原点：对位结束时残差保留在状态中，之后站间移动只用里程计预测与激光更新（默认不用标记更新，使每站的行为一致、便于分析；`use_tag = True` 可打开），各站目标 u* 直接取规划的 u_c − u_marker。到站残差测量与机械臂点补偿也改用 EKF 估计。参数 `alignment.fold_residual:=false` 恢复第一版语义（以停车位姿为原点），用于对照。
+第一版以“对位停车时的里程计位姿”为墙面坐标原点，停车时的沿墙残差 e_u 被所有停靠站继承。本版 EKF 的 u 本来就以标记为原点：对位结束时残差保留在状态中，之后站间移动用里程计预测与激光更新（本节的复测中站间不用标记更新，使每站的行为一致、便于分析；当前默认 `alignment.strafe_tag_updates: true`，横移与到站残差测量时视野内的标记继续参与更新，并配合标记地图与横移比例估计，见 [along_wall_accuracy](../along_wall_accuracy/README.md)），各站目标 u* 直接取规划的 u_c − u_marker。到站残差测量与机械臂点补偿也改用 EKF 估计。参数 `alignment.fold_residual:=false` 恢复第一版语义（以停车位姿为原点），用于对照。
 
 Gazebo 复测（同一份 11 站规划，[`slot_execution`](../slot_execution/README.md#精对位改进后的复测)）：两次运行的到站横向误差均值 +0.24 / −0.18 mm（第一版 +1.26 / +0.65 mm），关闭原点修正时为 +0.86 mm（该次停车残差 +0.50 mm）。
 

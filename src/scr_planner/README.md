@@ -108,7 +108,7 @@ python3 src/scr_planner/scripts/calibrate_time_model.py <run_dir> [<run_dir> ...
 - `--compare`：在同一批数据上评估已有预设的每站 RMSE、平均偏差与各站耗时之和的误差；
 - `--loo`：逐次运行留一交叉验证。
 
-`align_v1`、`align_v2` 的数据来自早期配置（`/odom` 为真值），在当前默认路径上 `align_v2` 每次运行低估 18–21 s，只用于复现此前的报告；`align_v3` 的数据来自沿墙精度实验中默认配置的 4 次运行，在 5 次未参与标定的运行（含联合规划与规则路线）上各站之和的误差为 −1.7 … +0.7 s。执行路径或仿真配置改变后应用新的执行记录重新标定。标定、样本外检验与联合规划的 Gazebo 执行见 [plan_validation](../../docs/experiments/plan_validation/README.md)，标定方法的演变见 [技术报告](../../docs/report/README.md#64-执行时间模型的标定) 6.4 节。
+`align_v1`、`align_v2` 的数据来自早期配置（`/odom` 为真值），在当前默认路径上 `align_v2` 每次运行低估 18–21 s，只用于复现此前的报告；`align_v3` 的数据来自沿墙精度实验中默认配置的 4 次运行，在 5 次未参与标定的运行（含联合规划与规则路线）上各站之和的误差为 −1.7 … +0.7 s。执行路径或仿真配置改变后应用新的执行记录重新标定。标定、样本外检验与联合规划的 Gazebo 执行见 [plan_validation](../../docs/experiments/plan_validation/README.md)，标定方法的演变见 [技术报告](../../docs/report/README.md#91-时间模型的标定) 6.4 节。
 
 其他脚本：`wall_benchmark.py`（规划器与施工规范的随机墙面对比）、`station_order_benchmark.py`（停靠站划分与顺序的离线对比）、`task_planning_benchmark.py` / `task_planning_report.py`（联合规划的批量基准与统计，见 [报告](../../docs/experiments/task_planning/README.md)）、`plot_execution.py` / `plot_station_order.py`（作图）。
 
