@@ -11,6 +11,8 @@ Gazebo 验证方案（报告第 7 节）中每个配置的预期值：用离线�
   slam_err5_p1/p2 在线估计，记录值 +5 / −5 mm
   slam_err5_noscale_p1  同上但不估计比例
   tags_0.6_noodomerr    已知正确地图、不估计比例、关闭全部编码器误差（第 4 部分的确认实验）
+  slam2_err5 / slam2_err5_noscale  两个标记（0、1.2 m，不同框），ID 4 记录值 −5 mm，
+                        在线估计，估计 / 不估计比例（Gazebo 运行前补充的两项）
 输出 gazebo_predictions.csv。
 """
 import csv
@@ -25,13 +27,14 @@ N = 40
 FLOOR = 0.0005
 ERR3 = {2: 0.003, 4: -0.003}
 ERR5 = {2: 0.005, 4: -0.005}
+ERR5_2 = {4: -0.005}
 OFF_ALL = {'s_mean': 0.0, 's_run': 0.0, 's_seg': 0.0, 'h_seg': 0.0, 'kappa': 0.0,
            'hold_u': 0.0, 'hold_psi': 0.0}
 
 
 def main():
     model = load_model()
-    tags = layouts()[3]
+    tags3, tags2 = layouts()[3], layouts()[2]
     cfgs = [
         ('known_err5', ERR5, 'known', True, {}),
         ('slam_ok', {}, 'slam', True, {}),
@@ -40,9 +43,12 @@ def main():
         ('slam_err5_noscale', ERR5, 'slam', False, {}),
         ('tags_0.6_noodomerr', {}, 'known', False, OFF_ALL),
         ('tags_0.6', {}, 'known', False, {}),
+        ('slam2_err5', ERR5_2, 'slam', True, {}),
+        ('slam2_err5_noscale', ERR5_2, 'slam', False, {}),
     ]
     rows = []
     for name, err, method, scale, ov in cfgs:
+        tags = tags2 if name.startswith('slam2') else tags3
         rec = {'p1': [], 'p2': []}
         maps = {'p1': [], 'p2': []}
         for k in range(N):
@@ -74,8 +80,10 @@ def main():
                        signed_mean_mm=e.mean())
             if maps[p]:
                 me = np.array(maps[p]) * 1e3
-                row.update(map_err_id2_mm=f'{me[:, 0].mean():+.2f} ± {me[:, 0].std():.2f}',
-                           map_err_id4_mm=f'{me[:, 1].mean():+.2f} ± {me[:, 1].std():.2f}')
+                ids = [i for i in tags if i != 0]
+                cols = {i: f'{me[:, k].mean():+.2f} ± {me[:, k].std():.2f}'
+                        for k, i in enumerate(ids)}
+                row.update(map_err_id2_mm=cols.get(2, ''), map_err_id4_mm=cols.get(4, ''))
             else:
                 row.update(map_err_id2_mm='', map_err_id4_mm='')
             rows.append(row)

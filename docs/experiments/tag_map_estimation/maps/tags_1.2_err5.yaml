@@ -1,0 +1,10 @@
+# Gazebo 验证用标记地图：两个标记（ID 0、4，间距 1.2 m，观测位姿下不同框），记录值有误差：
+# ID 4 记为 −5 mm（世界中的标记位置不变，等价于粘贴误差）。在线估计时记录值作为先验均值
+tag_map:
+  family: tag36h11
+  size: 0.1
+  reference_id: 0
+  sigma_position: 0.005
+  tags:
+  - {id: 0, u: 0.0, v: 0.7}
+  - {id: 4, u: 1.195, v: 0.7}
