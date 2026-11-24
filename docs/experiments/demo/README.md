@@ -2,7 +2,7 @@
 
 ![完整多站开槽演示](slot_demo.gif)
 
-*room3 南墙两条槽的联合规划（11 个停靠站、80 个机械臂点）在 Gazebo 中端到端执行，仿真时间约 270 s，按阶段加速（导航与切割 ×10，精对位 ×4）。上：Gazebo 演示相机；下：导航阶段为占据栅格地图与真值底盘轨迹，之后为墙面立面图（规划槽线、每站机械臂窗口与真值刀尖轨迹）。MP4 版本：[`slot_demo.mp4`](slot_demo.mp4)。*
+*room3 南墙两条槽的联合规划（11 个停靠站、80 个机械臂点）在 Gazebo 中端到端执行（当前默认配置：每站一条连续轨迹），仿真时间约 200 s，按阶段加速（导航与切割 ×10，精对位 ×4）。上：Gazebo 演示相机；下：导航阶段为占据栅格地图与真值底盘轨迹，之后为墙面立面图（规划槽线、每站机械臂窗口与真值刀尖轨迹）。MP4 版本：[`slot_demo.mp4`](slot_demo.mp4)。*
 
 ## 问题
 
@@ -32,33 +32,35 @@
 
 ### 演示运行
 
-联合规划（[plan_validation](../plan_validation/README.md) 中的 `plans/plan_joint.yaml`），种子 1，另外生成 6 个墙面实体（插座 2、新线盒 2、开关、配电箱）与两台演示相机：
+联合规划（[plan_validation](../plan_validation/README.md) 中的 `plans/plan_joint.yaml`），种子 1，当前默认配置（机械臂每站一条连续轨迹，[arm_trajectory](../arm_trajectory/README.md)），另外生成 6 个墙面实体（插座 2、新线盒 2、开关、配电箱）与两台演示相机（Gazebo，n = 1；数据在 [`runs/demo_joint_cont`](../plan_validation/runs/demo_joint_cont/)）：
 
 | 指标 | 结果 |
 |---|---|
-| 停靠站 | 11 / 11 完成，无恢复 |
-| 各站耗时之和 / 总仿真时间 | 229.0 s（预测 228.1 s）/ 268.5 s |
-| 到站沿墙误差最大值（真值） | 1.49 mm |
-| 刀尖轨迹误差 平均 / p95 / 最大 | 0.20 / 0.23 / 1.29 mm |
+| 停靠站 | 11 / 11 完成，无恢复，覆盖率 100 % |
+| 各站耗时之和 / 总仿真时间 | 162.6 s（时间模型 `traj_v1` 预测 160.9 s）/ 201.3 s |
+| 到站沿墙误差最大值（真值） | 1.64 mm |
+| 刀尖轨迹误差 平均 / p95 / 最大 | 0.18 / 0.29 / 1.66 mm |
 
-与不生成墙面实体、不开演示相机的两次联合规划运行（227.8–228.1 s，最大沿墙误差 1.3–2.0 mm）一致，说明实体与相机没有影响执行。
+不生成墙面实体、不开演示相机的连续轨迹联合规划运行为 159.9–163.1 s、最大沿墙误差 1.0–2.1 mm（[arm_trajectory](../arm_trajectory/README.md) 的 `cont_joint_s1/s2` 与 [execution_issues](../execution_issues/README.md) 的 `dry_p_joint_s1/s2`，n = 4）；演示运行慢 0–3 s，在这一范围的上沿，实体与相机对执行没有可见的影响。规划文件中记录的预测时间 228.1 s 来自逐点执行的时间模型 `align_v3`。
+
+**此前的版本**：早期录制的演示（机械臂逐点执行，每点 2 s）各站耗时之和 229.0 s（预测 228.1 s）、总仿真时间 268.5 s，到站沿墙误差最大 1.49 mm，刀尖轨迹误差 0.20 / 0.23 / 1.29 mm；数据在 [`runs/demo_joint`](../plan_validation/runs/demo_joint/)。换成连续轨迹后各站耗时之和少 66 s（−29 %），与 arm_trajectory 报告中的 −29.8 % 一致。
 
 | 素材 | 内容 | 大小 |
 |---|---|---|
-| [`slot_demo.gif`](slot_demo.gif) | 800 × 704，10 帧/s，32 s，321 帧 | 2.9 MB |
+| [`slot_demo.gif`](slot_demo.gif) | 800 × 704，10 帧/s，26.4 s，264 帧 | 2.3 MB |
 | [`slot_demo.mp4`](slot_demo.mp4) | 同上，H.264 | 0.4 MB |
-| [`demo_nav.png`](demo_nav.png) | 导航阶段 | 44 KB |
-| [`demo_align.png`](demo_align.png) | 参考标记处精对位 | 91 KB |
-| [`demo_cut.png`](demo_cut.png) | 第 8 站切割 | 98 KB |
-| [`rviz_replay_trace.png`](rviz_replay_trace.png) | 回放数据包时 RViz 中的刀尖轨迹（执行结束时） | 59 KB |
+| [`demo_nav.png`](demo_nav.png) | 导航阶段 | 42 KB |
+| [`demo_align.png`](demo_align.png) | 参考标记处精对位 | 89 KB |
+| [`demo_cut.png`](demo_cut.png) | 第 9 站切割 | 97 KB |
+| [`rviz_replay_trace.png`](rviz_replay_trace.png) | 回放数据包时 RViz 中的刀尖轨迹（执行结束时；早期逐点执行的演示运行，没有重录） | 59 KB |
 
 ![切割阶段](demo_cut.png)
 
-*第 8 站：上为 Gazebo 演示相机，下为墙面立面图。白色宽线为规划槽线（宽度示意），橙红为刀尖切割段（空切，刀尖停在墙前 10 mm），青色为刀尖移动，彩色竖带为每站机械臂可达窗口，黄框为当前站，黑色方块为定位标记（地图中的 ID 0 / 2 / 4 颜色较深）。立面图的水平比例约为竖直比例的 1.35 倍。*
+*第 9 站：上为 Gazebo 演示相机，下为墙面立面图。白色宽线为规划槽线（宽度示意），橙红为刀尖切割段（空切，刀尖停在墙前 10 mm），青色为刀尖移动，彩色竖带为每站机械臂可达窗口，黄框为当前站，黑色方块为定位标记（地图中的 ID 0 / 2 / 4 颜色较深）。立面图的水平比例约为竖直比例的 1.35 倍。*
 
 ![RViz 回放](rviz_replay_trace.png)
 
-*回放演示运行的数据包：`plan_viz` 从 `/gazebo/link_states` 实时累积的刀尖轨迹（红 = 贴墙切割，青 = 移动），与规划槽线、停靠站、访问顺序和机器人模型叠加。*
+*回放早期演示运行（逐点执行）的数据包：`plan_viz` 从 `/gazebo/link_states` 实时累积的刀尖轨迹（红 = 贴墙切割，青 = 移动），与规划槽线、停靠站、访问顺序和机器人模型叠加。*
 
 ### RViz 开槽场景（离线）
 
@@ -111,26 +113,27 @@
 
 ## 复现
 
-演示录制（约 6 min 墙钟；仿真隔离在 ROS_DOMAIN_ID 48，结束时清理全部进程）：
+演示录制（约 6 min 墙钟；仿真隔离在 ROS_DOMAIN_ID 48，结束时清理全部进程。本次录制把模块变量 `DOMAIN` / `MASTER` 改为 49 / `http://localhost:11353`，与同期其他实验一致）：
 
 ```bash
 source install/setup.bash
-# 1. 规划（默认时间模型 align_v3）
+# 1. 规划（已提交的 plan_joint.yaml 由此生成，当时的时间模型为 align_v3；演示直接使用该文件）
 python3 src/scr_planner/scripts/plan_wall_slots.py src/scr_planner/config/wall_task_room3_south.yaml \
-    docs/experiments/plan_validation/plans/plan_joint.yaml --routes=joint
+    docs/experiments/plan_validation/plans/plan_joint.yaml --routes=joint --time-model=align_v3
 # 2. 仿真 + 墙面实体 + 两台演示相机 + 数据包 + 执行与真值记录
 python3 docs/experiments/plan_validation/run_validation.py \
-    docs/experiments/plan_validation/plans/plan_joint.yaml docs/experiments/plan_validation/runs/demo_joint \
+    docs/experiments/plan_validation/plans/plan_joint.yaml docs/experiments/plan_validation/runs/demo_joint_cont \
     --seed 1 --fixtures src/scr_viz/config/wall_task_room3_south_demo.yaml \
-    --camera ~/scr_media/demo_frames --presets overview oblique \
-    --bag ~/scr_bags/plan_validation/demo_joint
+    --camera ~/scr_media/demo_frames_cont --presets overview oblique \
+    --bag ~/scr_bags/tag_map_val/demo_joint_cont
 # 3. 合成 GIF / MP4 / 截图（约 30 s）
-python3 docs/experiments/demo/make_slot_demo.py docs/experiments/plan_validation/runs/demo_joint \
-    ~/scr_media/demo_frames --task src/scr_viz/config/wall_task_room3_south_demo.yaml \
-    --plan docs/experiments/plan_validation/runs/demo_joint/slot_plan.yaml \
+python3 docs/experiments/demo/make_slot_demo.py docs/experiments/plan_validation/runs/demo_joint_cont \
+    ~/scr_media/demo_frames_cont --task src/scr_viz/config/wall_task_room3_south_demo.yaml \
+    --plan docs/experiments/plan_validation/runs/demo_joint_cont/slot_plan.yaml \
     --gif docs/experiments/demo/slot_demo.gif --mp4 docs/experiments/demo/slot_demo.mp4 \
     --stills docs/experiments/demo
-# 4. RViz 回放与截图（RViz 窗口出现在桌面上；Wayland 下经 XWayland 用 xwd 截取）
+# 4. RViz 回放与截图（RViz 窗口出现在桌面上；Wayland 下经 XWayland 用 xwd 截取；
+#    现有截图来自早期演示运行的数据包，本次没有重录）
 python3 docs/experiments/demo/replay_rviz.py ~/scr_bags/plan_validation/demo_joint \
     --task src/scr_viz/config/wall_task_room3_south_demo.yaml \
     --plan docs/experiments/plan_validation/runs/demo_joint/slot_plan.yaml --out /tmp/rviz --at 60 170 --rate 2
@@ -162,4 +165,4 @@ xwininfo -root -tree | grep -i rviz          # 找到标题含 “- RViz” 的�
 xwd -silent -id <窗口 id> | convert xwd:- rviz.png
 ```
 
-原始帧（约 900 张 JPEG）与数据包不提交：帧在 `~/scr_media/demo_frames/`，数据包在 `~/scr_bags/plan_validation/demo_joint/`（约 200 MB，话题含 `/gazebo/link_states`、`/tf`、`/scan`、`/joint_states`、`/ground_truth/odom`、`/task_skills/*`）。
+原始帧（约 650 张 JPEG）与数据包不提交：帧在 `~/scr_media/demo_frames_cont/`，数据包在 `~/scr_bags/tag_map_val/demo_joint_cont/`（早期录制分别在 `~/scr_media/demo_frames/`、`~/scr_bags/plan_validation/demo_joint/`，约 200 MB，话题含 `/gazebo/link_states`、`/tf`、`/scan`、`/joint_states`、`/ground_truth/odom`、`/task_skills/*`）。

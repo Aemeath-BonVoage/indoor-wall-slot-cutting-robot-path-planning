@@ -1,0 +1,3 @@
+[INFO] [1795504701.765414210] [scr_demo_camera]: 相机 demo_oblique 已生成：eye=(6.3, -2.6, 1.8) target=(8.1, -3.85, 0.5)
+[INFO] [1795504701.805403765] [scr_demo_camera]: 订阅 /demo_oblique/demo_oblique/image_raw，每仿真秒 2 帧，存到 ~/scr_media/demo_frames_cont/oblique
+共存 323 帧（收到 458 帧）→ ~/scr_media/demo_frames_cont/oblique

@@ -1,0 +1,12 @@
+scr_fixture_obs1_switch                  switch        u=0.500 v=1.300 → (9.425, -3.921, 1.300)  灯开关
+scr_fixture_obs2_panelboard              panelboard    u=3.550 v=1.600 → (6.375, -3.910, 1.600)  配电箱
+scr_fixture_slot0_start_socket           socket        u=1.200 v=0.340 → (8.725, -3.921, 0.340)  已有插座A
+scr_fixture_slot0_goal_planned           planned       u=2.300 v=0.340 → (7.625, -3.924, 0.340)  新插座A
+scr_fixture_slot1_start_socket           socket        u=2.450 v=0.720 → (7.475, -3.921, 0.720)  已有插座B
+scr_fixture_slot1_goal_planned           planned       u=1.750 v=0.720 → (8.175, -3.924, 0.720)  书桌插座B
+spawn scr_fixture_obs1_switch: OK
+spawn scr_fixture_obs2_panelboard: OK
+spawn scr_fixture_slot0_start_socket: OK
+spawn scr_fixture_slot0_goal_planned: OK
+spawn scr_fixture_slot1_start_socket: OK
+spawn scr_fixture_slot1_goal_planned: OK
