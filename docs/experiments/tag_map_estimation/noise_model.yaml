@@ -1,0 +1,160 @@
+# 离线测量仿真器的噪声模型（noise_model.py 生成；source: fitted = 由录制数据拟合，
+# assumed = 假设）。数据：bag_data/ 的 4 次运行与 along_wall_accuracy 的 31 次运行
+odometry:
+  lateral_scale_mean:
+    value: -0.02792
+    source: fitted
+    n: 4 runs (44 strafes)
+    note: true strafe = (1 + s) * odom strafe; per-run least squares
+    per_run:
+      default_s1: -0.0275
+      default_s2: -0.02587
+      single_off_s1: -0.02729
+      single_off_s2: -0.03104
+  lateral_scale_run_sigma:
+    value: 0.0022
+    source: fitted
+    n: 4 runs
+  lateral_scale_segment_sigma:
+    value: 0.00564
+    source: fitted
+    n: 44 strafes (|dy| > 3 cm), deviation from the run mean
+    note: random slip, redrawn per strafe; segment length 118 mm median, 4.1 s median
+  heading_per_strafe_odom:
+    value: 7.2e-05
+    unit: rad per m of true strafe
+    source: fitted
+    n: 44 strafes
+    residual_sigma_rad: 0.001436
+  heading_per_strafe_gyro:
+    value: 0.000586
+    unit: rad per m of true strafe
+    source: fitted
+    n: 44 strafes
+    residual_sigma_rad: 0.000668
+    note: the wall estimator uses /wheel/odom, not the gyro
+  hold_drift:
+    lateral_sigma_m: 2.39e-05
+    heading_sigma_rad: 4.48e-05
+    source: fitted
+    n: 40 station holds (arrival to next strafe)
+    note: odometry minus truth while the base holds position during cutting
+laser:
+  distance_bias_m:
+    value: -4.1e-05
+    source: fitted
+    n: 10295 scans
+  distance_sigma_m:
+    value: 0.001133
+    source: fitted
+    n: 10295 scans
+  yaw_bias_rad:
+    value: 3.29e-05
+    source: fitted
+    n: 10294 scans
+  yaw_sigma_rad:
+    value: 0.0039186
+    source: fitted
+    n: 10294 scans
+    note: all phases, after 5-MAD outlier removal
+  yaw_station_bias_sigma_rad:
+    value: 0.000551
+    source: fitted
+    n: 44 station holds
+    note: mean yaw error per static station hold; pose-dependent (range quantisation),
+      redrawn per station in the simulator
+  yaw_within_station_sigma_rad:
+    value: 0.0038744
+    source: fitted
+    lag1_autocorrelation: -0.045
+  distance_station_bias_sigma_m:
+    value: 0.0001457
+    source: fitted
+  covariance_used_by_estimator:
+    var_d_median: 1.263975e-06
+    var_phi_median: 1.700403e-05
+    source: fit_wall covariance, median over all scans
+tag:
+  lateral_bias_m:
+    value: 5.1e-05
+    source: fitted
+    n: 449 static detections (2 runs)
+  lateral_bias_per_rad_bearing:
+    value: -0.000473
+    source: fitted
+    note: ry = a + b * bearing (bearing from base_link x axis)
+  lateral_sigma_static_m:
+    value: 8.86e-05
+    source: fitted
+    n: 449 detections
+  time_offset_s:
+    value: -0.00754
+    source: fitted
+    n: 593 detections while strafing (|v| > 1 cm/s)
+    note: ry error = tau * along-wall speed (residual time misalignment)
+  lateral_sigma_moving_m:
+    value: 0.0001159
+    source: fitted
+    n: 408 detections
+  moving_outlier_fraction:
+    value: 0.3348
+    source: fitted
+    sigma_m: 0.002443
+    note: 'two-component zero-mean Gaussian mixture (EM): core sigma = lateral_sigma_moving_m,
+      tail weight / sigma here; consecutive residuals are uncorrelated at 10 Hz'
+  depth_bias_m:
+    value: -0.000888
+    source: fitted
+  depth_sigma_m:
+    value: 0.000244
+    source: fitted
+  cross_check_along_wall_trace:
+    static_lateral_sigma_m: 8.59e-05
+    moving_lateral_sigma_m: 0.0006596
+    n_static: 5407
+    n_moving: 6721
+    note: 31 runs; truth sampled at the recorder callback (coarser timing)
+  lateral_sigma_moving_calibrated_m:
+    value: 0.0006
+    source: calibrated
+    n: gate acceptance while strafing 575/593 = 0.970 (2 Gazebo runs); 16 simulated
+      runs per grid value
+    grid:
+    - - 0.3
+      - 1.0
+    - - 0.4
+      - 0.9968
+    - - 0.5
+      - 0.9899
+    - - 0.55
+      - 0.9822
+    - - 0.6
+      - 0.9729
+    - - 0.65
+      - 0.9622
+    - - 0.7
+      - 0.95
+    - - 0.8
+      - 0.9257
+    note: Gaussian; replaces the fitted moving-residual mixture, which is dominated
+      by the 0.1 s timestamp resolution; time_offset set to 0 for the same reason
+visibility:
+  rel_u_min_m: -0.377
+  rel_u_max_m: 0.437
+  at_distance_m: 0.7
+  source: fitted
+  n: 1126 detections (2 runs), robot u minus tag u when detected
+  note: scaled with distance to the wall in the simulator
+assumed:
+  survey_sigma_m:
+    value: 0.0005
+    source: assumed
+    note: 'surveyed map: tape / total-station measurement after placement'
+  placement_sigma_m:
+    value:
+    - 0.0
+    - 0.001
+    - 0.003
+    - 0.005
+    source: assumed
+    note: Monte Carlo variable, Gaussian 1-sigma per non-reference marker
