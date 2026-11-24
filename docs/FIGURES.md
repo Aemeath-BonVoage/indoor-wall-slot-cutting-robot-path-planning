@@ -388,6 +388,54 @@
 - 说明：(a) 横槽的偏航力矩随进给的变化，标记为功率 67 %、μ = 0.3、安全系数 1.5 下的进给上限；(b) 三个时间模型下 400 面随机墙的平均预测时间节省。
 - 要点：进给上限由轮地摩擦决定（烧结砖 5.5 mm/s）；在该进给下联合规划的节省为 22.6 s（2.3 %），停靠站合并的相对收益降到 3.3 %。
 
+### 3.23 标记地图在线估计：仿真器检验
+
+<a href="experiments/tag_map_estimation/fig_validation.png"><img src="experiments/tag_map_estimation/fig_validation.png" width="560" alt="标记地图在线估计：仿真器检验"></a>
+
+- 报告：[标记地图在线估计](experiments/tag_map_estimation/README.md) · [PDF](experiments/tag_map_estimation/fig_validation.pdf)
+- 说明：10 组配置下每次运行 11 站中的最大沿墙误差（对数刻度）：朱红方块为 Gazebo 的两次运行，蓝点与横线为离线仿真 40 次的平均与 5–95 分位。
+- 要点：20 次 Gazebo 运行中 19 次落在仿真的 5–95 分位内。
+
+### 3.24 标记地图在线估计：粘贴误差的影响
+
+<a href="experiments/tag_map_estimation/fig_mc_methods.png"><img src="experiments/tag_map_estimation/fig_mc_methods.png" width="640" alt="标记地图在线估计：粘贴误差的影响"></a>
+
+- 报告：[标记地图在线估计](experiments/tag_map_estimation/README.md) · [PDF](experiments/tag_map_estimation/fig_mc_methods.pdf)
+- 说明：3 个标记（间距 0.6 m）时，11 站最大沿墙误差的平均与 95 分位随粘贴误差的变化；(a) 不估计横移比例，(b) 估计横移比例。朱红虚线为名义地图，黑点线为实测地图，蓝实线为在线估计。每格 n = 100，离线仿真。
+- 要点：名义地图的误差随粘贴误差增长（σ = 5 mm 时 4.79 mm），在线估计保持在 1.1–1.2 mm。
+
+### 3.25 标记地图在线估计：标记数量
+
+<a href="experiments/tag_map_estimation/fig_mc_layouts.png"><img src="experiments/tag_map_estimation/fig_mc_layouts.png" width="640" alt="标记地图在线估计：标记数量"></a>
+
+- 报告：[标记地图在线估计](experiments/tag_map_estimation/README.md) · [PDF](experiments/tag_map_estimation/fig_mc_layouts.pdf)
+- 说明：粘贴误差 σ = 3 mm 时不同标记布局下每次最大误差的平均与 95 分位（对数刻度）；(a) 不估计横移比例，(b) 估计横移比例。n = 100，离线仿真。
+- 要点：2 / 3 / 6 个标记时在线估计为 1.87 / 1.13 / 0.98 mm；两个标记不同框时必须估计横移比例。
+
+### 3.26 标记地图在线估计：录制数据回放
+
+<a href="experiments/tag_map_estimation/fig_replay.png"><img src="experiments/tag_map_estimation/fig_replay.png" width="560" alt="标记地图在线估计：录制数据回放"></a>
+
+- 报告：[标记地图在线估计](experiments/tag_map_estimation/README.md) · [PDF](experiments/tag_map_estimation/fig_replay.pdf)
+- 说明：数据包回放中两个非参考标记的地图估计误差随时间的变化，阴影为 ±1σ；第一遍的先验偏 ±5 mm，第二遍沿用第一遍的结果。
+- 要点：地图从 ±5 mm 的错误先验回到 0.9 mm 以内。
+
+### 3.27 不估计横移比例时的同号偏差
+
+<a href="experiments/tag_map_estimation/fig_bias.png"><img src="experiments/tag_map_estimation/fig_bias.png" width="640" alt="不估计横移比例时的同号偏差"></a>
+
+- 报告：[标记地图在线估计](experiments/tag_map_estimation/README.md) · [PDF](experiments/tag_map_estimation/fig_bias.pdf)
+- 说明：(a) Gazebo 中每站到站时的沿墙估计误差与“离墙距离 × 朝向估计误差”的关系；(b) 仿真中里程计横移比例误差对平均沿墙偏差的影响。
+- 要点：偏差来自横移比例误差经朝向估计的泄漏，约 0.24 mm 每 1 %；估计比例后消失。
+
+### 3.28 墙角与门洞边缘的沿墙定位精度
+
+<a href="experiments/tag_map_estimation/fig_marker_free.png"><img src="experiments/tag_map_estimation/fig_marker_free.png" width="560" alt="墙角与门洞边缘的沿墙定位精度"></a>
+
+- 报告：[标记地图在线估计](experiments/tag_map_estimation/README.md) · [PDF](experiments/tag_map_estimation/fig_marker_free.pdf)
+- 说明：激光对墙角（单帧、静止 30 帧平均）与门洞边缘给出的沿墙定位误差（1σ，对数刻度）随离特征距离的变化。按激光的测距噪声与角分辨率计算，理想墙面。
+- 要点：墙角单帧 2.0–3.6 mm，门洞边缘 4–32 mm；墙角只适合作地图原点的锚点。
+
 ## 四、系统
 
 ### 4.1 软件架构
@@ -421,6 +469,38 @@
 - 报告：[系统层现代化 §4.4](experiments/system_modernization/README.md) · [PDF](experiments/system_modernization/fig_odom_drift.pdf)
 - 说明：两次 129 m 长路线导航（起点对齐）。横轴为行驶距离，纵轴为位置误差 (a) 与航向误差 (b)；朱红虚线为仅轮式里程计，绿点划线为 EKF（轮式 + 陀螺），蓝实线为 AMCL（map 系）。
 - 要点：融合陀螺后终点漂移由 1.4–1.6 % 降到 0.14–0.26 %，航向误差由 18–33° 降到 2–3°；AMCL（map 系）的终点误差为 0.04–0.06 m。
+
+### 4.5 导航到达停滞
+
+<a href="experiments/execution_issues/fig_nav_arrival.png"><img src="experiments/execution_issues/fig_nav_arrival.png" width="640" alt="导航到达停滞"></a>
+
+- 报告：[执行层遗留问题的排查](experiments/execution_issues/README.md) · [PDF](experiments/execution_issues/fig_nav_arrival.pdf)
+- 说明：(a) 历史日志中 MPPI 导航“起点 → 墙前”的耗时，按是否出现确认超时分组（n = 95 / 2）；(b) 对照实验每段导航的耗时，四种配置各 24 段；(c) 一次停滞的时间线。
+- 要点：确认超时的两次为 42.2 / 51.0 s，其余 23.9–36.5 s；时限改为 1000 ms 后对照中 0 次超时，耗时分布不变。
+
+### 4.6 切割阶段的响应延迟
+
+<a href="experiments/execution_issues/fig_pause.png"><img src="experiments/execution_issues/fig_pause.png" width="560" alt="切割阶段的响应延迟"></a>
+
+- 报告：[执行层遗留问题的排查](experiments/execution_issues/README.md) · [PDF](experiments/execution_issues/fig_pause.pdf)
+- 说明：每个机械臂轨迹目标的响应延迟（对数刻度），默认 DDS 心跳与 0.1 s 心跳的对比。
+- 要点：默认配置下偶发 1.4–3.0 s 的晚到；心跳 0.1 s 时最大 114 ms。
+
+### 4.7 EKF 慢速偏差与 twist 取平均
+
+<a href="experiments/execution_issues/fig_odom_slow.png"><img src="experiments/execution_issues/fig_odom_slow.png" width="640" alt="EKF 慢速偏差与 twist 取平均"></a>
+
+- 报告：[执行层遗留问题的排查](experiments/execution_issues/README.md) · [PDF](experiments/execution_issues/fig_odom_slow.pdf)
+- 说明：(a) 各阶段 EKF 位移减去轮式里程计位姿位移，修正前后（柱为 2 遍的平均）；(b) 此前两次运行中 twist 相对位姿差分速度的偏差。
+- 要点：修正前 −2.5 … +6.5 mm，修正后 0.02 mm 以内。
+
+### 4.8 扰动观测器保持的空切对照
+
+<a href="experiments/execution_issues/fig_dob_dryrun.png"><img src="experiments/execution_issues/fig_dob_dryrun.png" width="640" alt="扰动观测器保持的空切对照"></a>
+
+- 报告：[执行层遗留问题的排查](experiments/execution_issues/README.md) · [PDF](experiments/execution_issues/fig_dob_dryrun.pdf)
+- 说明：默认空切任务中各项指标，每点一次运行：叉为此前的比例保持运行，方块为同版本代码的比例保持，圆点为扰动观测器。
+- 要点：耗时 +0.3 %，轨迹误差最大值每对都下降，底盘漂移与偏航峰值更小。
 
 ## 五、验证
 
@@ -638,6 +718,8 @@
 | 3.12–3.19 | `python3 docs/experiments/cutting_force/analysis.py` |
 | 3.20–3.22 | `python3 docs/experiments/cutting_force/gazebo_analysis.py` |
 | 4.1、5.3 | `python3 docs/report/make_figures.py` |
+| 3.23–3.28 | `python3 docs/experiments/tag_map_estimation/make_figures.py`（见 [复现](experiments/tag_map_estimation/README.md#11-复现)） |
+| 4.5–4.8 | `docs/experiments/execution_issues/` 下的 `analyze_nav.py`、`analyze_pause.py`、`analyze_odom.py`、`analyze_dob.py` |
 | 4.2–4.4 | `python3 docs/experiments/system_modernization/make_report.py` |
 | 5.1–5.2 | `python3 docs/experiments/plan_validation/make_report.py` |
 

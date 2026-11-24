@@ -22,6 +22,7 @@ SLAM Toolbox 建图、Nav2 导航（Smac 2D + MPPI）与 `robot_localization` �
 - AMCL：全向运动模型 `nav2_amcl::OmniMotionModel`。
 - 全局规划：`nav2_smac_planner/SmacPlanner2D`（代价感知的 8 邻接 A\* + 路径平滑，`cost_travel_multiplier = 2.0` 使路径远离障碍）。麦克纳姆底盘没有最小转弯半径，不使用 Hybrid-A\*。
 - 局部控制：`nav2_mppi_controller::MPPIController`，运动模型 `Omni`；1000 条采样、40 步 × 50 ms（2 s 预测时域）、20 Hz；`PathAngleCritic` 不偏好前进方向，另加 `TwirlingCritic` 抑制行进中的旋转。速度上限 `vx = vy = 0.4 m/s`、`ωz = 0.8 rad/s`。
+- 行为树：`bt_navigator` 的 `default_server_timeout` 取 1000 ms。该时限按仿真时间计，而 `/clock` 每 0.1 s 才跳一次，取 20 ms 时目标确认会被误判为超时并触发恢复（[执行层排查](../../docs/experiments/execution_issues/README.md) 第 2 节）。
 - 代价地图：机器人半径 0.4 m，膨胀半径 0.7 m。
 - 两份参数文件中 `controller_server.min_y_velocity_threshold` 均为 0.001（全向底盘需要小的横向速度反馈）。
 

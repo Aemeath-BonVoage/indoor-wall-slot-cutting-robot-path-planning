@@ -368,6 +368,9 @@ ros2 run scr_arm_controller navigation_cutting_task task_at_target.yaml
 | `alignment.observe_between_stations` | `true` | 横移前机械臂回到观测位姿（滑台 −0.15 m、伸缩轴缩回），使墙上的标记处在画面内；只在 `strafe_tag_updates` 时生效，每站约多 2 s |
 | `alignment.estimate_scale` | `true` | 把里程计横移比例修正 `s`（真实横移 = (1 + s) × 里程计横移）作为 EKF 的第四个状态在线估计 |
 | `alignment.scale_init / scale_sigma` | 0.0 / 0.05 | `s` 的先验均值与标准差；有离线标定值时可填入 `scale_init` |
+| `alignment.estimate_tag_map` | `false` | 把非参考标记的沿墙位置作为 EKF 状态在线估计（[报告](experiments/tag_map_estimation/README.md)；离线评估，尚未在 Gazebo 中运行）。应与 `estimate_scale` 同时打开 |
+| `alignment.tag_map_prior_sigma` / `tag_map_floor` | 0.0 / 0.0 | 标记位置先验的标准差（0 = 取地图文件中的位置误差）；导出协方差的下限，建议 0.0005 m |
+| `alignment.tag_map_output` | 空 | 估计出的地图（含协方差）的保存路径；第二遍作业时把 `tag_map` 指向它即可沿用 |
 
 早期版本中通过 `navigation_cutting_task ... --ros-args --params-file <yaml>` 或 `-p alignment.*:=` 传参；任务改由行为树执行后，这些参数需在启动任务层时传给技能服务器，对客户端设置不再生效。
 
@@ -705,6 +708,8 @@ colcon test --packages-select scr_planner     # 只测单个包
 | 行为树编排、Nav2 MPPI / Smac、定位融合、底盘 ros2_control | 是 | [system_modernization](experiments/system_modernization/README.md) |
 | 多站沿墙精度：标记地图、横移比例估计、按行程重新对位 | 是 | [along_wall_accuracy](experiments/along_wall_accuracy/README.md) |
 | 机械臂连续轨迹与逐点执行的对比、参数扫描、时间模型 `traj_v1` | 标定与出图部分否 | [arm_trajectory](experiments/arm_trajectory/README.md) |
+| 导航停滞、切割停顿、启动失败、慢速 EKF 的排查；扰动观测器空切对照；单条槽精度复测 | 是（分析脚本可只用已提交的数据） | [execution_issues](experiments/execution_issues/README.md) |
+| 标记地图在线估计的离线评估、录制数据回放、墙角精度估算 | 否 | [tag_map_estimation](experiments/tag_map_estimation/README.md) |
 | 切割力模型、平台可行性、定点保持控制律（离线）；Gazebo 阶跃试验与带力整墙运行；进给上限、时间模型 `cut_brick_v1` | 第 10 节与标定数据是，其余否 | [cutting_force](experiments/cutting_force/README.md) |
 | 无合规方案墙面的替代方案；房间级规划（200 个随机房间） | 否 | [room_planning](experiments/room_planning/README.md) |
 | 时间模型 `align_v3` 标定；联合规划与规则路线的 Gazebo 执行 | 标定部分否 | [plan_validation](experiments/plan_validation/README.md) |

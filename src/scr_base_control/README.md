@@ -22,6 +22,7 @@ Humble 的 `ros2_controllers` 没有麦克纳姆轮控制器（`mecanum_drive_co
 | `cmd_vel_timeout` | 0.5 | 秒 |
 | `odom_topic` / `enable_odom_tf` | `/odom` / true | 与 robot_localization 融合时为 `/wheel/odom` / false（`config/base_controller_ekf.yaml`） |
 | `pose_covariance_diagonal` / `twist_covariance_diagonal` | 见源码 | 融合时的权重 |
+| `average_twist` | true | 里程计的 twist 取两次发布之间的平均速度，与位姿积分一致；false 时为发布那一拍的瞬时速度，EKF 积分后在 mm/s 级运动下有偏差（[执行层排查](../../docs/experiments/execution_issues/README.md) 第 5 节）。可在运行中切换 |
 
 运动学约定（`k = (wheel_separation_x + wheel_separation_y) / 2`）：
 

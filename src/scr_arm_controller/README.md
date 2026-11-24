@@ -13,6 +13,7 @@
 | `navigation_cutting_task.py` | 命令行入口（action 客户端）：单站任务 → `/execute_cutting_task`，规划文件 → `/execute_slot_plan`；打印反馈与每站记录 | 是 |
 | `fiducial.py` | 纯算法：AprilTag（tag36h11）检测，边缘直线求交的亚像素角点，IPPE PnP 求标记中心与协方差 | 否 |
 | `wall_ekf.py` | 纯算法：墙面相对状态 (d, u, ψ) 的 EKF，里程计增量预测，激光与标记更新（标记地图中的沿墙偏移 `u_i`，位置误差计入测量噪声），χ² 门限；可选第四个状态：里程计横移比例修正 `s`（真实横移 = (1 + s) × 里程计横移），重新对位时保留 | 否 |
+| `tag_map_slam.py` | 纯算法：标记地图在线估计 `TagMapEKF`（非参考标记的沿墙位置作为 EKF 状态，地图与横移比例在重新对位时保留），带协方差的地图读写，批量最小二乘的交叉检查；由 `alignment.estimate_tag_map` 打开，默认关闭（[报告](../../docs/experiments/tag_map_estimation/README.md)） | 否 |
 | `tag_map.py` | 纯算法：标记地图 `TagMap`（标记 ID → 沿墙位置 `u` 与位置误差），YAML 读写与校验、子地图、加扰动（实验用）、相对路径解析 | 否 |
 | `wall_estimator_ros.py` | EKF 的 ROS 封装：按时间戳经里程计历史补偿测量延迟（估计横移比例时按修正后的增量），画面中每个地图内标记都参与更新，累计无标记更新的沿墙行程 `odom_since_fix`，每个估计周期发布 `/task_skills/wall_estimate` | 是 |
 | `docking_control.py` | 纯算法：平方根整形饱和比例律、速度 / 加速度限幅、收敛判据（误差 + 静止 + 估计不确定度） | 否 |

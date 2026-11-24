@@ -98,6 +98,16 @@ Gazebo walls are rigid and cannot model material removal, so cutting is a dry cu
 
 **Learned.** Most "infeasible" walls came from an unreasonable task assignment (two crossing feeds), not from the rules. Visiting order matters little inside one room; the fixed overhead per wall is the better target.
 
+## 10. Execution-layer issues and marker-map estimation
+
+**Problem.** Four unexplained behaviours remained in the run logs (a stall before navigation arrival, a ~2.7 s pause while cutting, rare Nav2 start-up failures, an EKF that under-reported slow motion), and along-wall accuracy still depended on markers being placed to within a millimetre.
+
+**Method.** Each issue was first searched for in existing logs and bags, then reproduced or instrumented with a minimal experiment, and fixed with a before/after comparison when the cause was in this repository ([report](experiments/execution_issues/README.md)). Separately, marker positions were added to the wall EKF state (EKF-SLAM along the wall) and evaluated offline with a measurement simulator whose noise model was fitted to recorded Gazebo data and checked against 10 existing configurations ([report](experiments/tag_map_estimation/README.md)).
+
+**Result.** The stall came from a 20 ms goal-acknowledgement timeout measured in simulation time that advances in 0.1 s steps; the EKF bias came from publishing an instantaneous twist that was inconsistent with the integrated pose. Both are fixed. The pause is a late action response whose delay follows the DDS heartbeat period; why the sample is lost is unknown. The start-up failure did not recur in 30 cold starts. On the dry-cut task the disturbance-observer hold costs 0.3 % in time and lowers the maximum path error in every pair. Offline, online map estimation keeps the maximum along-wall error near 1.1–1.2 mm for placement errors up to 5 mm, and the residual bias without scale estimation is explained by strafe-scale error leaking through heading.
+
+**Learned.** A simulation clock published at 10 Hz interacts with anything that measures short timeouts in simulation time; three separate defects in this project trace back to it. The stall fix rests on log evidence: the stall itself was too rare (about 1 %) to reproduce in a controlled comparison. The marker-map estimator has not been run in Gazebo.
+
 ## Limitations
 
 All results come from simulation, with idealised rendering, an encoder error model that is assumed and not calibrated on hardware, a force-driven base whose wheels do not carry the load, and a cutting-force model whose values are mostly assumptions (the default execution path is still a dry cut). Samples are small: 8 trials per alignment condition, 1–3 runs per system-layer configuration and 2 runs per along-wall or plan-validation configuration. The gains over 400 walls are model predictions; one wall and one task were executed in Gazebo, and room-level plans have not been executed.
