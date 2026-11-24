@@ -356,6 +356,8 @@ ros2 launch scr_bringup sim_nav.launch.py gui:=false alignment_params:=/tmp/fine
 ros2 run scr_arm_controller navigation_cutting_task task_at_target.yaml
 ```
 
+`teach_alignment_offset` 与 `alignment_benchmark` 可以用 `--ros-args -p <参数>:=<值>` 传节点参数。它们默认使用 `/odom`，而仿真中融合里程计只有约 10 Hz：独立运行这两个工具时加 `--ros-args -p odom_topic:=/wheel/odom`，否则精对位可能得不到测量；`hold.mode` 为 `dob` 时在 10 Hz 的里程计上还会出现厘米级的摆动（[执行层排查](experiments/execution_issues/README.md) 6.4 节）。
+
 | 参数 | 默认 | 说明 |
 |---|---|---|
 | `alignment.detector` | `apriltag` | `apriltag` 或 `blob`（第一版色块检测器，基线） |
@@ -368,7 +370,7 @@ ros2 run scr_arm_controller navigation_cutting_task task_at_target.yaml
 | `alignment.observe_between_stations` | `true` | 横移前机械臂回到观测位姿（滑台 −0.15 m、伸缩轴缩回），使墙上的标记处在画面内；只在 `strafe_tag_updates` 时生效，每站约多 2 s |
 | `alignment.estimate_scale` | `true` | 把里程计横移比例修正 `s`（真实横移 = (1 + s) × 里程计横移）作为 EKF 的第四个状态在线估计 |
 | `alignment.scale_init / scale_sigma` | 0.0 / 0.05 | `s` 的先验均值与标准差；有离线标定值时可填入 `scale_init` |
-| `alignment.estimate_tag_map` | `false` | 把非参考标记的沿墙位置作为 EKF 状态在线估计（[报告](experiments/tag_map_estimation/README.md)；离线评估，尚未在 Gazebo 中运行）。应与 `estimate_scale` 同时打开 |
+| `alignment.estimate_tag_map` | `false` | 把非参考标记的沿墙位置作为 EKF 状态在线估计（[报告](experiments/tag_map_estimation/README.md)，已在 Gazebo 中验证）。必须与 `estimate_scale` 同时打开：两个标记不同框且不估计比例时，地图会吸收里程计的比例误差 |
 | `alignment.tag_map_prior_sigma` / `tag_map_floor` | 0.0 / 0.0 | 标记位置先验的标准差（0 = 取地图文件中的位置误差）；导出协方差的下限，建议 0.0005 m |
 | `alignment.tag_map_output` | 空 | 估计出的地图（含协方差）的保存路径；第二遍作业时把 `tag_map` 指向它即可沿用 |
 

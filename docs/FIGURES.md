@@ -436,6 +436,22 @@
 - 说明：激光对墙角（单帧、静止 30 帧平均）与门洞边缘给出的沿墙定位误差（1σ，对数刻度）随离特征距离的变化。按激光的测距噪声与角分辨率计算，理想墙面。
 - 要点：墙角单帧 2.0–3.6 mm，门洞边缘 4–32 mm；墙角只适合作地图原点的锚点。
 
+### 3.29 标记地图在线估计：Gazebo 中的站点误差
+
+<a href="experiments/tag_map_estimation/fig_gazebo_stations.png"><img src="experiments/tag_map_estimation/fig_gazebo_stations.png" width="640" alt="标记地图在线估计：Gazebo 中的站点误差"></a>
+
+- 报告：[标记地图在线估计](experiments/tag_map_estimation/README.md#8-gazebo-验证) · [PDF](experiments/tag_map_estimation/fig_gazebo_stations.pdf)
+- 说明：每次运行 11 站补偿后刀尖沿墙误差的最大值（对数坐标）。蓝色圆点为在线估计，朱红方块为已知地图；灰色带为离线预期的 5–95 分位，黑线为预期平均。
+- 要点：地图偏 ±5 mm 时按已知地图使用约 6 mm，在线估计 0.9–2.0 mm；两个标记不同框且不估计比例时 13–17 mm，与预期的失效一致。
+
+### 3.30 标记地图在线估计：地图误差与协方差
+
+<a href="experiments/tag_map_estimation/fig_gazebo_map.png"><img src="experiments/tag_map_estimation/fig_gazebo_map.png" width="640" alt="标记地图在线估计：地图误差与协方差"></a>
+
+- 报告：[标记地图在线估计](experiments/tag_map_estimation/README.md#8-gazebo-验证) · [PDF](experiments/tag_map_estimation/fig_gazebo_map.pdf)
+- 说明：(a) 三个标记的在线估计运行中导出地图的误差与导出的 1σ；(b) 全部在线估计运行的归一化误差（误差 / 导出 σ）。
+- 要点：ID 2 的误差 +0.27 ± 0.10 mm；只在视窗边缘被看到的 ID 4 为 +0.74 ± 0.35 mm，导出的协方差对它偏乐观。
+
 ## 四、系统
 
 ### 4.1 软件架构
@@ -501,6 +517,14 @@
 - 报告：[执行层遗留问题的排查](experiments/execution_issues/README.md) · [PDF](experiments/execution_issues/fig_dob_dryrun.pdf)
 - 说明：默认空切任务中各项指标，每点一次运行：叉为此前的比例保持运行，方块为同版本代码的比例保持，圆点为扰动观测器。
 - 要点：耗时 +0.3 %，轨迹误差最大值每对都下降，底盘漂移与偏航峰值更小。
+
+### 4.9 扰动观测器保持：单站、精对位与示教路径
+
+<a href="experiments/execution_issues/fig_hold_paths.png"><img src="experiments/execution_issues/fig_hold_paths.png" width="640" alt="扰动观测器保持：单站、精对位与示教路径"></a>
+
+- 报告：[执行层遗留问题的排查](experiments/execution_issues/README.md#6-扰动观测器定点保持的空切对照) · [PDF](experiments/execution_issues/fig_hold_paths.pdf)
+- 说明：底盘真值最大漂移，空心方块为比例保持，实心圆点为扰动观测器，细线连接同一种子。(a) 单站任务的扫描与切割；(b) 独立精对位到位后 8 s；(c) 示教零位，里程计取 `/wheel/odom`；(d) 同 (c)，但里程计取 10 Hz 的 `/odom`。
+- 要点：50 Hz 的轮式里程计上扰动观测器不比比例保持差；10 Hz 的融合里程计上出现 21–30 mm 的极限环。
 
 ## 五、验证
 
@@ -718,8 +742,9 @@
 | 3.12–3.19 | `python3 docs/experiments/cutting_force/analysis.py` |
 | 3.20–3.22 | `python3 docs/experiments/cutting_force/gazebo_analysis.py` |
 | 4.1、5.3 | `python3 docs/report/make_figures.py` |
+| 3.29–3.30 | `python3 docs/experiments/tag_map_estimation/gazebo_validation.py` |
 | 3.23–3.28 | `python3 docs/experiments/tag_map_estimation/make_figures.py`（见 [复现](experiments/tag_map_estimation/README.md#11-复现)） |
-| 4.5–4.8 | `docs/experiments/execution_issues/` 下的 `analyze_nav.py`、`analyze_pause.py`、`analyze_odom.py`、`analyze_dob.py` |
+| 4.5–4.8 | `docs/experiments/execution_issues/` 下的 `analyze_nav.py`、`analyze_pause.py`、`analyze_odom.py`、`analyze_dob.py`；4.9 为 `analyze_hold_paths.py` |
 | 4.2–4.4 | `python3 docs/experiments/system_modernization/make_report.py` |
 | 5.1–5.2 | `python3 docs/experiments/plan_validation/make_report.py` |
 

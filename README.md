@@ -36,7 +36,7 @@
 | 进给受力限制后的规划收益 | 在 5.5 mm/s 下重新标定时间模型（`cut_brick_v1`，样本外误差 ≤ 0.7 %）：示例墙 11 站由空切的 160 s 变为 978.5 s，每个机械臂点的代价由 0.5 s 升到 5.1 s。400 面随机墙上联合规划在非承重墙的预测节省为 22.6 s（2.3 %，95 % CI [2.0, 2.6] %），空切模型下为 2.3 s（1.2 %）；停靠站合并的相对收益由 10 % 降到 3.3 % | [切割力与抗扰保持 11 节](docs/experiments/cutting_force/README.md#11-进给速度的依据与规划收益) |
 | 房间级规划与替代方案（离线） | 联合规划无解的 106 面墙，冲突都集中在一对槽上；不放松开槽规范、只改任务（换引线点、改走地面），102 面得到合规方案，独立检查 0 违规。多面墙的访问顺序与方向用子集动态规划精确求解：200 个随机房间上比固定顺序快 1.4 %（95 % CI [1.3, 1.6] %），墙上作业占预测时间的 81 %，顺序的优化空间有限。未在 Gazebo 中执行 | [房间级规划](docs/experiments/room_planning/README.md) |
 | 执行层问题排查 | 导航到达前偶发停滞 10–15 s：行为树确认目标的时限 20 ms 按仿真时间计，而 `/clock` 0.1 s 一跳，确认被误判超时后转入恢复（历史日志 198 次导航中 5 次），时限改为 1000 ms。EKF 慢速输出偏差：里程计的 twist 是发布那一拍的瞬时速度，改为两次发布之间的平均后 EKF 与轮式位姿之差由 −2.5 … +6.5 mm 降到 0.02 mm 以内。切割阶段约 2.7 s 的停顿定位到动作响应晚到（与 DDS 心跳周期有关），未修；Nav2 启动失败 30 次冷启动未复现。扰动观测器保持在空切任务上的对照（4 对运行）：耗时 +0.3 %，轨迹误差最大值 −0.45 mm | [执行层排查](docs/experiments/execution_issues/README.md) |
-| 标记地图在线估计（离线） | 把标记的沿墙位置并入墙面 EKF 的状态，与底盘位置、横移比例一起估计：粘贴误差 σ = 5 mm 时 11 站最大沿墙误差的平均由 4.79 mm（名义地图）降到 1.16 mm，不再随粘贴误差增长（仿真，每格 n = 100）；用录制数据回放，地图从 ±5 mm 的错误先验回到 0.9 mm 以内。默认关闭，尚未在 Gazebo 中运行 | [标记地图在线估计](docs/experiments/tag_map_estimation/README.md) |
+| 标记地图在线估计 | 把标记的沿墙位置并入墙面 EKF 的状态，与底盘位置、横移比例一起估计。Gazebo 中地图记录值有 ±3 / ±5 mm 误差时，11 站最大沿墙误差由 5.8–6.1 mm（按已知地图使用）回到 0.9–2.0 mm（8 次运行），与地图正确时同一水平；离线预测为 1.1 mm，10 次运行的平均为 1.35 mm。两个标记不同框且不估计横移比例时地图误差 12–16 mm，与预测的失效一致。验证中修正了两处缺陷。默认关闭 | [标记地图在线估计](docs/experiments/tag_map_estimation/README.md) |
 | 系统层 | 任务改由 BehaviorTree.CPP 编排 6 个技能 action（含重试与重新对位）；Nav2 换用 Smac 2D + MPPI：到达 18 / 18（NavFn + DWB 15 / 18），最小离障间隙 183 mm（5 mm），控制器 CPU 9.7 %（45.5 %）；底盘接入 ros2_control | [系统层现代化](docs/experiments/system_modernization/README.md) |
 | 定位融合 | 编码器误差模型 + 陀螺 + robot_localization EKF：129 m 路线上里程计漂移 1.4–1.6 % → 0.14–0.26 % | [系统层现代化](docs/experiments/system_modernization/README.md#44-定位漂移) |
 | 仿真保真度 | 定位并修复底盘旋转失真的两层根因，转速比 18–37 % → 0.99–1.01 | [项目演进](docs/EVOLUTION.md#4-仿真保真度底盘漂移与旋转失真) |
@@ -181,7 +181,7 @@ docker compose -f docker/docker-compose.yml exec sim bash   # 进入容器后执
   - [多站执行与停靠站顺序优化](docs/experiments/slot_execution/README.md)
   - [系统层现代化：行为树、Nav2 MPPI / Smac、定位融合、ros2_control](docs/experiments/system_modernization/README.md)
   - [多站沿墙精度：多标记地图与横移比例在线估计](docs/experiments/along_wall_accuracy/README.md)
-  - [标记地图在线估计：去掉沿墙精度对标记粘贴精度的依赖（离线）](docs/experiments/tag_map_estimation/README.md)
+  - [标记地图在线估计：去掉沿墙精度对标记粘贴精度的依赖](docs/experiments/tag_map_estimation/README.md)
   - [执行层遗留问题的排查：导航停滞、切割停顿、启动失败、慢速 EKF](docs/experiments/execution_issues/README.md)
   - [规划验证：时间模型重标定与联合规划的 Gazebo 执行](docs/experiments/plan_validation/README.md)
   - [机械臂连续轨迹：进给与空行程分离的时间参数化、时间模型的切割长度项](docs/experiments/arm_trajectory/README.md)
@@ -190,6 +190,7 @@ docker compose -f docker/docker-compose.yml exec sim bash   # 进入容器后执
   - [房间级规划与无合规方案墙面的替代方案](docs/experiments/room_planning/README.md)
   - [视觉伺服方法对比：PBVS / IBVS / 2.5D 混合](docs/experiments/ibvs_vs_pbvs/README.md)
   - [可视化与演示](docs/experiments/demo/README.md)
+  - [仿真器迁移评估：Gazebo Classic → 新版 Gazebo（书面评估）](docs/experiments/gazebo_migration/README.md)
 
 ## 关于
 

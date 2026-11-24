@@ -10,7 +10,7 @@
 
 机械臂连续轨迹（[报告](experiments/arm_trajectory/README.md)）、切割力模型及其 Gazebo 验证、按力模型限制的进给（[报告](experiments/cutting_force/README.md)）已完成，留下的问题：
 
-- [ ] 扰动观测器在默认空切任务上的对照已完成（4 对运行：耗时 +0.3 %，轨迹误差最大值下降，[报告](experiments/execution_issues/README.md#6-扰动观测器定点保持的空切对照)）；把 `hold.mode` 的默认值改为 `dob` 之前还缺单站任务、精对位与示教路径下的检查
+- [ ] 把 `hold.mode` 的默认值改为 `dob`：多站空切、单站任务、精对位与示教路径上的对照都已完成，`dob` 在 50 Hz 的 `/wheel/odom` 上不比比例保持差（[报告](experiments/execution_issues/README.md#6-扰动观测器定点保持的空切对照)）。改之前需要：里程计频率低于设计值时退回 `p`（10 Hz 的 `/odom` 上 `dob` 出现 21–30 mm 的极限环）；独立工具的里程计话题与任务层一致；更多墙面与 `plant:=wheels`
 - [ ] 放宽后的保持限幅（`base_max_ang_accel` = 75 rad/s²）对应 μ = 0.6，与进给上限所用的 μ = 0.3 不一致，应按同一个摩擦系数推出
 - [ ] 带力切割时横槽刀尖偏移峰值 5–6 mm，约为离线预测的两倍：把切削力与底盘运动的耦合加入离线模型，并处理下刀（近零进给）时力模型对速度符号敏感的问题
 - [ ] 一刀切完、切削力消失后的瞬态（峰值最大 14 mm），1 s 的等待没有完全消除
@@ -24,7 +24,7 @@
 
 多标记地图 + 横移比例在线估计已把 11 站开槽的最大沿墙误差降到 1.5 mm（[报告](experiments/along_wall_accuracy/README.md)）；标记位置的在线估计已完成离线设计与评估（[报告](experiments/tag_map_estimation/README.md)），留下的问题：
 
-- [ ] 在 Gazebo 中验证标记地图在线估计（`alignment.estimate_tag_map`）：运行表与预期值见报告第 8 节（16 次运行）
+- [ ] 默认开启 `alignment.estimate_tag_map`：Gazebo 验证已完成（[报告](experiments/tag_map_estimation/README.md#8-gazebo-验证)）。开启前需要：强制同时估计横移比例（两个标记不同框且不估计比例时地图误差 12–16 mm）；协方差下限随观测几何变化（只在视窗边缘看到的标记偏乐观）；在最终代码上复跑地图有误差的 8 次运行
 - [ ] 墙角作为地图原点的锚点：先用已录制数据包中的激光数据离线拟合墙角，再决定是否做 Gazebo 试验
 - [ ] 回放所需的记录：估计器内部时间戳与原始检测话题（现有估计话题的时间戳只有 0.1 s 分辨率）
 - [ ] 相机尺度误差与已知标记间距的利用（相机看到的间距偏短约 0.06 %）
@@ -38,6 +38,7 @@
 - [ ] 导航到达停滞的修正依据的是日志证据，停滞本身出现频率约 1 %，修正后的频率需要在后续运行中累计
 - [ ] 贴墙原地旋转时 AMCL 偶发约 0.45 m 的定位跳变（一次运行中观察到）
 - [ ] `/clock` 只有 10 Hz 的副作用：按仿真时间计时的短超时、定时器成批触发
+- [ ] 机器负载高时技能服务器的消息接收滞后（里程计历史落后于激光，精对位得不到测量）：标记地图验证的 34 次启动中 9 次因此失效，原因未定位
 
 ### 3. 任务级规划的后续工作
 
@@ -83,6 +84,7 @@
 | 无合规方案墙面的诊断与替代方案（102 / 106）；房间级规划（子集动态规划） | [演进 16](EVOLUTION.md#16-从一面墙到一个房间)、[报告](experiments/room_planning/README.md) |
 | 执行层问题排查：导航到达停滞（确认超时）与 EKF 慢速偏差（twist 取平均）修正；切割停顿定位；扰动观测器空切对照；单条槽精度复测 | [演进 17](EVOLUTION.md#17-执行层遗留问题的排查)、[报告](experiments/execution_issues/README.md) |
 | 标记地图在线估计（EKF-SLAM，默认关闭）的离线设计与评估；剩余同号偏差的来源；墙角等自然特征的精度估算 | [演进 18](EVOLUTION.md#18-标记地图在线估计离线)、[报告](experiments/tag_map_estimation/README.md) |
+| 标记地图在线估计的 Gazebo 验证（22 次运行，修正两处缺陷）；扰动观测器在单站、精对位与示教路径上的对照；演示按连续轨迹重录 | [演进 19](EVOLUTION.md#19-标记地图估计的-gazebo-验证与文档同步)、[报告](experiments/tag_map_estimation/README.md#8-gazebo-验证) |
 | 英文 README 与技术概览；Docker 镜像与镜像检查工作流 | [English README](../README.en.md)、[使用指南 11](USER_GUIDE.md#11-docker-复现) |
 | 时间模型按精对位第二版重新标定（`align_v2`）；技术报告与英文摘要 | [演进 10](EVOLUTION.md#10-系统层现代化)、[技术报告](report/README.md) |
 | 技术报告同步到第 13–18 阶段（连续轨迹、切割力、房间级规划、执行层排查、标记地图在线估计）并重建 PDF；仿真器迁移的桌面评估 | [技术报告](report/README.md)、[迁移评估](experiments/gazebo_migration/README.md) |
