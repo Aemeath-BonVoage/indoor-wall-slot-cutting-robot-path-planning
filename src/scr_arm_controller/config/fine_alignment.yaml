@@ -46,4 +46,10 @@
       estimate_scale: true
       scale_init: 0.0             # s 的先验（可填离线标定值）
       scale_sigma: 0.05           # s 的先验标准差
+      # 标记地图在线估计（tag_map_slam.py）：非参考标记的沿墙位置作为 EKF 状态，地图中的
+      # 位置只作先验；false = 地图位置视为已知常数（默认）
+      estimate_tag_map: false
+      tag_map_prior_sigma: 0.0    # 先验标准差（米）；0 = 用地图中每个标记的 sigma
+      tag_map_output: ''          # 估计（均值 + 协方差）写入的地图 YAML，可作下一遍的 tag_map
+      tag_map_floor: 0.0          # 导出协方差中计入的相机系统误差（米，1σ）
       # 实验与对比见 docs/experiments/along_wall_accuracy/README.md

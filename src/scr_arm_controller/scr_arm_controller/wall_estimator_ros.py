@@ -12,9 +12,14 @@
 多标记：标记地图（tag_map.TagMap）给出每个标记在墙面坐标中的位置，画面中的每个地图内
 标记都参与更新；odom_since_fix 记录自上次接受标记更新以来的沿墙里程计行程，供任务层
 判断是否需要回到标记重新对位。每个周期的估计发布在 /task_skills/wall_estimate。
+
+标记地图在线估计（estimate_tag_map，默认关闭）：非参考标记的沿墙位置作为 EKF 状态
+（tag_map_slam.TagMapEKF），地图中的位置只作先验；估计（均值 + 协方差）按 map_output
+定期写成地图 YAML，下一遍作业把它作为 tag_map 载入即为带协方差的先验。
 """
 import bisect
 import math
+import os
 from collections import deque
 
 import numpy as np
@@ -23,6 +28,7 @@ from nav_msgs.msg import Odometry
 from rclpy.time import Time
 
 from scr_arm_controller.tag_map import TagMap
+from scr_arm_controller.tag_map_slam import TagMapEKF
 from scr_arm_controller.wall_ekf import WallEKF
 
 try:
@@ -48,12 +54,25 @@ class WallStateEstimator:
 
     def __init__(self, node, servo, history=4.0, odom_topic='/odom', tag_map=None,
                  estimate_scale=False, scale_init=0.0, scale_sigma=0.05,
-                 estimate_topic='/task_skills/wall_estimate'):
+                 estimate_topic='/task_skills/wall_estimate', estimate_tag_map=False,
+                 map_prior_sigma=None, map_prior_cov=None, map_output=None,
+                 map_save_period=5.0, map_floor=0.0):
         self.node = node
         self.servo = servo
-        self.ekf = WallEKF(estimate_scale=estimate_scale, scale_init=scale_init,
-                           scale_sigma=scale_sigma)
         self.tag_map = tag_map if tag_map is not None else TagMap.single(servo.tag_id)
+        self.estimate_tag_map = bool(estimate_tag_map) and len(self.tag_map) > 1
+        if self.estimate_tag_map:
+            self.ekf = TagMapEKF(self.tag_map, prior_sigma=map_prior_sigma,
+                                 prior_cov=map_prior_cov, map_floor=map_floor,
+                                 estimate_scale=estimate_scale,
+                                 scale_init=scale_init, scale_sigma=scale_sigma)
+        else:
+            self.ekf = WallEKF(estimate_scale=estimate_scale, scale_init=scale_init,
+                               scale_sigma=scale_sigma)
+        self.map_output = os.path.expanduser(map_output) if map_output else None
+        self.map_save_period = float(map_save_period)
+        self._map_saved_at = None
+        self._map_dirty = False
         self.odom_since_fix = 0.0          # 自上次接受标记更新以来的沿墙里程计行程（米）
         self.tag_ids_seen = set()          # 自上次 reset_tag_log() 以来接受过更新的标记
         self.odom_bias = (0.0, 0.0, 0.0)   # 实验用：与任务节点相同的里程计漂移注入
@@ -123,8 +142,37 @@ class WallStateEstimator:
         return self._hist[-1][0] if self._hist else None
 
     # ---------- 控制 ----------
+    def tag_u(self, tag_id):
+        """标记的沿墙位置：在线估计时取当前估计，否则取地图."""
+        return self.ekf.tag_u(tag_id) if self.estimate_tag_map else self.tag_map.u[tag_id]
+
+    def save_map(self, force=False):
+        """把在线估计的地图（均值 + 协方差）写到 map_output（未开启或未设置时不做）."""
+        if not (self.estimate_tag_map and self.map_output) or not (self._map_dirty or force):
+            return None
+        t = self.now()
+        if not force and self._map_saved_at is not None and t is not None and \
+                t - self._map_saved_at < self.map_save_period:
+            return None
+        import yaml
+        est = self.ekf.map_estimate()
+        d = os.path.dirname(self.map_output)
+        if d:
+            os.makedirs(d, exist_ok=True)
+        tmp = self.map_output + '.tmp'
+        with open(tmp, 'w', encoding='utf-8') as f:
+            f.write('# 标记地图在线估计（均值 + 协方差），可直接作为下一遍的 tag_map 先验\n')
+            yaml.safe_dump(est.to_dict(), f, allow_unicode=True, sort_keys=False)
+        os.replace(tmp, self.map_output)
+        self._map_saved_at, self._map_dirty = t, False
+        items = [f'ID {i} u = {m:.4f} ± {s * 1000:.2f} mm'
+                 for i, m, s in zip(est.ids, est.mean, est.sigma())]
+        self.node.get_logger().info('标记地图估计：' + ', '.join(items))
+        return self.map_output
+
     def reset(self):
-        """开始新一次对位：清空滤波器（标记位置重新由测量确定；横移比例修正 s 保留）."""
+        """开始新一次对位：清空 (d, u, ψ)（横移比例修正 s 与在线估计的地图保留）."""
+        self.save_map(force=self._map_dirty)
         self.ekf.clear()
         self.odom_since_fix = 0.0
         self.ekf.stats = {'wall': [0, 0], 'tag': [0, 0]}
@@ -233,7 +281,7 @@ class WallStateEstimator:
             # 首次看到标记：保留激光给出的 d、ψ，由离画面中心最近的标记反解 u
             i0, p0, _ = min(obs, key=lambda o: abs(o[1][1]))
             _, u, _, _ = WallEKF.init_from((ekf.x[0] + ekf.offset[0], -(ekf.x[2] + ekf.offset[2])),
-                                           p0, offset=ekf.offset, u_tag=self.tag_map.u[i0])
+                                           p0, offset=ekf.offset, u_tag=self.tag_u(i0))
             ekf.x[1] = u
             ekf.P[1, :] = 0.0
             ekf.P[:, 1] = 0.0
@@ -241,8 +289,11 @@ class WallStateEstimator:
             self.u_known = True
         accepted, nis_max = [], 0.0
         for i, p, cov in obs:
-            ok, nis = ekf.update_tag(p, cov, u_tag=self.tag_map.u[i],
-                                     sigma_map=self.tag_map.sigma(i))
+            if self.estimate_tag_map:
+                ok, nis = ekf.update_tag_id(p, cov, i)
+            else:
+                ok, nis = ekf.update_tag(p, cov, u_tag=self.tag_map.u[i],
+                                         sigma_map=self.tag_map.sigma(i))
             nis_max = max(nis_max, nis)
             if ok:
                 accepted.append(i)
@@ -254,6 +305,9 @@ class WallStateEstimator:
             self.odom_since_fix = 0.0
             self.tag_ids_seen.update(accepted)
             info['tag'] = 'ok'
+            if self.estimate_tag_map and any(i != self.tag_map.reference_id for i in accepted):
+                self._map_dirty = True
+                self.save_map()
         else:
             self.tag_reject_streak += 1
             info['tag'] = f'rejected (NIS {nis_max:.1f})'

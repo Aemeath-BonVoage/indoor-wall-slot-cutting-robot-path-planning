@@ -48,6 +48,7 @@ from scr_arm_controller.cut_schedule import CutSchedule, split_plunges, travel_r
 from scr_arm_controller.docking_control import ConvergenceMonitor, WallAlignController
 from scr_arm_controller.slot_execution import cut_phases
 from scr_arm_controller.tag_map import TagMap, resolve_path
+from scr_arm_controller.tag_map_slam import TagMapEstimate
 from scr_arm_controller.trajectory_visualizer import TrajectoryVisualizer
 from scr_arm_controller.visual_servo import pbvs_command
 from scr_arm_controller.visual_servo_ros import WallMarkerServo
@@ -90,6 +91,12 @@ ALIGNMENT_PARAMS = {
     'estimate_scale': True,
     'scale_init': 0.0,                 # s 的先验（可填离线标定值）
     'scale_sigma': 0.05,               # s 的先验标准差
+    # 标记地图在线估计：非参考标记的沿墙位置作为 EKF 状态，地图中的位置只作先验
+    # （tag_map_slam.py）。默认关闭：地图位置视为已知常数
+    'estimate_tag_map': False,
+    'tag_map_prior_sigma': 0.0,        # 先验标准差（米）；0 = 用地图中每个标记的 sigma
+    'tag_map_output': '',              # 估计结果（均值 + 协方差）写入的地图 YAML；空串不写
+    'tag_map_floor': 0.0,              # 导出协方差中计入的相机系统误差（米，1σ）
 }
 
 
@@ -230,10 +237,15 @@ class CuttingSkills(Node):
         self.servo = WallMarkerServo(self, detector=a['detector'], tag_family=self.tag_map.family,
                                      tag_id=self.tag_map.reference_id, tag_size=self.tag_map.size)
         self.servo.tag_ids = self.tag_map.ids
+        prior_sigma = float(a['tag_map_prior_sigma'])
         self.estimator = WallStateEstimator(
             self, self.servo, odom_topic=self.odom_topic, tag_map=self.tag_map,
             estimate_scale=bool(a['estimate_scale']), scale_init=float(a['scale_init']),
-            scale_sigma=float(a['scale_sigma']))
+            scale_sigma=float(a['scale_sigma']),
+            estimate_tag_map=bool(a['estimate_tag_map']),
+            map_prior_sigma=prior_sigma if prior_sigma > 0.0 else None,
+            map_prior_cov=self.tag_map_prior_cov, map_output=str(a['tag_map_output']),
+            map_floor=float(a['tag_map_floor']))
         self.apply_alignment_config()
         self.align_trace = []           # 最近一次对位的逐周期记录（实验用）
         self.fold_alignment_residual = bool(a['fold_residual'])
@@ -253,8 +265,14 @@ class CuttingSkills(Node):
         self.get_logger().info('切割任务技能库已初始化')
 
     def load_tag_map(self):
-        """按 alignment.tag_map 加载标记地图；空串时只有参考标记 alignment.tag_id."""
+        """
+        按 alignment.tag_map 加载标记地图；空串时只有参考标记 alignment.tag_id.
+
+        地图文件带协方差（上一遍在线估计的输出）且开启 estimate_tag_map 时，协方差作为先验
+        保存在 self.tag_map_prior_cov。
+        """
         a, log = self.align_cfg, self.get_logger()
+        self.tag_map_prior_cov = None
         config_dir = None
         if get_package_share_directory is not None:
             try:
@@ -268,6 +286,12 @@ class CuttingSkills(Node):
             log.info(f'标记地图：只有参考标记 {m.reference_id}（站间沿墙位置由里程计外推）')
             return m
         m = TagMap.load(path)
+        if bool(a['estimate_tag_map']):
+            import yaml
+            with open(path, encoding='utf-8') as f:
+                m, self.tag_map_prior_cov = TagMapEstimate.prior_from_dict(yaml.safe_load(f))
+            log.info('标记地图在线估计已开启：地图位置作为先验'
+                     + ('（含上一遍估计的协方差）' if self.tag_map_prior_cov is not None else ''))
         if m.reference_id != int(a['tag_id']):
             log.warn(f'标记地图的参考标记 {m.reference_id} 与 alignment.tag_id = {a["tag_id"]} '
                      f'不同，以地图为准')
