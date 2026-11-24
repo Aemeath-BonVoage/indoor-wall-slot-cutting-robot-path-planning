@@ -53,6 +53,8 @@ private:
   std::vector<std::string> wheels_;
   MecanumKinematics kin_;
   Odometry2D odom_;
+  TwistAverager twist_avg_;
+  bool average_twist_{true};
   double cmd_timeout_{0.5};
   double publish_period_{0.02};
   rclcpp::Time last_publish_{0, 0, RCL_ROS_TIME};

@@ -32,6 +32,7 @@ CallbackReturn MecanumDriveController::on_init()
     auto_declare<std::string>("base_frame_id", "base_link");
     auto_declare<bool>("enable_odom_tf", true);
     auto_declare<double>("publish_rate", 50.0);
+    auto_declare<bool>("average_twist", true);
     // 协方差对角线 (x, y, z, roll, pitch, yaw)：融合时 robot_localization 据此加权
     auto_declare<std::vector<double>>(
       "pose_covariance_diagonal", {1e-3, 1e-3, 1e6, 1e6, 1e6, 1e-2});
@@ -128,6 +129,7 @@ CallbackReturn MecanumDriveController::on_activate(const rclcpp_lifecycle::State
     return CallbackReturn::ERROR;
   }
   odom_ = Odometry2D();
+  twist_avg_ = TwistAverager();
   cmd_.writeFromNonRT(std::make_shared<StampedCmd>());
   return CallbackReturn::SUCCESS;
 }
@@ -155,6 +157,7 @@ controller_interface::return_type MecanumDriveController::update(
   const double dt = period.seconds();
   if (dt > 0.0 && dt < 1.0) {
     odom_.integrate(v, dt);
+    twist_avg_.add(v, dt);
   }
 
   // 指令：超时停车
@@ -172,18 +175,24 @@ controller_interface::return_type MecanumDriveController::update(
     return controller_interface::return_type::OK;
   }
   last_publish_ = time;
+  // twist：两次发布之间的平均速度（average_twist = false 时为发布这一拍的瞬时速度；
+  // 运行中可用 ros2 param set 切换，供对照实验使用）
+  average_twist_ = get_node()->get_parameter("average_twist").as_bool();
   const double qz = std::sin(odom_.yaw / 2.0);
   const double qw = std::cos(odom_.yaw / 2.0);
   if (odom_pub_->trylock()) {
+    // 没拿到发布锁时不取平均，下一次发布覆盖两段时间
+    const Twist2D v_avg = twist_avg_.take();
+    const Twist2D & v_pub = average_twist_ ? v_avg : v;
     auto & m = odom_pub_->msg_;
     m.header.stamp = time;
     m.pose.pose.position.x = odom_.x;
     m.pose.pose.position.y = odom_.y;
     m.pose.pose.orientation.z = qz;
     m.pose.pose.orientation.w = qw;
-    m.twist.twist.linear.x = v.vx;
-    m.twist.twist.linear.y = v.vy;
-    m.twist.twist.angular.z = v.wz;
+    m.twist.twist.linear.x = v_pub.vx;
+    m.twist.twist.linear.y = v_pub.vy;
+    m.twist.twist.angular.z = v_pub.wz;
     odom_pub_->unlockAndPublish();
   }
   if (tf_pub_ && tf_pub_->trylock()) {
