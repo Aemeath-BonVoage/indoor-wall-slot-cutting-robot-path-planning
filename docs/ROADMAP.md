@@ -56,11 +56,11 @@
 
 - [ ] 局部闭环仍用原始轮式里程计：EKF 慢速偏差已修正，但它的输出在仿真中只有 10 Hz，不适合 50 Hz 的定点保持
 - [ ] 轮子驱动的底盘被控对象：速度跟踪 92–97 %、慢速横移仅 40 %，零指令、零外力下自身以约 25 mm/s 漂移，需要更好的轮地接触模型后才能替代力驱动被控对象
-- [ ] 仿真器从 Gazebo Classic 迁移到新版 Gazebo（视机器资源而定）
+- [ ] 仿真器从 Gazebo Classic 迁移到新版 Gazebo：桌面评估已完成（[报告](experiments/gazebo_migration/README.md)），建议在 Classic 上的验证完成后与 Jazzy + Harmonic 的升级一起迁移；第一步是在本机做试点，测量内存、处理器与实时率
 
 ### 5. 技术报告
 
-- [ ] 随上述工作更新 [技术报告](report/README.md) 并重新生成 PDF
+- [ ] 技术报告已同步到第 18 阶段（[技术报告](report/README.md)）；随上述工作继续更新并重新生成 PDF
 
 ## 已完成（摘要）
 
@@ -85,6 +85,7 @@
 | 标记地图在线估计（EKF-SLAM，默认关闭）的离线设计与评估；剩余同号偏差的来源；墙角等自然特征的精度估算 | [演进 18](EVOLUTION.md#18-标记地图在线估计离线)、[报告](experiments/tag_map_estimation/README.md) |
 | 英文 README 与技术概览；Docker 镜像与镜像检查工作流 | [English README](../README.en.md)、[使用指南 11](USER_GUIDE.md#11-docker-复现) |
 | 时间模型按精对位第二版重新标定（`align_v2`）；技术报告与英文摘要 | [演进 10](EVOLUTION.md#10-系统层现代化)、[技术报告](report/README.md) |
+| 技术报告同步到第 13–18 阶段（连续轨迹、切割力、房间级规划、执行层排查、标记地图在线估计）并重建 PDF；仿真器迁移的桌面评估 | [技术报告](report/README.md)、[迁移评估](experiments/gazebo_migration/README.md) |
 | PBVS / IBVS / 2.5D 混合伺服离线对比 | [演进 7](EVOLUTION.md#7-方法对比与可视化)、[报告](experiments/ibvs_vs_pbvs/README.md) |
 | RViz 开槽可视化、墙面实体、演示录制工具 | [演进 7](EVOLUTION.md#7-方法对比与可视化)、[说明](experiments/demo/README.md) |
 
