@@ -1,0 +1,5 @@
+path: align_teach
+hold: p
+seed: 1
+hold_law_in_node: NoneType
+teach_rc: 250

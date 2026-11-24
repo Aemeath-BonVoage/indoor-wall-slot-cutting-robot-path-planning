@@ -1,0 +1,9 @@
+path: align_teach
+hold: p
+seed: 2
+hold_law_in_node: NoneType
+teach_rc: 0
+taught:
+  offset_normal: -9.6e-05
+  offset_lateral: 9.0e-05
+  offset_yaw_deg: 0.00346

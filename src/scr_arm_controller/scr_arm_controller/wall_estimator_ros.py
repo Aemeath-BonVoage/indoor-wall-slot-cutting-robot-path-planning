@@ -167,15 +167,29 @@ class WallStateEstimator:
         self._map_saved_at, self._map_dirty = t, False
         items = [f'ID {i} u = {m:.4f} ± {s * 1000:.2f} mm'
                  for i, m, s in zip(est.ids, est.mean, est.sigma())]
-        self.node.get_logger().info('标记地图估计：' + ', '.join(items))
+        self.node.get_logger().info('标记地图估计：' + ', '.join(items)
+                                    + f'（首次观测重新初始化累计 {self.ekf.reinit_count} 次）')
         return self.map_output
+
+    def flush_map(self):
+        """
+        立即写出尚未写出的地图估计（不受 map_save_period 限制）；没有新更新时不写.
+
+        save_map() 按 map_save_period 限频，且只在接受了非参考标记的周期被调用：一段作业中
+        最后几次更新若落在限频窗口内就不会写出。Gazebo 验证中最后一站才第一次看到的标记
+        （ID 4）因此在输出文件中停留在先验值。技能结束、每站测量残差之后与节点关闭时调用本函数。
+        """
+        return self.save_map(force=True) if self._map_dirty else None
 
     def reset(self):
         """开始新一次对位：清空 (d, u, ψ)（横移比例修正 s 与在线估计的地图保留）."""
-        self.save_map(force=self._map_dirty)
+        self.flush_map()
         self.ekf.clear()
         self.odom_since_fix = 0.0
-        self.ekf.stats = {'wall': [0, 0], 'tag': [0, 0]}
+        # 计数清零但保留全部键：TagMapEKF 另有 tag_pair / tag_init，整体替换成两个键会使
+        # 之后首次观测的重新初始化抛出 KeyError（Gazebo 验证中两个标记、不估计比例时出现）
+        self.ekf.stats = {k: ([0, 0] if isinstance(v, list) else 0)
+                          for k, v in self.ekf.stats.items()}
         self._last_pose = None
         self._last_wall = None
         self._last_tag = None

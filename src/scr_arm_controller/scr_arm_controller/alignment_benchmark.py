@@ -31,6 +31,7 @@ import argparse
 import csv
 import math
 import os
+import sys
 import threading
 import time
 
@@ -41,6 +42,7 @@ from gazebo_msgs.srv import (DeleteEntity, GetLightProperties, SetEntityState,
                              SetLightProperties, SpawnEntity)
 from rclpy.executors import SingleThreadedExecutor
 from rclpy.parameter import Parameter
+from rclpy.utilities import remove_ros_args
 
 from scr_arm_controller.task_skills import CuttingSkills as NavigationCuttingTask
 
@@ -324,7 +326,8 @@ def main():
                     help='仿真启动时的 camera_yaw_error_deg（只运行与之匹配的条件）')
     ap.add_argument('--calib', help='零位标定 YAML（v2_taught 使用）')
     ap.add_argument('--traces', action='store_true', help='保存 v2 逐周期估计记录')
-    args = ap.parse_args()
+    # 节点参数（例如 --ros-args -p hold.mode:=dob）交给 rclpy，命令行解析只看其余部分
+    args = ap.parse_args(remove_ros_args(sys.argv)[1:])
     os.makedirs(args.out, exist_ok=True)
 
     rclpy.init()

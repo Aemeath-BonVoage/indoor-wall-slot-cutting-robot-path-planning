@@ -1,0 +1,4 @@
+[INFO] [1795504697.740645551] [scr_demo_camera]: 相机 demo_overview 已生成：eye=(4.3, -2.3, 7.5) target=(4.3, -1.5, 0.0)
+[INFO] [1795504697.770790404] [scr_demo_camera]: 订阅 /demo_overview/demo_overview/image_raw，每仿真秒 2 帧，存到 ~/scr_media/demo_frames_cont/overview
+[WARN] [1795504938.433863352] [scr_demo_camera]: 删除相机失败：I/O operation on closed file.
+共存 323 帧（收到 441 帧）→ ~/scr_media/demo_frames_cont/overview

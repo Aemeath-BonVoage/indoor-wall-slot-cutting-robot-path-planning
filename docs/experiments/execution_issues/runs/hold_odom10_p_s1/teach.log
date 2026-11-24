@@ -1,0 +1,16 @@
+[INFO] [1795502809.933089152] [cartesian_cutting_controller]: 等待action服务器...
+[INFO] [1795502809.933672662] [cartesian_cutting_controller]: 已连接到action服务器
+[INFO] [1795502809.935175168] [cartesian_cutting_controller]: 笛卡尔空间工作范围（相对于base_link）:
+[INFO] [1795502809.935574229] [cartesian_cutting_controller]:   X: [0.5168, 0.5818] m
+[INFO] [1795502809.935927586] [cartesian_cutting_controller]:   Y: [-0.0601, 0.0799] m
+[INFO] [1795502809.936174407] [cartesian_cutting_controller]:   Z: [0.1568, 0.7068] m
+[INFO] [1795502809.947369490] [trajectory_visualizer]: 轨迹可视化器已初始化（Gazebo模式）
+[INFO] [1795502809.979073478] [navigation_cutting_task]: 标记地图 install/scr_arm_controller/share/scr_arm_controller/config/tag_map.yaml：3 个标记，最大间距 0.60 m，位置误差 σ = 2.0 mm
+[INFO] [1795502809.995922924] [navigation_cutting_task]: 切割任务技能库已初始化
+[INFO] [1795502810.404497758] [navigation_cutting_task]: 机械臂移至接近位姿 joint1=-0.15 m, joint3=+0.020 m（缩回）
+[INFO] [1795502810.405296053] [cartesian_cutting_controller]: 发送目标: [-0.15, 0.0, 0.02, 0.0]
+[INFO] [1795502812.458154769] [cartesian_cutting_controller]: 轨迹计时: 时长 2.000 s，发送→接受 2 ms 墙钟 / 0 ms 仿真，接受→结果 2.050 s 墙钟 / 0.000 s 仿真，额外 -2.000 s 仿真 (发送 119.600，结果 119.600)
+[WARN] [1795502813.572632416] [base_hold]: 里程计周期 100 ms 与定点保持的设计周期 20 ms 不符，控制律的增益按设计周期整定
+[ERROR] [1795502848.049707864] [navigation_cutting_task]: 有效样本过少（0），检查定位标记是否可见
+terminate called without an active exception
+[ros2run]: Aborted

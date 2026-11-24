@@ -1,0 +1,171 @@
+[INFO] [task_executor-10]: process started with pid [84965]
+[task_executor-10] [INFO] [1795502436.781402418] [task_executor]: 
+[task_executor-10] 	task_executor lifecycle node launched. 
+[task_executor-10] 	Waiting on external lifecycle transitions to activate
+[task_executor-10] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[task_executor-10] [INFO] [1795502436.788209215] [task_executor_startup]: Waiting for Nav2 and the skill servers...
+[task_skill_server-9] [INFO] [1795502438.008471222] [task_skills]: 等待action服务器...
+[task_skill_server-9] [INFO] [1795502438.009085334] [task_skills]: 已连接到action服务器
+[task_skill_server-9] [INFO] [1795502438.010305140] [task_skills]: 笛卡尔空间工作范围（相对于base_link）:
+[task_skill_server-9] [INFO] [1795502438.010665815] [task_skills]:   X: [0.5168, 0.5818] m
+[task_skill_server-9] [INFO] [1795502438.010913097] [task_skills]:   Y: [-0.0601, 0.0799] m
+[task_skill_server-9] [INFO] [1795502438.011156460] [task_skills]:   Z: [0.1568, 0.7068] m
+[task_skill_server-9] [INFO] [1795502438.018277334] [task_skills]: 轨迹可视化器已初始化（Gazebo模式）
+[task_skill_server-9] [INFO] [1795502438.051652566] [task_skills]: 标记地图 install/scr_arm_controller/share/scr_arm_controller/config/tag_map.yaml：3 个标记，最大间距 0.60 m，位置误差 σ = 2.0 mm
+[task_skill_server-9] [INFO] [1795502438.067271775] [task_skills]: 切割任务技能库已初始化
+[task_skill_server-9] [INFO] [1795502438.095265578] [task_skills]: 技能服务器就绪：fine_align / move_to_station / cut_station / hold_base / scan_marker / retract_arm
+[task_executor-10] [INFO] [1795502451.956757254] [task_executor]: Task executor active: /execute_slot_plan (install/scr_task/share/scr_task/behavior_trees/slot_plan.xml), /execute_cutting_task (install/scr_task/share/scr_task/behavior_trees/cutting_task.xml)
+[task_executor-10] [INFO] [1795502454.866603034] [task_executor]: Executing cutting task install/scr_arm_controller/share/scr_arm_controller/config/task_at_target.yaml
+[task_skill_server-9] [INFO] [1795502481.931710807] [task_skills]: 
+[task_skill_server-9] [INFO] [1795502481.932174760] [task_skills]: 步骤2: 精确定位到黄色方块正前方
+[task_skill_server-9] [INFO] [1795502481.932523127] [task_skills]: ============================================================
+[task_skill_server-9] [INFO] [1795502481.932797720] [task_skills]: 方块位置: x=8.420, y=-3.925
+[task_skill_server-9] [INFO] [1795502481.933044520] [task_skills]: 目标距离: 0.70m
+[task_skill_server-9] [INFO] [1795502481.933309994] [task_skills]: 目标位置: x=8.420, y=-3.224, yaw=-1.571 (-90.0°)
+[task_skill_server-9] [INFO] [1795502481.933595248] [task_skills]: 对位模式: visual（apriltag + 激光墙面 → EKF），目标离墙 0.700 m，容差 法向 2.0 mm / 沿墙 2.0 mm / 朝向 0.30°，零位偏置 (+0.00 mm, +0.00 mm, +0.000°)
+[task_skill_server-9] [INFO] [1795502481.939213215] [task_skills]: 机械臂移至接近位姿 joint1=-0.15 m, joint3=+0.020 m（缩回）
+[task_skill_server-9] [INFO] [1795502481.939846077] [task_skills]: 发送目标: [-0.15, 0.0, 0.02, 0.0]
+[task_skill_server-9] [INFO] [1795502484.196617838] [task_skills]: 轨迹计时: 时长 2.000 s，发送→接受 3 ms 墙钟 / 0 ms 仿真，接受→结果 2.253 s 墙钟 / 2.000 s 仿真，额外 +0.000 s 仿真 (发送 49.000，结果 51.000)
+[task_skill_server-9] [INFO] [1795502484.684246908] [task_skills]: [  0.0s] d=1.9491 m u= -196.6 mm ψ= +3.73° σ_u=8.90 mm 标记: ok  墙面: init
+[task_executor-10] [WARN] [1795502486.597016566] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_skill_server-9] [INFO] [1795502489.078770600] [task_skills]: [  4.0s] d=1.3935 m u= -109.8 mm ψ= +0.00° σ_u=0.88 mm 标记: ok  墙面: ok
+[task_skill_server-9] [INFO] [1795502493.350544747] [task_skills]: [  8.0s] d=0.7988 m u=  -15.0 mm ψ= -0.00° σ_u=0.61 mm 标记: ok  墙面: ok
+[task_skill_server-9] [INFO] [1795502496.568281637] [task_skills]: 墙面闭环收敛：误差 法向 +0.27 mm、沿墙 +0.11 mm、朝向 +0.008°，σ = (0.33 mm, 0.50 mm, 0.041°)，用时 11.0 s
+[task_skill_server-9] [INFO] [1795502496.568771070] [task_skills]: 测量更新：墙面 接受 99 / 拒收 2，标记 接受 160 / 拒收 1
+[task_skill_server-9] [INFO] [1795502497.095669177] [task_skills]: 真值误差: 位置=0.3mm (dx=-0.0, dy=0.3), 角度=0.00°
+[task_skill_server-9] [INFO] [1795502497.099243432] [task_skills]: 墙面坐标原点 = 定位标记（停车位姿沿墙残差 +0.11 mm 已计入）
+[task_skill_server-9] [INFO] [1795502497.135161518] [task_skills]: 
+[task_skill_server-9] [INFO] [1795502497.135585373] [task_skills]: 步骤2.5: 扫描寻找黄色方块
+[task_skill_server-9] [INFO] [1795502497.135941521] [task_skills]: ============================================================
+[task_skill_server-9] [INFO] [1795502497.637504370] [task_skills]: 检测到黄色方块！位置: X=0.7000, Y=-0.0003, Z=0.4978（5 帧平均）
+[task_skill_server-9] [INFO] [1795502497.638022458] [task_skills]: 感知误差: 方块估计 base_link=(0.7000, -0.0003, 0.4978) 真值=(0.6998, -0.0000, 0.4976) → dx=0.3mm dy=-0.2mm
+[task_skill_server-9] [INFO] [1795502497.639153864] [task_skills]: 发送目标: [0.0, 0.0, 0.02, 0.0]
+[task_skill_server-9] [WARN] [1795502500.159592987] [task_skills]: 里程计周期 40 ms 与定点保持的设计周期 20 ms 不符，控制律的增益按设计周期整定
+[task_skill_server-9] [INFO] [1795502500.354924748] [task_skills]: 轨迹计时: 时长 2.000 s，发送→接受 4 ms 墙钟 / 0 ms 仿真，接受→结果 2.700 s 墙钟 / 2.000 s 仿真，额外 -0.000 s 仿真 (发送 63.500，结果 65.500)
+[task_skill_server-9] [INFO] [1795502500.735317188] [task_skills]: 空切：墙面距离 0.703 m，切割点整体后移 11.6 mm，刀具最深处停在墙前 5 mm
+[task_skill_server-9] [INFO] [1795502500.735865669] [task_skills]: 
+[task_skill_server-9] [INFO] [1795502500.736161046] [task_skills]: 点1: X=0.5168, Y=0.0000, Z=0.5070, R=0.0°
+[task_skill_server-9] [INFO] [1795502500.749964484] [task_skills]: 点2: X=0.5168, Y=0.0000, Z=0.5320, R=0.0°
+[task_skill_server-9] [INFO] [1795502500.750328359] [task_skills]: 点3: X=0.5384, Y=0.0000, Z=0.5320, R=0.0°
+[task_skill_server-9] [INFO] [1795502500.753802712] [task_skills]: 点4: X=0.5384, Y=0.0000, Z=0.4820, R=0.0°
+[task_skill_server-9] [INFO] [1795502500.754178200] [task_skills]: 点5: X=0.5168, Y=0.0000, Z=0.4820, R=0.0°
+[task_skill_server-9] [INFO] [1795502500.754418897] [task_skills]: 点6: X=0.5168, Y=0.0000, Z=0.4820, R=90.0°
+[task_skill_server-9] [INFO] [1795502500.754637083] [task_skills]: 点7: X=0.5384, Y=0.0000, Z=0.4820, R=90.0°
+[task_skill_server-9] [INFO] [1795502500.754846517] [task_skills]: 点8: X=0.5384, Y=0.0550, Z=0.4820, R=90.0°
+[task_skill_server-9] [INFO] [1795502500.755054388] [task_skills]: 点9: X=0.5168, Y=0.0550, Z=0.4820, R=90.0°
+[task_skill_server-9] [INFO] [1795502500.755259942] [task_skills]: 点10: X=0.5168, Y=0.0550, Z=0.4820, R=0.0°
+[task_skill_server-9] [INFO] [1795502500.755468324] [task_skills]: 点11: X=0.5384, Y=0.0550, Z=0.4820, R=0.0°
+[task_skill_server-9] [INFO] [1795502500.755674343] [task_skills]: 点12: X=0.5384, Y=0.0550, Z=0.5320, R=0.0°
+[task_skill_server-9] [INFO] [1795502500.755879241] [task_skills]: 点13: X=0.5168, Y=0.0550, Z=0.5320, R=0.0°
+[task_skill_server-9] [INFO] [1795502500.762398119] [task_skills]: 点14: X=0.5168, Y=0.0550, Z=0.5320, R=90.0°
+[task_skill_server-9] [INFO] [1795502500.762740543] [task_skills]: 点15: X=0.5384, Y=0.0550, Z=0.5320, R=90.0°
+[task_skill_server-9] [INFO] [1795502500.766046835] [task_skills]: 点16: X=0.5384, Y=0.0000, Z=0.5320, R=90.0°
+[task_skill_server-9] [INFO] [1795502500.769303885] [task_skills]: 点17: X=0.5168, Y=0.0000, Z=0.5320, R=90.0°
+[task_skill_server-9] [INFO] [1795502500.785683895] [task_skills]: 
+[task_skill_server-9] [INFO] [1795502500.798079301] [task_skills]: 机械臂回到初始位置
+[task_skill_server-9] [INFO] [1795502500.798563941] [task_skills]: 发送目标: [0.0, 0.0, 0.02, 0.0]
+[task_skill_server-9] [INFO] [1795502503.562991542] [task_skills]: 轨迹计时: 时长 2.000 s，发送→接受 8 ms 墙钟 / 0 ms 仿真，接受→结果 2.756 s 墙钟 / 2.000 s 仿真，额外 +0.000 s 仿真 (发送 65.900，结果 67.900)
+[task_skill_server-9] [INFO] [1795502503.563348985] [task_skills]: 
+[task_skill_server-9] [INFO] [1795502503.563656379] [task_skills]: 目标位置: X=0.5168, Y=0.0000, Z=0.5070, R=0.0000
+[task_skill_server-9] [INFO] [1795502503.563937666] [task_skills]: 关节值: ['0.0002', '-0.0001', '0.0200', '0.0000']
+[task_skill_server-9] [INFO] [1795502503.564323051] [task_skills]: 发送目标: [0.00021000000000004349, -0.00015, 0.02, 0.0]
+[task_skill_server-9] [INFO] [1795502506.071459345] [task_skills]: 轨迹计时: 时长 2.000 s，发送→接受 9 ms 墙钟 / 0 ms 仿真，接受→结果 2.498 s 墙钟 / 2.000 s 仿真，额外 +0.000 s 仿真 (发送 67.900，结果 69.900)
+[task_skill_server-9] [INFO] [1795502506.072208733] [task_skills]: 
+[task_skill_server-9] [INFO] [1795502506.072708019] [task_skills]: 目标位置: X=0.5168, Y=0.0000, Z=0.5320, R=0.0000
+[task_skill_server-9] [INFO] [1795502506.073172597] [task_skills]: 关节值: ['0.0252', '-0.0001', '0.0200', '0.0000']
+[task_skill_server-9] [INFO] [1795502506.080283472] [task_skills]: 发送目标: [0.025210000000000066, -0.00015, 0.02, 0.0]
+[task_skill_server-9] [INFO] [1795502508.549572010] [task_skills]: 轨迹计时: 时长 2.000 s，发送→接受 3 ms 墙钟 / 0 ms 仿真，接受→结果 2.453 s 墙钟 / 2.000 s 仿真，额外 +0.000 s 仿真 (发送 69.900，结果 71.900)
+[task_skill_server-9] [INFO] [1795502508.550019629] [task_skills]: 
+[task_skill_server-9] [INFO] [1795502508.551492451] [task_skills]: 目标位置: X=0.5384, Y=0.0000, Z=0.5320, R=0.0000
+[task_skill_server-9] [INFO] [1795502508.557988629] [task_skills]: 关节值: ['0.0252', '-0.0001', '-0.0017', '0.0000']
+[task_skill_server-9] [INFO] [1795502508.558777931] [task_skills]: 发送目标: [0.025210000000000066, -0.00015, -0.0016686771518920063, 0.0]
+[task_skill_server-9] [INFO] [1795502510.717434479] [task_skills]: 轨迹计时: 时长 2.000 s，发送→接受 19 ms 墙钟 / 0 ms 仿真，接受→结果 2.139 s 墙钟 / 2.100 s 仿真，额外 +0.100 s 仿真 (发送 71.900，结果 74.000)
+[task_skill_server-9] [INFO] [1795502510.717827977] [task_skills]: 
+[task_skill_server-9] [INFO] [1795502510.718114851] [task_skills]: 目标位置: X=0.5384, Y=0.0000, Z=0.4820, R=0.0000
+[task_skill_server-9] [INFO] [1795502510.718360078] [task_skills]: 关节值: ['-0.0248', '-0.0001', '-0.0017', '0.0000']
+[task_skill_server-9] [INFO] [1795502510.718682174] [task_skills]: 发送目标: [-0.02478999999999998, -0.00015, -0.0016686771518920063, 0.0]
+[task_skill_server-9] [INFO] [1795502512.773707549] [task_skills]: 轨迹计时: 时长 2.000 s，发送→接受 4 ms 墙钟 / 0 ms 仿真，接受→结果 2.049 s 墙钟 / 2.000 s 仿真，额外 +0.000 s 仿真 (发送 74.000，结果 76.000)
+[task_skill_server-9] [INFO] [1795502512.774158194] [task_skills]: 
+[task_skill_server-9] [INFO] [1795502512.774601127] [task_skills]: 目标位置: X=0.5168, Y=0.0000, Z=0.4820, R=0.0000
+[task_skill_server-9] [INFO] [1795502512.775047709] [task_skills]: 关节值: ['-0.0248', '-0.0001', '0.0200', '0.0000']
+[task_skill_server-9] [INFO] [1795502512.775592352] [task_skills]: 发送目标: [-0.02478999999999998, -0.00015, 0.02, 0.0]
+[task_skill_server-9] [INFO] [1795502514.878147677] [task_skills]: 轨迹计时: 时长 2.000 s，发送→接受 2 ms 墙钟 / 0 ms 仿真，接受→结果 2.099 s 墙钟 / 2.000 s 仿真，额外 +0.000 s 仿真 (发送 76.000，结果 78.000)
+[task_skill_server-9] [INFO] [1795502514.878546691] [task_skills]: 
+[task_skill_server-9] [INFO] [1795502514.878770471] [task_skills]: 目标位置: X=0.5168, Y=0.0000, Z=0.4820, R=1.5708
+[task_skill_server-9] [INFO] [1795502514.879626097] [task_skills]: 关节值: ['-0.0248', '-0.0001', '0.0200', '1.5700']
+[task_skill_server-9] [INFO] [1795502514.881306502] [task_skills]: 发送目标: [-0.02478999999999998, -0.00015, 0.02, 1.57]
+[task_skill_server-9] [INFO] [1795502516.992972062] [task_skills]: 轨迹计时: 时长 2.000 s，发送→接受 2 ms 墙钟 / 0 ms 仿真，接受→结果 2.102 s 墙钟 / 2.000 s 仿真，额外 +0.000 s 仿真 (发送 78.000，结果 80.000)
+[task_skill_server-9] [INFO] [1795502516.994610346] [task_skills]: 
+[task_skill_server-9] [INFO] [1795502516.994927362] [task_skills]: 目标位置: X=0.5384, Y=0.0000, Z=0.4820, R=1.5708
+[task_skill_server-9] [INFO] [1795502516.995538698] [task_skills]: 关节值: ['-0.0248', '-0.0001', '-0.0017', '1.5700']
+[task_skill_server-9] [INFO] [1795502516.995919158] [task_skills]: 发送目标: [-0.02478999999999998, -0.00015, -0.0016686771518920063, 1.57]
+[task_skill_server-9] [INFO] [1795502519.197983243] [task_skills]: 轨迹计时: 时长 2.000 s，发送→接受 1 ms 墙钟 / 0 ms 仿真，接受→结果 2.200 s 墙钟 / 2.000 s 仿真，额外 +0.000 s 仿真 (发送 80.100，结果 82.100)
+[task_skill_server-9] [INFO] [1795502519.198975038] [task_skills]: 
+[task_skill_server-9] [INFO] [1795502519.199259716] [task_skills]: 目标位置: X=0.5384, Y=0.0550, Z=0.4820, R=1.5708
+[task_skill_server-9] [INFO] [1795502519.199521178] [task_skills]: 关节值: ['-0.0248', '-0.0551', '-0.0017', '1.5700']
+[task_skill_server-9] [INFO] [1795502519.199859767] [task_skills]: 发送目标: [-0.02478999999999998, -0.05515, -0.0016686771518920063, 1.57]
+[task_skill_server-9] [INFO] [1795502521.256258804] [task_skills]: 轨迹计时: 时长 2.000 s，发送→接受 2 ms 墙钟 / 0 ms 仿真，接受→结果 2.051 s 墙钟 / 2.000 s 仿真，额外 +0.000 s 仿真 (发送 82.100，结果 84.100)
+[task_skill_server-9] [INFO] [1795502521.257710296] [task_skills]: 
+[task_skill_server-9] [INFO] [1795502521.260501907] [task_skills]: 目标位置: X=0.5168, Y=0.0550, Z=0.4820, R=1.5708
+[task_skill_server-9] [INFO] [1795502521.261331920] [task_skills]: 关节值: ['-0.0248', '-0.0551', '0.0200', '1.5700']
+[task_skill_server-9] [INFO] [1795502521.262291516] [task_skills]: 发送目标: [-0.02478999999999998, -0.05515, 0.02, 1.57]
+[task_skill_server-9] [INFO] [1795502523.365349936] [task_skills]: 轨迹计时: 时长 2.000 s，发送→接受 2 ms 墙钟 / 0 ms 仿真，接受→结果 2.100 s 墙钟 / 2.100 s 仿真，额外 +0.100 s 仿真 (发送 84.100，结果 86.200)
+[task_skill_server-9] [INFO] [1795502523.367495497] [task_skills]: 
+[task_skill_server-9] [INFO] [1795502523.369672806] [task_skills]: 目标位置: X=0.5168, Y=0.0550, Z=0.4820, R=0.0000
+[task_skill_server-9] [INFO] [1795502523.370806422] [task_skills]: 关节值: ['-0.0248', '-0.0551', '0.0200', '0.0000']
+[task_skill_server-9] [INFO] [1795502523.372679865] [task_skills]: 发送目标: [-0.02478999999999998, -0.05515, 0.02, 0.0]
+[task_skill_server-9] [INFO] [1795502525.525815445] [task_skills]: 轨迹计时: 时长 2.000 s，发送→接受 2 ms 墙钟 / 0 ms 仿真，接受→结果 2.151 s 墙钟 / 2.000 s 仿真，额外 +0.000 s 仿真 (发送 86.200，结果 88.200)
+[task_skill_server-9] [INFO] [1795502525.534381469] [task_skills]: 
+[task_skill_server-9] [INFO] [1795502525.534800873] [task_skills]: 目标位置: X=0.5384, Y=0.0550, Z=0.4820, R=0.0000
+[task_skill_server-9] [INFO] [1795502525.535200465] [task_skills]: 关节值: ['-0.0248', '-0.0551', '-0.0017', '0.0000']
+[task_skill_server-9] [INFO] [1795502525.536637474] [task_skills]: 发送目标: [-0.02478999999999998, -0.05515, -0.0016686771518920063, 0.0]
+[task_skill_server-9] [INFO] [1795502527.742077858] [task_skills]: 轨迹计时: 时长 2.000 s，发送→接受 5 ms 墙钟 / 0 ms 仿真，接受→结果 2.199 s 墙钟 / 2.000 s 仿真，额外 +0.000 s 仿真 (发送 88.200，结果 90.200)
+[task_skill_server-9] [INFO] [1795502527.742496789] [task_skills]: 
+[task_skill_server-9] [INFO] [1795502527.742794813] [task_skills]: 目标位置: X=0.5384, Y=0.0550, Z=0.5320, R=0.0000
+[task_skill_server-9] [INFO] [1795502527.743663443] [task_skills]: 关节值: ['0.0252', '-0.0551', '-0.0017', '0.0000']
+[task_skill_server-9] [INFO] [1795502527.749240634] [task_skills]: 发送目标: [0.025210000000000066, -0.05515, -0.0016686771518920063, 0.0]
+[task_skill_server-9] [INFO] [1795502529.855520567] [task_skills]: 轨迹计时: 时长 2.000 s，发送→接受 7 ms 墙钟 / 0 ms 仿真，接受→结果 2.096 s 墙钟 / 2.000 s 仿真，额外 +0.000 s 仿真 (发送 90.200，结果 92.200)
+[task_skill_server-9] [INFO] [1795502529.857222027] [task_skills]: 
+[task_skill_server-9] [INFO] [1795502529.860541910] [task_skills]: 目标位置: X=0.5168, Y=0.0550, Z=0.5320, R=0.0000
+[task_skill_server-9] [INFO] [1795502529.860979400] [task_skills]: 关节值: ['0.0252', '-0.0551', '0.0200', '0.0000']
+[task_skill_server-9] [INFO] [1795502529.861529334] [task_skills]: 发送目标: [0.025210000000000066, -0.05515, 0.02, 0.0]
+[task_skill_server-9] [INFO] [1795502531.963976918] [task_skills]: 轨迹计时: 时长 2.000 s，发送→接受 1 ms 墙钟 / 0 ms 仿真，接受→结果 2.101 s 墙钟 / 2.000 s 仿真，额外 +0.000 s 仿真 (发送 92.300，结果 94.300)
+[task_skill_server-9] [INFO] [1795502531.964329010] [task_skills]: 
+[task_skill_server-9] [INFO] [1795502531.967273667] [task_skills]: 目标位置: X=0.5168, Y=0.0550, Z=0.5320, R=1.5708
+[task_skill_server-9] [INFO] [1795502531.967573780] [task_skills]: 关节值: ['0.0252', '-0.0551', '0.0200', '1.5700']
+[task_skill_server-9] [INFO] [1795502531.968264094] [task_skills]: 发送目标: [0.025210000000000066, -0.05515, 0.02, 1.57]
+[task_skill_server-9] [INFO] [1795502534.071279391] [task_skills]: 轨迹计时: 时长 2.000 s，发送→接受 2 ms 墙钟 / 0 ms 仿真，接受→结果 2.100 s 墙钟 / 2.000 s 仿真，额外 +0.000 s 仿真 (发送 94.300，结果 96.300)
+[task_skill_server-9] [INFO] [1795502534.071680576] [task_skills]: 
+[task_skill_server-9] [INFO] [1795502534.071960928] [task_skills]: 目标位置: X=0.5384, Y=0.0550, Z=0.5320, R=1.5708
+[task_skill_server-9] [INFO] [1795502534.072201413] [task_skills]: 关节值: ['0.0252', '-0.0551', '-0.0017', '1.5700']
+[task_skill_server-9] [INFO] [1795502534.072560910] [task_skills]: 发送目标: [0.025210000000000066, -0.05515, -0.0016686771518920063, 1.57]
+[task_skill_server-9] [INFO] [1795502536.177336634] [task_skills]: 轨迹计时: 时长 2.000 s，发送→接受 4 ms 墙钟 / 0 ms 仿真，接受→结果 2.100 s 墙钟 / 2.100 s 仿真，额外 +0.100 s 仿真 (发送 96.300，结果 98.400)
+[task_skill_server-9] [INFO] [1795502536.181786688] [task_skills]: 
+[task_skill_server-9] [INFO] [1795502536.182126780] [task_skills]: 目标位置: X=0.5384, Y=0.0000, Z=0.5320, R=1.5708
+[task_skill_server-9] [INFO] [1795502536.182359661] [task_skills]: 关节值: ['0.0252', '-0.0001', '-0.0017', '1.5700']
+[task_skill_server-9] [INFO] [1795502536.182688949] [task_skills]: 发送目标: [0.025210000000000066, -0.00015, -0.0016686771518920063, 1.57]
+[task_skill_server-9] [INFO] [1795502538.489576079] [task_skills]: 轨迹计时: 时长 2.000 s，发送→接受 2 ms 墙钟 / 0 ms 仿真，接受→结果 2.303 s 墙钟 / 2.000 s 仿真，额外 +0.000 s 仿真 (发送 98.400，结果 100.400)
+[task_skill_server-9] [INFO] [1795502538.491891719] [task_skills]: 
+[task_skill_server-9] [INFO] [1795502538.492253764] [task_skills]: 目标位置: X=0.5168, Y=0.0000, Z=0.5320, R=1.5708
+[task_skill_server-9] [INFO] [1795502538.492519146] [task_skills]: 关节值: ['0.0252', '-0.0001', '0.0200', '1.5700']
+[task_skill_server-9] [INFO] [1795502538.495708281] [task_skills]: 发送目标: [0.025210000000000066, -0.00015, 0.02, 1.57]
+[task_skill_server-9] [INFO] [1795502540.649223060] [task_skills]: 轨迹计时: 时长 2.000 s，发送→接受 6 ms 墙钟 / 0 ms 仿真，接受→结果 2.147 s 墙钟 / 2.000 s 仿真，额外 +0.000 s 仿真 (发送 100.400，结果 102.400)
+[task_skill_server-9] [INFO] [1795502540.649559653] [task_skills]: 
+[task_skill_server-9] [INFO] [1795502540.650198690] [task_skills]: 发送目标: [0.0, 0.0, 0.02, 0.0]
+[task_executor-10] [WARN] [1795502541.739494836] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_skill_server-9] [INFO] [1795502542.954158885] [task_skills]: 轨迹计时: 时长 2.000 s，发送→接受 2 ms 墙钟 / 0 ms 仿真，接受→结果 2.302 s 墙钟 / 2.100 s 仿真，额外 +0.100 s 仿真 (发送 102.400，结果 104.500)
+[task_skill_server-9] [INFO] [1795502542.955439196] [task_skills]: 开始在Gazebo中生成红色边框...
+[task_skill_server-9] [INFO] [1795502543.065636094] [task_skills]: 已生成模型: cutting_border_bottom
+[task_skill_server-9] [INFO] [1795502543.280139065] [task_skills]: 已生成模型: cutting_border_right
+[task_skill_server-9] [INFO] [1795502543.498044231] [task_skills]: 已生成模型: cutting_border_top
+[task_skill_server-9] [INFO] [1795502543.713230626] [task_skills]: 已生成模型: cutting_border_left
+[task_skill_server-9] [INFO] [1795502543.713599991] [task_skills]: 轨迹可视化已发布到Gazebo
+[task_skill_server-9] [INFO] [1795502543.762387887] [task_skills]: 定点保持期间底盘真值最大漂移: 0.09 mm, 0.063°
+[task_executor-10] [WARN] [1795502543.764204617] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [INFO] [1795502543.764273840] [task_executor]: Cutting task finished: success, 81.8 s
+[task_executor-10] [INFO] [1795502543.764431530] [task_executor]: Goal succeeded
+[INFO] [task_executor-10]: process has finished cleanly [pid 84965]
+[task_executor-10] [INFO] [1795502545.000508900] [rclcpp]: signal_handler(signum=2)
+[task_executor-10] [INFO] [1795502545.001795026] [task_executor]: Running Nav2 LifecycleNode rcl preshutdown (task_executor)
+[task_executor-10] [INFO] [1795502545.187536632] [task_executor]: Destroying bond (task_executor) to lifecycle manager.
+[task_executor-10] [INFO] [1795502545.207757904] [task_executor]: Destroying

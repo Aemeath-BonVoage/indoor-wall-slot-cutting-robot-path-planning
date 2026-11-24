@@ -82,6 +82,7 @@ class TagMapEKF(WallEKF):
         self._persist = (mean, cov)
         self.stats['tag_pair'] = 0      # 同一帧中两个以上标记同时更新的次数
         self.stats['tag_init'] = 0      # 首次看到时按测量重新初始化的次数
+        self.reinit_count = 0           # 同上，累计（stats 在每次对位时清零）
         self.reinit_first_sighting = bool(reinit_first_sighting)
         self._confirmed = set(self.map_ids) if prior_cov is not None else set()
 
@@ -240,6 +241,7 @@ class TagMapEKF(WallEKF):
         P[j, j] = float(J @ P @ J) + float(g @ R @ g)
         self._confirmed.add(tag_id)
         self.stats['tag_init'] += 1
+        self.reinit_count += 1
 
     def update_tags(self, obs):
         """

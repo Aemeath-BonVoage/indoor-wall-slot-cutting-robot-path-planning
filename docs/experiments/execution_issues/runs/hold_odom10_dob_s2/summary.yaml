@@ -1,0 +1,5 @@
+path: align_teach
+hold: dob
+seed: 2
+hold_law_in_node: PlanarHold
+teach_rc: 250
