@@ -179,6 +179,8 @@ class CuttingSkills(Node):
 
         # 机械臂控制器
         self.arm_controller = CartesianCuttingController()
+        # 机械臂客户端节点只在等待动作时被 spin，自己的时钟停在上次 spin 时；计时取本节点的时钟
+        self.arm_controller.time_source = self
 
         # 轨迹可视化器
         self.trajectory_visualizer = TrajectoryVisualizer()

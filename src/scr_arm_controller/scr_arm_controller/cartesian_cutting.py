@@ -181,8 +181,10 @@ class CartesianCuttingController(Node):
         goal_msg.trajectory.points = [point]
 
         self.get_logger().info(f'发送目标: {joint_positions}')
+        marks = [self._mark()]
         future = self._action_client.send_goal_async(goal_msg)
         rclpy.spin_until_future_complete(self, future)
+        marks.append(self._mark())
 
         goal_handle = future.result()
         if not goal_handle.accepted:
@@ -191,8 +193,30 @@ class CartesianCuttingController(Node):
 
         result_future = goal_handle.get_result_async()
         rclpy.spin_until_future_complete(self, result_future)
+        marks.append(self._mark())
+        self._log_timing(duration, marks)
 
         return True
+
+    def _mark(self):
+        """(墙钟, 仿真时间) 秒，用于轨迹目标往返的计时."""
+        clock = getattr(self, 'time_source', self).get_clock()
+        return time.time(), clock.now().nanoseconds * 1e-9
+
+    def _log_timing(self, duration, marks):
+        """
+        一个轨迹目标的往返计时：发送 → 被接受 → 收到结果，墙钟与仿真时间各一组.
+
+        逐点执行时每个点一个目标；“结果 − 发送”的仿真时间减去轨迹时长即这一点的额外耗时。
+        与控制器日志（Received / Accepted new action goal、Goal reached）按墙钟对齐后，
+        可以看出额外的时间花在哪一段（docs/experiments/execution_issues 第 3 节）。
+        """
+        (w0, s0), (w1, s1), (w2, s2) = marks
+        self.get_logger().info(
+            f'轨迹计时: 时长 {duration:.3f} s，发送→接受 {1e3 * (w1 - w0):.0f} ms 墙钟 / '
+            f'{1e3 * (s1 - s0):.0f} ms 仿真，接受→结果 {w2 - w1:.3f} s 墙钟 / '
+            f'{s2 - s1:.3f} s 仿真，额外 {s2 - s0 - duration:+.3f} s 仿真 '
+            f'(发送 {s0:.3f}，结果 {s2:.3f})')
 
     def _on_arm_state(self, msg):
         try:
@@ -257,8 +281,10 @@ class CartesianCuttingController(Node):
             f'连续轨迹：{len(waypoints)} 个点，{len(goal_msg.trajectory.points)} 个结点，'
             f'时长 {traj.duration:.2f} s，起始时刻 {t_start:.3f} s')
 
+        marks = [self._mark()]
         future = self._action_client.send_goal_async(goal_msg)
         rclpy.spin_until_future_complete(self, future)
+        marks.append(self._mark())
         goal_handle = future.result()
         if not goal_handle.accepted:
             self.get_logger().error('目标被拒绝')
@@ -274,6 +300,9 @@ class CartesianCuttingController(Node):
                 cancelled = True
         if cancelled or not result_future.done():
             return False, traj
+        marks.append(self._mark())
+        # 连续轨迹从 t_start 开始：额外耗时按 t_start 计
+        self._log_timing(traj.duration + (t_start - marks[0][1]), marks)
         code = result_future.result().result.error_code
         if code != FollowJointTrajectory.Result.SUCCESSFUL:
             self.get_logger().error(f'轨迹执行失败：error_code = {code}')
