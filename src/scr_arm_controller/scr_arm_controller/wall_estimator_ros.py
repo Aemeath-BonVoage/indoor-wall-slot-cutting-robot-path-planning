@@ -167,7 +167,8 @@ class WallStateEstimator:
         self._map_saved_at, self._map_dirty = t, False
         items = [f'ID {i} u = {m:.4f} ± {s * 1000:.2f} mm'
                  for i, m, s in zip(est.ids, est.mean, est.sigma())]
-        self.node.get_logger().info('标记地图估计：' + ', '.join(items))
+        self.node.get_logger().info('标记地图估计：' + ', '.join(items)
+                                    + f'（首次观测重新初始化累计 {self.ekf.reinit_count} 次）')
         return self.map_output
 
     def flush_map(self):
@@ -185,7 +186,10 @@ class WallStateEstimator:
         self.flush_map()
         self.ekf.clear()
         self.odom_since_fix = 0.0
-        self.ekf.stats = {'wall': [0, 0], 'tag': [0, 0]}
+        # 计数清零但保留全部键：TagMapEKF 另有 tag_pair / tag_init，整体替换成两个键会使
+        # 之后首次观测的重新初始化抛出 KeyError（Gazebo 验证中两个标记、不估计比例时出现）
+        self.ekf.stats = {k: ([0, 0] if isinstance(v, list) else 0)
+                          for k, v in self.ekf.stats.items()}
         self._last_pose = None
         self._last_wall = None
         self._last_tag = None

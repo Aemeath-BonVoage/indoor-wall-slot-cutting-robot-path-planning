@@ -282,6 +282,25 @@ def test_updates_inside_the_save_period_are_written_by_flush(tmp_path):
     assert est.flush_map() is None                         # 没有新更新时不重复写
 
 
+def test_reinitialization_after_a_new_alignment_keeps_counters(tmp_path):
+    """reset() 清零计数时保留 tag_init：之后的首次观测重新初始化不应抛出 KeyError."""
+    wsr = pytest.importorskip('scr_arm_controller.wall_estimator_ros')
+    est = wsr.WallStateEstimator(_StubNode(), _StubServo(), tag_map=NOMINAL, estimate_topic='',
+                                 estimate_tag_map=True, map_prior_sigma=0.002,
+                                 map_output=str(tmp_path / 'm.yaml'))
+    est.ekf.reset(0.70, 0.0, 0.0)
+    est.reset()                                            # 新一次对位
+    assert set(est.ekf.stats) >= {'wall', 'tag', 'tag_pair', 'tag_init'}
+    est.ekf.reset(0.70, 1.2, 0.0, sigma=(0.001, 0.001, 0.001))
+    far = {0: 0.0, 2: 0.6, 4: 1.225}                       # ID 4 实际偏 +25 mm（先验 σ 2 mm）
+    rng = np.random.default_rng(5)
+    ok, _ = est.ekf.update_tag_id(tag_z(np.array([0.70, 1.2, 0.0]), far[4], rng), R_TAG, 4)
+    assert ok and est.ekf.stats['tag_init'] == 1 and est.ekf.reinit_count == 1
+    assert est.ekf.tag_u(4) == pytest.approx(1.225, abs=0.003)
+    est.reset()
+    assert est.ekf.stats['tag_init'] == 0 and est.ekf.reinit_count == 1
+
+
 def test_systematic_floor_only_inflates_the_exported_covariance():
     a, b = TagMapEKF(NOMINAL), TagMapEKF(NOMINAL, map_floor=0.4e-3)
     for f in (a, b):
