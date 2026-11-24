@@ -1,0 +1,30 @@
+# 单条槽示例：room3 南墙的第一个开槽任务（与 slot_execution 报告“单条槽的执行精度”所用的槽相同），
+# 由 src/scr_planner/config/wall_task_room3_south.yaml 去掉第二个任务得到。
+# 墙面开槽任务示例：Gazebo room.world 中 room3 南墙（内表面 y = -3.925，x ∈ [5.075, 9.925]）
+#
+# 墙面坐标：u 沿墙水平向右（面对墙面时），v 离地高度，单位米。
+# 面对南墙（朝 -y）时左端是 x 大的一端。
+wall:
+  frame_id: map
+  left_end: [9.925, -3.925]
+  right_end: [5.075, -3.925]
+  height: 2.0             # 仿真墙高 2 m
+  load_bearing: false     # 非承重墙：横槽 ≤ 50 cm、竖槽优先
+
+# 墙面上已有的物体（u, v 为左下角，w, h 为宽高）
+# kind: door / window / beam / column / box / weak_line / pier（边距见 wall_rules.py）
+obstacles:
+  - {kind: box, u: 1.480, v: 0.575, w: 0.05, h: 0.05, label: 黄色定位标记}
+
+# 开槽任务（线盒中心，米）。线盒高度都在机械臂可切范围内（离地约 0.27–0.80 m）：
+# 这是任务约束——按机器人能力布置插座位置，而不是改机械臂。
+# 多条槽按顺序规划，先规划的槽作为后面槽的障碍（净距 5 cm）。
+tasks:
+  - {start: [1.20, 0.34], start_label: 已有插座A, goal: [2.30, 0.34], goal_label: 新插座A}
+
+options:
+  restrict_to_reach: true     # 只在机械臂够得到的高度带内规划
+  retract_between_turns: true # 改变刀片角度前先退刀
+  duration: 2.0               # 机械臂每个点的运动时间（s）
+  partition: dp               # dp / greedy / per_slot（基线：每条槽各自划分）
+  order: sweep                # sweep / slot_by_slot（基线：逐条槽、每条从左到右）

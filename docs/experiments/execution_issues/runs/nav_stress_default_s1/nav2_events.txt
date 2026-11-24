@@ -1,0 +1,38 @@
+   30.906 [bt_navigator] Begin navigating from current location (-0.01, 0.02) to (8.42, -2.72)
+   65.406 [controller_server] Reached the goal!
+   65.437 [bt_navigator] Goal succeeded
+   68.985 [bt_navigator] Begin navigating from current location (8.35, -2.68) to (0.00, 0.00)
+  100.326 [controller_server] Reached the goal!
+  100.355 [bt_navigator] Goal succeeded
+  103.874 [bt_navigator] Begin navigating from current location (0.17, 0.15) to (8.42, -2.72)
+  140.119 [controller_server] Reached the goal!
+  140.155 [bt_navigator] Goal succeeded
+  143.687 [bt_navigator] Begin navigating from current location (8.36, -2.65) to (0.00, 0.00)
+  175.984 [controller_server] Reached the goal!
+  176.011 [bt_navigator] Goal succeeded
+  179.540 [bt_navigator] Begin navigating from current location (0.07, 0.10) to (8.42, -2.72)
+  212.457 [controller_server] Reached the goal!
+  212.493 [bt_navigator] Goal succeeded
+  216.039 [bt_navigator] Begin navigating from current location (8.31, -2.68) to (0.00, 0.00)
+  250.320 [controller_server] Reached the goal!
+  250.361 [bt_navigator] Goal succeeded
+  253.908 [bt_navigator] Begin navigating from current location (0.10, 0.02) to (8.42, -2.72)
+  292.449 [controller_server] Reached the goal!
+  292.480 [bt_navigator] Goal succeeded
+  296.017 [bt_navigator] Begin navigating from current location (8.30, -2.65) to (0.00, 0.00)
+  337.909 [controller_server] Reached the goal!
+  337.945 [bt_navigator] Goal succeeded
+  341.501 [bt_navigator] Begin navigating from current location (0.06, -0.02) to (8.42, -2.72)
+  380.447 [controller_server] Reached the goal!
+  380.472 [bt_navigator] Goal succeeded
+  384.009 [bt_navigator] Begin navigating from current location (8.31, -2.59) to (0.00, 0.00)
+  405.831 [bt_navigator_navigate_to_pose_rclcpp_node] Timed out while waiting for action server to acknowledge goal request for follow_path
+  427.477 [controller_server] Reached the goal!
+  427.511 [bt_navigator] Goal succeeded
+  431.039 [bt_navigator] Begin navigating from current location (0.06, 0.00) to (8.42, -2.72)
+  473.576 [controller_server] Reached the goal!
+  473.612 [bt_navigator] Goal succeeded
+  477.158 [bt_navigator] Begin navigating from current location (8.32, -2.67) to (0.00, 0.00)
+  517.228 [controller_server] Reached the goal!
+  517.253 [controller_server] Reached the goal!
+  517.296 [bt_navigator] Goal succeeded

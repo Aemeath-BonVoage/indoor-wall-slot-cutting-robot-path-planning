@@ -1,0 +1,1 @@
+ros2 launch scr_bringup sim_nav.launch.py gui:=false rviz:=false odom_seed:=1

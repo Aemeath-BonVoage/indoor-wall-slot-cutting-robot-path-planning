@@ -1,0 +1,6 @@
+run,config,path_err_mean_mm,path_err_p95_mm,path_err_max_mm,coverage,coverage_path,station_lateral_mm_mean_abs,station_lateral_mm_max_abs,station_standoff_mm_mean_abs,station_standoff_mm_max_abs,station_yaw_deg_mean_abs,station_yaw_deg_max_abs,station_base_drift_mm_mean_abs,station_base_drift_mm_max_abs,stations,stations_done,stations_total_s,all_ok
+slot_execution/single_slot,early,1.5482,12.7653,15.6624,0.6824,,7.1636,16.978,1.2437,3.5003,0.4097,0.8086,2.3861,4.9889,10,10,,True
+single_slot_s1,current,0.2042,0.2819,1.4769,1.0,1.0,0.8639,1.3475,0.2623,0.7357,0.0426,0.1034,0.3278,0.3581,10,10,115.6,True
+single_slot_s2,current,0.1591,0.2037,1.4486,1.0,1.0,0.7954,1.3706,0.3526,0.631,0.0602,0.1203,0.3335,0.3692,10,10,117.3,True
+single_slot_s3,current,0.1673,0.2034,1.5004,1.0,1.0,0.734,1.5129,0.2546,0.5912,0.0551,0.1135,0.3477,0.3885,10,10,117.3,True
+current mean,current,0.1769,0.2297,1.4753,1.0,1.0,0.7978,1.4103,0.2898,0.6526,0.0526,0.1124,0.3363,0.3719,10.0,10.0,116.7333,

@@ -1,0 +1,25 @@
+stdin is not a terminal device. Keyboard handling disabled.[INFO] [1795488550.655730019] [rosbag2_recorder]: Press SPACE for pausing/resuming
+[INFO] [1795488550.659213067] [rosbag2_storage]: Opened database '~/scr_bags/exec_layer/p2p_rule_s2/p2p_rule_s2_0.db3' for READ_WRITE.
+[INFO] [1795488550.662279603] [rosbag2_recorder]: Listening for topics...
+[INFO] [1795488550.662370111] [rosbag2_recorder]: Event publisher thread: Starting
+[INFO] [1795488550.662539740] [rosbag2_recorder]: Recording...
+[INFO] [1795488550.662813117] [rosbag2_recorder]: use_sim_time set, waiting for /clock before starting recording...
+[INFO] [1795488551.093611535] [rosbag2_recorder]: Sim time /clock found, starting recording.
+[INFO] [1795488551.103371371] [rosbag2_recorder]: Subscribed to topic '/arm_controller/controller_state'
+[INFO] [1795488551.105252885] [rosbag2_recorder]: Subscribed to topic '/clock'
+[INFO] [1795488551.106810821] [rosbag2_recorder]: Subscribed to topic '/ground_truth/odom'
+[INFO] [1795488551.109006735] [rosbag2_recorder]: Subscribed to topic '/cmd_vel'
+[INFO] [1795488551.110400878] [rosbag2_recorder]: Subscribed to topic '/cmd_vel_nav'
+[INFO] [1795488551.111437202] [rosbag2_recorder]: Subscribed to topic '/imu'
+[INFO] [1795488551.112250681] [rosbag2_recorder]: Subscribed to topic '/odom'
+[INFO] [1795488551.118019336] [rosbag2_recorder]: Subscribed to topic '/rosout'
+[INFO] [1795488551.119550228] [rosbag2_recorder]: Subscribed to topic '/plan'
+[INFO] [1795488551.121329811] [rosbag2_recorder]: Subscribed to topic '/task_skills/status'
+[INFO] [1795488551.122287027] [rosbag2_recorder]: Subscribed to topic '/wheel/odom'
+[INFO] [1795488551.124685411] [rosbag2_recorder]: Subscribed to topic '/task_skills/wall_estimate'
+[INFO] [1795488555.706180132] [rosbag2_recorder]: Subscribed to topic '/behavior_tree_log'
+[INFO] [1795488556.029393693] [rosbag2_recorder]: Subscribed to topic '/task_executor/station_records'
+[INFO] [1795488556.029454885] [rosbag2_recorder]: All requested topics are subscribed. Stopping discovery...
+[INFO] [1795488864.814107758] [rosbag2_cpp]: Writing remaining messages from cache to the bag. It may take a while
+[INFO] [1795488864.816353451] [rosbag2_recorder]: Event publisher thread: Exiting
+[INFO] [1795488864.816564788] [rosbag2_recorder]: Recording stopped
