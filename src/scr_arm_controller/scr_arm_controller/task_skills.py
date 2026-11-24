@@ -313,6 +313,10 @@ class CuttingSkills(Node):
     def destroy_node(self):
         # 先停掉定点保持的后台线程，避免 rclpy.shutdown() 时进程 abort
         self.base_hold.shutdown()
+        try:
+            self.estimator.flush_map()
+        except Exception as e:  # noqa: BLE001  （关闭时写文件失败不应影响退出）
+            self.get_logger().warn(f'地图估计写出失败：{e}')
         return super().destroy_node()
 
     def odom_callback(self, msg):
@@ -633,6 +637,7 @@ class CuttingSkills(Node):
                              f'{errs[1] * 1000:+.2f} mm、朝向 {math.degrees(errs[2]):+.3f}°，'
                              f'σ = ({sig[0] * 1000:.2f} mm, {sig[1] * 1000:.2f} mm, '
                              f'{math.degrees(sig[2]):.3f}°)，用时 {now - t0:.1f} s')
+                    est.flush_map()
                     return True, X
                 cmd.linear.x, cmd.linear.y, cmd.angular.z = ctrl.command(X, target)
                 cmd = self.apply_wall_guard(cmd)
@@ -652,6 +657,7 @@ class CuttingSkills(Node):
             it += 1
             self.sleep_sim(period)
         self.stop_robot()
+        est.flush_map()
         return False, X
 
     def precise_positioning_fused(self, target_x, target_y, target_yaw):
@@ -991,6 +997,7 @@ class CuttingSkills(Node):
         for _ in range(n):
             X, _ = self.estimator.step()
             self.sleep_sim(0.1)
+        self.estimator.flush_map()       # 在线估计地图时，写出本站的更新（限频窗口内的不会自动写）
         if X is None:
             return 0.0, 0.0, 0.0
         return (float(X[1] - du_target), float(X[0] - self.distance_from_marker), float(X[2]))

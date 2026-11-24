@@ -14,11 +14,13 @@
 """
 import argparse
 import math
+import sys
 import time
 
 import numpy as np
 import rclpy
 from gazebo_msgs.srv import SetEntityState
+from rclpy.utilities import remove_ros_args
 
 from scr_arm_controller.alignment_benchmark import (DISTANCE, TAG_X, WALL_Y, teleport,
                                                     wall_state_true)
@@ -45,7 +47,8 @@ def main():
     # 仍有约 0.03° 的朝向不确定度，经标记耦合成约 0.4 mm 的沿墙偏置；默认取 30 s
     ap.add_argument('--seconds', type=float, default=30.0, help='采样时长（仿真时间）')
     ap.add_argument('--settle', type=float, default=3.0, help='开始采样前的收敛时间')
-    args = ap.parse_args()
+    # 节点参数（例如 --ros-args -p hold.mode:=dob）交给 rclpy，命令行解析只看其余部分
+    args = ap.parse_args(remove_ros_args(sys.argv)[1:])
 
     rclpy.init()
     node = NavigationCuttingTask()

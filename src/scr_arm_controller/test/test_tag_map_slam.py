@@ -251,6 +251,37 @@ def test_ros_wrapper_defaults_to_known_map_and_saves_estimate(tmp_path):
     assert nxt.ekf.tag_sigma(4) == pytest.approx(math.sqrt(cov[1, 1]))
 
 
+def test_updates_inside_the_save_period_are_written_by_flush(tmp_path):
+    """最后一站才第一次看到的标记：限频窗口内的更新由 flush_map() 写出（Gazebo 中发现的缺陷）."""
+    import yaml
+    wsr = pytest.importorskip('scr_arm_controller.wall_estimator_ros')
+    out = tmp_path / 'map_est.yaml'
+    est = wsr.WallStateEstimator(_StubNode(), _StubServo(), tag_map=NOMINAL, estimate_topic='',
+                                 estimate_scale=True, estimate_tag_map=True, map_output=str(out),
+                                 map_save_period=5.0)
+    rng = np.random.default_rng(3)
+
+    def saved_sigma_mm(tag):
+        m = yaml.safe_load(out.read_text(encoding='utf-8'))['tag_map']
+        return 1e3 * next(t['sigma'] for t in m['tags'] if t['id'] == tag)
+
+    est.ekf.reset(0.70, -0.25, 0.0, sigma=(0.002, 0.002, 0.002))
+    wall_pass(est.ekf, rng, u1=0.85, see={0, 2})            # 只看到 ID 0、2
+    est._hist.append((10.0, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)))
+    est._map_dirty = True
+    assert est.save_map() == str(out)
+    assert saved_sigma_mm(4) == pytest.approx(5.0)
+    est.ekf.reset(0.70, 0.85, 0.0, sigma=(0.002, 0.002, 0.002))
+    wall_pass(est.ekf, rng, u0=0.85, u1=1.45, steps=150, see={2, 4})   # 最后才看到 ID 4
+    est._hist.append((12.0, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)))
+    est._map_dirty = True
+    assert est.save_map() is None                          # 限频：距上次写出不到 5 s
+    assert saved_sigma_mm(4) == pytest.approx(5.0)
+    assert est.flush_map() == str(out)
+    assert saved_sigma_mm(4) < 2.0
+    assert est.flush_map() is None                         # 没有新更新时不重复写
+
+
 def test_systematic_floor_only_inflates_the_exported_covariance():
     a, b = TagMapEKF(NOMINAL), TagMapEKF(NOMINAL, map_floor=0.4e-3)
     for f in (a, b):
