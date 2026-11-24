@@ -1,0 +1,160 @@
+[INFO] [task_executor-10]: process started with pid [81383]
+[task_executor-10] [INFO] [1795501347.330462372] [task_executor]: 
+[task_executor-10] 	task_executor lifecycle node launched. 
+[task_executor-10] 	Waiting on external lifecycle transitions to activate
+[task_executor-10] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[task_executor-10] [INFO] [1795501347.334618127] [task_executor_startup]: Waiting for Nav2 and the skill servers...
+[task_skill_server-9] [INFO] [1795501347.923855458] [task_skills]: 等待action服务器...
+[task_skill_server-9] [INFO] [1795501348.426203359] [task_skills]: 已连接到action服务器
+[task_skill_server-9] [INFO] [1795501348.434454275] [task_skills]: 笛卡尔空间工作范围（相对于base_link）:
+[task_skill_server-9] [INFO] [1795501348.434872369] [task_skills]:   X: [0.5168, 0.5818] m
+[task_skill_server-9] [INFO] [1795501348.435985492] [task_skills]:   Y: [-0.0601, 0.0799] m
+[task_skill_server-9] [INFO] [1795501348.438372952] [task_skills]:   Z: [0.1568, 0.7068] m
+[task_skill_server-9] [INFO] [1795501348.466351407] [task_skills]: 轨迹可视化器已初始化（Gazebo模式）
+[task_skill_server-9] [INFO] [1795501348.553147691] [task_skills]: 标记地图 docs/experiments/tag_map_estimation/maps/tags_0.6_err5.yaml：3 个标记，最大间距 0.60 m，位置误差 σ = 5.0 mm
+[task_skill_server-9] [INFO] [1795501348.572939976] [task_skills]: 切割任务技能库已初始化
+[task_skill_server-9] [INFO] [1795501348.614073361] [task_skills]: 技能服务器就绪：fine_align / move_to_station / cut_station / hold_base / scan_marker / retract_arm
+[task_executor-10] [INFO] [1795501364.350464859] [task_executor]: Task executor active: /execute_slot_plan (install/scr_task/share/scr_task/behavior_trees/slot_plan.xml), /execute_cutting_task (install/scr_task/share/scr_task/behavior_trees/cutting_task.xml)
+[task_executor-10] [INFO] [1795501364.352284565] [task_executor]: Executing slot plan docs/experiments/slot_execution/runs/dp/slot_plan.yaml (dry run on, compensation on, re-align after never)
+[task_executor-10] [WARN] [1795501364.365461520] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_skill_server-9] [INFO] [1795501392.783308395] [task_skills]: 
+[task_skill_server-9] [INFO] [1795501392.783655100] [task_skills]: 步骤2: 精确定位到黄色方块正前方
+[task_skill_server-9] [INFO] [1795501392.783863940] [task_skills]: ============================================================
+[task_skill_server-9] [INFO] [1795501392.786361133] [task_skills]: 方块位置: x=8.420, y=-3.925
+[task_skill_server-9] [INFO] [1795501392.790860819] [task_skills]: 目标距离: 0.70m
+[task_skill_server-9] [INFO] [1795501392.791283673] [task_skills]: 目标位置: x=8.420, y=-3.224, yaw=-1.571 (-90.0°)
+[task_skill_server-9] [INFO] [1795501392.791744225] [task_skills]: 对位模式: visual（apriltag + 激光墙面 → EKF），目标离墙 0.700 m，容差 法向 2.0 mm / 沿墙 2.0 mm / 朝向 0.30°，零位偏置 (+0.00 mm, +0.00 mm, +0.000°)
+[task_skill_server-9] [INFO] [1795501392.792159290] [task_skills]: 机械臂移至接近位姿 joint1=-0.15 m, joint3=+0.020 m（缩回）
+[task_skill_server-9] [INFO] [1795501392.797362554] [task_skills]: 发送目标: [-0.15, 0.0, 0.02, 0.0]
+[task_skill_server-9] [INFO] [1795501394.911025682] [task_skills]: 轨迹计时: 时长 2.000 s，发送→接受 3 ms 墙钟 / 0 ms 仿真，接受→结果 2.103 s 墙钟 / 2.000 s 仿真，额外 +0.000 s 仿真 (发送 49.900，结果 51.900)
+[task_skill_server-9] [INFO] [1795501395.394820648] [task_skills]: [  0.0s] d=1.3103 m u=  -26.9 mm ψ=+10.54° σ_u=9.77 mm 标记: ok  墙面: init
+[task_skill_server-9] [INFO] [1795501399.790678379] [task_skills]: [  4.0s] d=0.7541 m u=   -4.1 mm ψ= -0.06° σ_u=0.61 mm 标记: ok  墙面: ok
+[task_skill_server-9] [INFO] [1795501402.724898788] [task_skills]: 墙面闭环收敛：误差 法向 +0.20 mm、沿墙 +0.39 mm、朝向 +0.035°，σ = (0.32 mm, 0.50 mm, 0.042°)，用时 6.7 s
+[task_skill_server-9] [INFO] [1795501402.725276401] [task_skills]: 测量更新：墙面 接受 55 / 拒收 6，标记 接受 89 / 拒收 0
+[task_skill_server-9] [INFO] [1795501403.244940236] [task_skills]: 真值误差: 位置=3.1mm (dx=3.1, dy=0.4), 角度=0.26°
+[task_skill_server-9] [INFO] [1795501403.245919097] [task_skills]: 墙面坐标原点 = 定位标记（停车位姿沿墙残差 +0.39 mm 已计入）
+[task_skill_server-9] [INFO] [1795501403.272184369] [task_skills]: 机械臂移至接近位姿 joint1=-0.15 m, joint3=+0.020 m（缩回）
+[task_skill_server-9] [INFO] [1795501403.278823942] [task_skills]: 发送目标: [-0.15, 0.0, 0.02, 0.0]
+[task_skill_server-9] [INFO] [1795501404.883425375] [task_skills]: 轨迹计时: 时长 1.500 s，发送→接受 3 ms 墙钟 / 0 ms 仿真，接受→结果 1.600 s 墙钟 / 1.500 s 仿真，额外 +0.000 s 仿真 (发送 59.600，结果 61.100)
+[task_skill_server-9] [INFO] [1795501405.334219563] [task_skills]: [  0.0s] d=0.7002 m u=   +0.4 mm ψ= +0.04° σ_u=0.50 mm 标记: ok  墙面: ok
+[task_skill_server-9] [INFO] [1795501409.710700713] [task_skills]: 墙面闭环收敛：误差 法向 +0.42 mm、沿墙 +0.37 mm、朝向 +0.042°，σ = (0.32 mm, 0.58 mm, 0.042°)，用时 4.0 s
+[task_skill_server-9] [WARN] [1795501410.159593307] [task_skills]: 里程计周期 40 ms 与定点保持的设计周期 20 ms 不符，控制律的增益按设计周期整定
+[task_skill_server-9] [INFO] [1795501410.796078025] [task_skills]: S0 残余误差（传感器）: 横向 +0.8 mm, 离墙 +0.5 mm, 朝向 +0.08°，已补偿
+[task_skill_server-9] [INFO] [1795501410.799509255] [task_skills]: 连续轨迹：4 个点，29 个结点，时长 2.98 s，起始时刻 66.750 s
+[task_skill_server-9] [INFO] [1795501414.059708688] [task_skills]: 轨迹计时: 时长 3.126 s，发送→接受 2 ms 墙钟 / 0 ms 仿真，接受→结果 3.251 s 墙钟 / 3.100 s 仿真，额外 -0.026 s 仿真 (发送 66.600，结果 69.700)
+[task_skill_server-9] [INFO] [1795501414.117003281] [task_skills]: 定点保持期间底盘真值最大漂移: 0.32 mm, 0.321°
+[task_executor-10] [WARN] [1795501414.119935641] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_skill_server-9] [INFO] [1795501414.126053913] [task_skills]: 机械臂移至接近位姿 joint1=-0.15 m, joint3=+0.020 m（缩回）
+[task_skill_server-9] [INFO] [1795501414.129196293] [task_skills]: 发送目标: [-0.15, 0.0, 0.02, 0.0]
+[task_skill_server-9] [INFO] [1795501415.734275808] [task_skills]: 轨迹计时: 时长 1.500 s，发送→接受 5 ms 墙钟 / 0 ms 仿真，接受→结果 1.600 s 墙钟 / 1.500 s 仿真，额外 +0.000 s 仿真 (发送 69.800，结果 71.300)
+[task_skill_server-9] [INFO] [1795501416.209894611] [task_skills]: [  0.0s] d=0.7005 m u= -229.2 mm ψ= +0.08° σ_u=0.56 mm 标记: ok  墙面: ok
+[task_skill_server-9] [INFO] [1795501418.582734655] [task_skills]: 墙面闭环收敛：误差 法向 -0.01 mm、沿墙 -0.19 mm、朝向 -0.011°，σ = (0.32 mm, 0.53 mm, 0.040°)，用时 2.2 s
+[task_skill_server-9] [INFO] [1795501419.651837251] [task_skills]: S1 残余误差（传感器）: 横向 -0.1 mm, 离墙 -0.5 mm, 朝向 -0.02°，已补偿
+[task_skill_server-9] [INFO] [1795501419.663316940] [task_skills]: 连续轨迹：4 个点，29 个结点，时长 4.25 s，起始时刻 75.150 s
+[task_skill_server-9] [INFO] [1795501424.268802154] [task_skills]: 轨迹计时: 时长 4.397 s，发送→接受 4 ms 墙钟 / 0 ms 仿真，接受→结果 4.600 s 墙钟 / 4.400 s 仿真，额外 +0.003 s 仿真 (发送 75.000，结果 79.400)
+[task_skill_server-9] [INFO] [1795501424.318125593] [task_skills]: 定点保持期间底盘真值最大漂移: 0.33 mm, 0.327°
+[task_executor-10] [WARN] [1795501424.320060884] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_skill_server-9] [INFO] [1795501424.334197842] [task_skills]: 机械臂移至接近位姿 joint1=-0.15 m, joint3=+0.020 m（缩回）
+[task_skill_server-9] [INFO] [1795501424.334747965] [task_skills]: 发送目标: [-0.15, 0.0, 0.02, 0.0]
+[task_skill_server-9] [INFO] [1795501425.947075987] [task_skills]: 轨迹计时: 时长 1.500 s，发送→接受 2 ms 墙钟 / 0 ms 仿真，接受→结果 1.605 s 墙钟 / 1.600 s 仿真，额外 +0.100 s 仿真 (发送 79.400，结果 81.000)
+[task_skill_server-9] [INFO] [1795501426.481882398] [task_skills]: [  0.0s] d=0.6996 m u= -175.3 mm ψ= -0.03° σ_u=0.52 mm 标记: ok  墙面: ok
+[task_skill_server-9] [INFO] [1795501429.511082017] [task_skills]: 墙面闭环收敛：误差 法向 +0.34 mm、沿墙 -0.28 mm、朝向 -0.022°，σ = (0.32 mm, 0.51 mm, 0.041°)，用时 2.8 s
+[task_skill_server-9] [INFO] [1795501430.607654238] [task_skills]: S2 残余误差（传感器）: 横向 -0.2 mm, 离墙 +0.1 mm, 朝向 -0.02°，已补偿
+[task_skill_server-9] [INFO] [1795501430.613538590] [task_skills]: 连续轨迹：4 个点，29 个结点，时长 4.26 s，起始时刻 85.450 s
+[task_skill_server-9] [INFO] [1795501435.226303736] [task_skills]: 轨迹计时: 时长 4.414 s，发送→接受 3 ms 墙钟 / 0 ms 仿真，接受→结果 4.602 s 墙钟 / 4.400 s 仿真，额外 -0.014 s 仿真 (发送 85.300，结果 89.700)
+[task_skill_server-9] [INFO] [1795501435.282497394] [task_skills]: 定点保持期间底盘真值最大漂移: 0.32 mm, 0.327°
+[task_executor-10] [WARN] [1795501435.284950469] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_skill_server-9] [INFO] [1795501435.293751585] [task_skills]: 机械臂移至接近位姿 joint1=-0.15 m, joint3=+0.020 m（缩回）
+[task_skill_server-9] [INFO] [1795501435.295599507] [task_skills]: 发送目标: [-0.15, 0.0, 0.02, 0.0]
+[task_skill_server-9] [INFO] [1795501436.899299048] [task_skills]: 轨迹计时: 时长 1.500 s，发送→接受 3 ms 墙钟 / 0 ms 仿真，接受→结果 1.599 s 墙钟 / 1.500 s 仿真，额外 +0.000 s 仿真 (发送 89.800，结果 91.300)
+[task_skill_server-9] [INFO] [1795501437.385127004] [task_skills]: [  0.0s] d=0.7003 m u=  -55.4 mm ψ= -0.03° σ_u=0.50 mm 标记: ok  墙面: ok
+[task_skill_server-9] [INFO] [1795501440.489519506] [task_skills]: 墙面闭环收敛：误差 法向 +0.01 mm、沿墙 -0.53 mm、朝向 -0.044°，σ = (0.33 mm, 0.51 mm, 0.042°)，用时 2.8 s
+[task_skill_server-9] [INFO] [1795501441.591130464] [task_skills]: S3 残余误差（传感器）: 横向 -0.4 mm, 离墙 -0.1 mm, 朝向 -0.04°，已补偿
+[task_skill_server-9] [INFO] [1795501441.601027475] [task_skills]: 连续轨迹：12 个点，85 个结点，时长 12.77 s，起始时刻 95.750 s
+[task_skill_server-9] [INFO] [1795501455.204098485] [task_skills]: 轨迹计时: 时长 12.923 s，发送→接受 8 ms 墙钟 / 0 ms 仿真，接受→结果 13.594 s 墙钟 / 12.900 s 仿真，额外 -0.023 s 仿真 (发送 95.600，结果 108.500)
+[task_skill_server-9] [INFO] [1795501455.242210081] [task_skills]: 定点保持期间底盘真值最大漂移: 0.33 mm, 0.327°
+[task_executor-10] [WARN] [1795501455.246689429] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_skill_server-9] [INFO] [1795501455.253074380] [task_skills]: 机械臂移至接近位姿 joint1=-0.15 m, joint3=+0.020 m（缩回）
+[task_skill_server-9] [INFO] [1795501455.259750191] [task_skills]: 发送目标: [-0.15, 0.0, 0.02, 0.0]
+[task_skill_server-9] [INFO] [1795501456.865066786] [task_skills]: 轨迹计时: 时长 1.500 s，发送→接受 3 ms 墙钟 / 0 ms 仿真，接受→结果 1.602 s 墙钟 / 1.600 s 仿真，额外 +0.100 s 仿真 (发送 108.500，结果 110.100)
+[task_skill_server-9] [INFO] [1795501457.382192968] [task_skills]: [  0.0s] d=0.7001 m u=  +64.4 mm ψ= -0.05° σ_u=0.50 mm 标记: ok  墙面: ok
+[task_skill_server-9] [INFO] [1795501460.416358446] [task_skills]: 墙面闭环收敛：误差 法向 -0.07 mm、沿墙 -0.24 mm、朝向 -0.021°，σ = (0.33 mm, 0.54 mm, 0.042°)，用时 2.8 s
+[task_skill_server-9] [INFO] [1795501461.504970378] [task_skills]: S4 残余误差（传感器）: 横向 -0.7 mm, 离墙 -0.2 mm, 朝向 -0.06°，已补偿
+[task_skill_server-9] [INFO] [1795501461.512786447] [task_skills]: 连续轨迹：4 个点，29 个结点，时长 4.25 s，起始时刻 114.550 s
+[task_skill_server-9] [INFO] [1795501466.125393609] [task_skills]: 轨迹计时: 时长 4.405 s，发送→接受 7 ms 墙钟 / 0 ms 仿真，接受→结果 4.600 s 墙钟 / 4.400 s 仿真，额外 -0.005 s 仿真 (发送 114.400，结果 118.800)
+[task_skill_server-9] [INFO] [1795501466.196234314] [task_skills]: 定点保持期间底盘真值最大漂移: 0.31 mm, 0.326°
+[task_executor-10] [WARN] [1795501466.197809108] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_skill_server-9] [INFO] [1795501466.208475911] [task_skills]: 机械臂移至接近位姿 joint1=-0.15 m, joint3=+0.020 m（缩回）
+[task_skill_server-9] [INFO] [1795501466.210014673] [task_skills]: 发送目标: [-0.15, 0.0, 0.02, 0.0]
+[task_skill_server-9] [INFO] [1795501467.825628052] [task_skills]: 轨迹计时: 时长 1.500 s，发送→接受 3 ms 墙钟 / 0 ms 仿真，接受→结果 1.606 s 墙钟 / 1.500 s 仿真，额外 +0.000 s 仿真 (发送 118.900，结果 120.400)
+[task_skill_server-9] [INFO] [1795501468.335349503] [task_skills]: [  0.0s] d=0.7000 m u= +184.1 mm ψ= -0.08° σ_u=0.53 mm 标记: ok  墙面: ok
+[task_skill_server-9] [INFO] [1795501471.466383240] [task_skills]: 墙面闭环收敛：误差 法向 -0.30 mm、沿墙 -0.27 mm、朝向 -0.015°，σ = (0.31 mm, 0.58 mm, 0.039°)，用时 2.9 s
+[task_skill_server-9] [INFO] [1795501472.524932865] [task_skills]: S5 残余误差（传感器）: 横向 -0.3 mm, 离墙 -0.3 mm, 朝向 -0.02°，已补偿
+[task_skill_server-9] [INFO] [1795501472.533270770] [task_skills]: 连续轨迹：8 个点，57 个结点，时长 8.18 s，起始时刻 124.950 s
+[task_skill_server-9] [INFO] [1795501481.193768001] [task_skills]: 轨迹计时: 时长 8.329 s，发送→接受 5 ms 墙钟 / 0 ms 仿真，接受→结果 8.652 s 墙钟 / 8.300 s 仿真，额外 -0.029 s 仿真 (发送 124.800，结果 133.100)
+[task_skill_server-9] [INFO] [1795501481.220800417] [task_skills]: 定点保持期间底盘真值最大漂移: 0.33 mm, 0.318°
+[task_executor-10] [WARN] [1795501481.222722680] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795501481.229105184] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_skill_server-9] [INFO] [1795501481.237553244] [task_skills]: 机械臂移至接近位姿 joint1=-0.15 m, joint3=+0.020 m（缩回）
+[task_skill_server-9] [INFO] [1795501481.238086087] [task_skills]: 发送目标: [-0.15, 0.0, 0.02, 0.0]
+[task_skill_server-9] [INFO] [1795501482.841919299] [task_skills]: 轨迹计时: 时长 1.500 s，发送→接受 2 ms 墙钟 / 0 ms 仿真，接受→结果 1.600 s 墙钟 / 1.500 s 仿真，额外 +0.000 s 仿真 (发送 133.100，结果 134.600)
+[task_skill_server-9] [INFO] [1795501483.300546337] [task_skills]: [  0.0s] d=0.6998 m u= +304.6 mm ψ= -0.01° σ_u=0.56 mm 标记: ok  墙面: ok
+[task_skill_server-9] [INFO] [1795501486.454639736] [task_skills]: 墙面闭环收敛：误差 法向 -0.17 mm、沿墙 -0.17 mm、朝向 -0.011°，σ = (0.31 mm, 0.63 mm, 0.037°)，用时 2.9 s
+[task_executor-10] [WARN] [1795501486.491326046] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_skill_server-9] [INFO] [1795501487.545245329] [task_skills]: S6 残余误差（传感器）: 横向 -0.2 mm, 离墙 +0.2 mm, 朝向 -0.03°，已补偿
+[task_skill_server-9] [INFO] [1795501487.548191590] [task_skills]: 连续轨迹：8 个点，57 个结点，时长 8.51 s，起始时刻 139.150 s
+[task_skill_server-9] [INFO] [1795501496.553073987] [task_skills]: 轨迹计时: 时长 8.657 s，发送→接受 3 ms 墙钟 / 0 ms 仿真，接受→结果 9.001 s 墙钟 / 8.600 s 仿真，额外 -0.057 s 仿真 (发送 139.000，结果 147.600)
+[task_skill_server-9] [INFO] [1795501496.606745314] [task_skills]: 定点保持期间底盘真值最大漂移: 0.34 mm, 0.323°
+[task_executor-10] [WARN] [1795501496.609251147] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_skill_server-9] [INFO] [1795501496.617416139] [task_skills]: 机械臂移至接近位姿 joint1=-0.15 m, joint3=+0.020 m（缩回）
+[task_skill_server-9] [INFO] [1795501496.621994434] [task_skills]: 发送目标: [-0.15, 0.0, 0.02, 0.0]
+[task_skill_server-9] [INFO] [1795501498.230149283] [task_skills]: 轨迹计时: 时长 1.500 s，发送→接受 4 ms 墙钟 / 0 ms 仿真，接受→结果 1.600 s 墙钟 / 1.500 s 仿真，额外 +0.000 s 仿真 (发送 147.700，结果 149.200)
+[task_skill_server-9] [INFO] [1795501498.729512238] [task_skills]: [  0.0s] d=0.7002 m u= +424.6 mm ψ= -0.03° σ_u=0.61 mm 标记: ok  墙面: ok
+[task_skill_server-9] [INFO] [1795501501.652946768] [task_skills]: 墙面闭环收敛：误差 法向 -0.04 mm、沿墙 +0.08 mm、朝向 -0.041°，σ = (0.32 mm, 0.87 mm, 0.045°)，用时 2.7 s
+[task_executor-10] [WARN] [1795501501.694103471] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_skill_server-9] [INFO] [1795501502.769274721] [task_skills]: S7 残余误差（传感器）: 横向 +0.3 mm, 离墙 +0.4 mm, 朝向 -0.10°，已补偿
+[task_skill_server-9] [INFO] [1795501502.784705135] [task_skills]: 连续轨迹：16 个点，113 个结点，时长 18.02 s，起始时刻 153.550 s
+[task_skill_server-9] [INFO] [1795501521.801750252] [task_skills]: 轨迹计时: 时长 18.167 s，发送→接受 4 ms 墙钟 / 0 ms 仿真，接受→结果 19.004 s 墙钟 / 18.100 s 仿真，额外 -0.067 s 仿真 (发送 153.400，结果 171.500)
+[task_skill_server-9] [INFO] [1795501521.849167815] [task_skills]: 定点保持期间底盘真值最大漂移: 0.35 mm, 0.328°
+[task_executor-10] [WARN] [1795501521.850628204] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_skill_server-9] [INFO] [1795501521.859746787] [task_skills]: 机械臂移至接近位姿 joint1=-0.15 m, joint3=+0.020 m（缩回）
+[task_skill_server-9] [INFO] [1795501521.862160173] [task_skills]: 发送目标: [-0.15, 0.0, 0.02, 0.0]
+[task_skill_server-9] [INFO] [1795501523.468081958] [task_skills]: 轨迹计时: 时长 1.500 s，发送→接受 2 ms 墙钟 / 0 ms 仿真，接受→结果 1.601 s 墙钟 / 1.600 s 仿真，额外 +0.100 s 仿真 (发送 171.600，结果 173.200)
+[task_skill_server-9] [INFO] [1795501523.986448092] [task_skills]: [  0.0s] d=0.7005 m u= +545.2 mm ψ= -0.09° σ_u=0.83 mm 标记: ok  墙面: ok
+[task_skill_server-9] [INFO] [1795501527.054360497] [task_skills]: 墙面闭环收敛：误差 法向 -0.06 mm、沿墙 +0.15 mm、朝向 +0.000°，σ = (0.34 mm, 0.91 mm, 0.048°)，用时 2.8 s
+[task_skill_server-9] [INFO] [1795501528.160977394] [task_skills]: S8 残余误差（传感器）: 横向 +0.3 mm, 离墙 -0.1 mm, 朝向 -0.01°，已补偿
+[task_skill_server-9] [INFO] [1795501528.168900645] [task_skills]: 连续轨迹：16 个点，112 个结点，时长 17.01 s，起始时刻 177.650 s
+[task_skill_server-9] [INFO] [1795501546.177904418] [task_skills]: 轨迹计时: 时长 17.163 s，发送→接受 4 ms 墙钟 / 0 ms 仿真，接受→结果 18.000 s 墙钟 / 17.100 s 仿真，额外 -0.063 s 仿真 (发送 177.500，结果 194.600)
+[task_skill_server-9] [INFO] [1795501546.210198442] [task_skills]: 定点保持期间底盘真值最大漂移: 0.34 mm, 0.324°
+[task_executor-10] [WARN] [1795501546.212803924] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_skill_server-9] [INFO] [1795501546.222064124] [task_skills]: 机械臂移至接近位姿 joint1=-0.15 m, joint3=+0.020 m（缩回）
+[task_skill_server-9] [INFO] [1795501546.225748905] [task_skills]: 发送目标: [-0.15, 0.0, 0.02, 0.0]
+[task_skill_server-9] [INFO] [1795501547.831740954] [task_skills]: 轨迹计时: 时长 1.500 s，发送→接受 2 ms 墙钟 / 0 ms 仿真，接受→结果 1.602 s 墙钟 / 1.500 s 仿真，额外 +0.000 s 仿真 (发送 194.700，结果 196.200)
+[task_skill_server-9] [INFO] [1795501548.294920092] [task_skills]: [  0.0s] d=0.7001 m u= +665.2 mm ψ= -0.01° σ_u=0.88 mm 标记: ok  墙面: ok
+[task_skill_server-9] [INFO] [1795501551.322678509] [task_skills]: 墙面闭环收敛：误差 法向 +0.01 mm、沿墙 -0.27 mm、朝向 -0.036°，σ = (0.33 mm, 0.93 mm, 0.047°)，用时 2.8 s
+[task_skill_server-9] [INFO] [1795501552.390802402] [task_skills]: S9 残余误差（传感器）: 横向 -0.3 mm, 离墙 -0.0 mm, 朝向 -0.03°，已补偿
+[task_skill_server-9] [INFO] [1795501552.400615040] [task_skills]: 连续轨迹：8 个点，57 个结点，时长 7.79 s，起始时刻 200.650 s
+[task_skill_server-9] [INFO] [1795501560.655712149] [task_skills]: 轨迹计时: 时长 7.944 s，发送→接受 2 ms 墙钟 / 0 ms 仿真，接受→结果 8.251 s 墙钟 / 7.900 s 仿真，额外 -0.044 s 仿真 (发送 200.500，结果 208.400)
+[task_skill_server-9] [INFO] [1795501560.719853788] [task_skills]: 定点保持期间底盘真值最大漂移: 0.32 mm, 0.325°
+[task_executor-10] [WARN] [1795501560.723836195] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_skill_server-9] [INFO] [1795501560.731900794] [task_skills]: 机械臂移至接近位姿 joint1=-0.15 m, joint3=+0.020 m（缩回）
+[task_skill_server-9] [INFO] [1795501560.733753969] [task_skills]: 发送目标: [-0.15, 0.0, 0.02, 0.0]
+[task_skill_server-9] [INFO] [1795501562.337458282] [task_skills]: 轨迹计时: 时长 1.500 s，发送→接受 5 ms 墙钟 / 0 ms 仿真，接受→结果 1.598 s 墙钟 / 1.500 s 仿真，额外 +0.000 s 仿真 (发送 208.500，结果 210.000)
+[task_skill_server-9] [INFO] [1795501562.794969571] [task_skills]: [  0.0s] d=0.7000 m u= +784.5 mm ψ= -0.05° σ_u=0.87 mm 标记: ok  墙面: ok
+[task_skill_server-9] [INFO] [1795501566.018553812] [task_skills]: 墙面闭环收敛：误差 法向 -0.02 mm、沿墙 -0.31 mm、朝向 +0.007°，σ = (0.34 mm, 0.85 mm, 0.046°)，用时 2.9 s
+[task_skill_server-9] [INFO] [1795501567.105654099] [task_skills]: S10 残余误差（传感器）: 横向 -0.8 mm, 离墙 -0.1 mm, 朝向 +0.00°，已补偿
+[task_skill_server-9] [INFO] [1795501567.116765086] [task_skills]: 连续轨迹：8 个点，57 个结点，时长 11.29 s，起始时刻 214.550 s
+[task_executor-10] [WARN] [1795501572.954823679] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_skill_server-9] [INFO] [1795501579.675027515] [task_skills]: 轨迹计时: 时长 11.440 s，发送→接受 4 ms 墙钟 / 0 ms 仿真，接受→结果 12.553 s 墙钟 / 11.400 s 仿真，额外 -0.040 s 仿真 (发送 214.400，结果 225.800)
+[task_skill_server-9] [INFO] [1795501579.734356106] [task_skills]: 定点保持期间底盘真值最大漂移: 0.13 mm, 0.123°
+[task_executor-10] [WARN] [1795501579.739426100] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_skill_server-9] [INFO] [1795501579.742238476] [task_skills]: 机械臂移至接近位姿 joint1=0.00 m, joint3=+0.020 m（缩回）
+[task_skill_server-9] [INFO] [1795501579.742702221] [task_skills]: 发送目标: [0.0, 0.0, 0.02, 0.0]
+[task_skill_server-9] [INFO] [1795501581.845111167] [task_skills]: 轨迹计时: 时长 2.000 s，发送→接受 2 ms 墙钟 / 0 ms 仿真，接受→结果 2.100 s 墙钟 / 2.000 s 仿真，额外 +0.000 s 仿真 (发送 225.900，结果 227.900)
+[task_executor-10] [INFO] [1795501582.350165745] [task_executor]: Slot plan finished: success, 11 stations, 205.7 s
+[task_executor-10] [INFO] [1795501582.350359463] [task_executor]: Goal succeeded
+[INFO] [task_executor-10]: process has finished cleanly [pid 81383]
+[task_executor-10] [INFO] [1795501594.418575423] [rclcpp]: signal_handler(signum=2)
+[task_executor-10] [INFO] [1795501594.418785372] [task_executor]: Running Nav2 LifecycleNode rcl preshutdown (task_executor)
+[task_executor-10] [INFO] [1795501594.680632534] [task_executor]: Destroying bond (task_executor) to lifecycle manager.
+[task_executor-10] [INFO] [1795501594.688506251] [task_executor]: Destroying

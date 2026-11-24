@@ -1,0 +1,78 @@
+[INFO] [1795495835.465333735] [slot_plan_recorder]: S-1/11 NavigateToMarker
+[INFO] [1795495862.277074125] [slot_plan_recorder]: S-1/11 FineAlign
+[INFO] [1795495874.718691268] [slot_plan_recorder]: S0/11 MoveToStation
+[INFO] [1795495881.190557834] [slot_plan_recorder]: S0/11 HoldBase+CutStation
+[INFO] [1795495881.474902381] [slot_plan_recorder]: S0 到站真值误差: lateral_mm=0.66, standoff_mm=0.26, yaw_deg=0.05
+[INFO] [1795495885.721441690] [slot_plan_recorder]: S0/11 
+[INFO] [1795495885.729257850] [slot_plan_recorder]: S1/11 MoveToStation
+[INFO] [1795495890.371902493] [slot_plan_recorder]: S1/11 HoldBase+CutStation
+[INFO] [1795495890.626077717] [slot_plan_recorder]: S1 到站真值误差: lateral_mm=0.15, standoff_mm=-0.12, yaw_deg=-0.01
+[INFO] [1795495896.762461070] [slot_plan_recorder]: S1/11 
+[INFO] [1795495896.770720167] [slot_plan_recorder]: S2/11 MoveToStation
+[INFO] [1795495902.420669578] [slot_plan_recorder]: S2/11 HoldBase+CutStation
+[INFO] [1795495902.744835872] [slot_plan_recorder]: S2 到站真值误差: lateral_mm=0.07, standoff_mm=-0.17, yaw_deg=-0.00
+[INFO] [1795495908.275888702] [slot_plan_recorder]: S2/11 
+[INFO] [1795495908.284142147] [slot_plan_recorder]: S3/11 MoveToStation
+[INFO] [1795495913.544290266] [slot_plan_recorder]: S3/11 HoldBase+CutStation
+[INFO] [1795495913.825628592] [slot_plan_recorder]: S3 到站真值误差: lateral_mm=-0.19, standoff_mm=0.02, yaw_deg=-0.02
+[INFO] [1795495929.416561846] [slot_plan_recorder]: S3/11 
+[INFO] [1795495929.425139706] [slot_plan_recorder]: S4/11 MoveToStation
+[INFO] [1795495934.999668058] [slot_plan_recorder]: S4/11 HoldBase+CutStation
+[INFO] [1795495935.254742779] [slot_plan_recorder]: S4 到站真值误差: lateral_mm=-0.55, standoff_mm=0.13, yaw_deg=-0.04
+[INFO] [1795495941.016285211] [slot_plan_recorder]: S4/11 
+[INFO] [1795495941.023797179] [slot_plan_recorder]: S5/11 MoveToStation
+[INFO] [1795495947.278993678] [slot_plan_recorder]: S5/11 HoldBase+CutStation
+[INFO] [1795495947.530790492] [slot_plan_recorder]: S5 到站真值误差: lateral_mm=0.75, standoff_mm=0.31, yaw_deg=0.08
+[INFO] [1795495957.612326400] [slot_plan_recorder]: S5/11 
+[INFO] [1795495957.618569845] [slot_plan_recorder]: S6/11 MoveToStation
+[INFO] [1795495964.042598026] [slot_plan_recorder]: S6/11 HoldBase+CutStation
+[INFO] [1795495964.288421430] [slot_plan_recorder]: S6 到站真值误差: lateral_mm=-0.05, standoff_mm=0.36, yaw_deg=0.01
+[INFO] [1795495975.483228009] [slot_plan_recorder]: S6/11 
+[INFO] [1795495975.491004579] [slot_plan_recorder]: S7/11 MoveToStation
+[INFO] [1795496062.013875418] [slot_plan_recorder]: S7/11 RetractArm（已恢复 1 次）
+[INFO] [1795496062.433293279] [slot_plan_recorder]: S7 到站真值误差: lateral_mm=-102.95, standoff_mm=-38.52, yaw_deg=-20.30
+[INFO] [1795496066.348251111] [slot_plan_recorder]: S7/11 ReturnToMarker（已恢复 1 次）
+[INFO] [1795496346.321005840] [slot_plan_recorder]: S7/11 （已恢复 1 次）
+[INFO] [1795496354.620810427] [slot_plan_recorder]: 
+  trace_samples: 8051
+  cutting_samples: 527
+  path_err_mean_mm: 0.15707879617293488
+  path_err_p95_mm: 0.20689539239355792
+  path_err_max_mm: 1.3549036077802268
+  tip_depth_mean_mm: -10.331935807063353
+  tip_depth_max_mm: -9.890846630914663
+  arm_x_mean: 0.5304127668490844
+  coverage: 0.44964028776978415
+  coverage_path: 0.44964028776978415
+  plan_partition: dp
+  plan_order: sweep
+  predicted_t_total: 253.9
+  stations_total_s: 89.0
+  dry_run_gap: 0.01
+  compensation: True
+  stations: 11
+  stations_done: 7
+  all_ok: False
+  sim_time_s: 403.40000000000003
+  wall_time_s: 523.4119982719421
+  slot_length_m: 2.7600000000000002
+  executor: behavior_tree
+  recoveries: 0
+  error: station S7 failed (MoveToStation aborted: not converged, residual too large)
+  station_lateral_mm_mean_abs: 0.345946509585447
+  station_lateral_mm_max_abs: 0.7547407380199544
+  station_standoff_mm_mean_abs: 0.19665234897225936
+  station_standoff_mm_max_abs: 0.3570654122213579
+  station_yaw_deg_mean_abs: 0.029642278070103778
+  station_yaw_deg_max_abs: 0.08017543424181764
+  station_base_drift_mm_mean_abs: 0.3383232073448668
+  station_base_drift_mm_max_abs: 0.4042095369298623
+  station_sensed_yaw_deg_mean_abs: 0.04238628798146745
+  station_sensed_yaw_deg_max_abs: 0.0978619861964257
+  station_move_s_mean_abs: 5.085714285714291
+  station_move_s_max_abs: 5.900000000000006
+  stations_converged: 7
+  realignments: 0
+  final_lateral_scale: -0.035585902738064175
+  final_sigma_scale: 0.005204084694452245
+[ros2run]: Process exited with failure 1

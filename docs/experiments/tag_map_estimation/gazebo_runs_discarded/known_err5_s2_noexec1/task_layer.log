@@ -1,0 +1,78 @@
+[INFO] [task_executor-10]: process started with pid [66562]
+[task_executor-10] [INFO] [1795497293.111489034] [task_executor]: 
+[task_executor-10] 	task_executor lifecycle node launched. 
+[task_executor-10] 	Waiting on external lifecycle transitions to activate
+[task_executor-10] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[task_executor-10] [INFO] [1795497293.183283000] [task_executor_startup]: Waiting for Nav2 and the skill servers...
+[task_skill_server-9] [INFO] [1795497295.188184540] [task_skills]: 等待action服务器...
+[task_skill_server-9] [INFO] [1795497295.189218185] [task_skills]: 已连接到action服务器
+[task_skill_server-9] [INFO] [1795497295.191382340] [task_skills]: 笛卡尔空间工作范围（相对于base_link）:
+[task_skill_server-9] [INFO] [1795497295.192589982] [task_skills]:   X: [0.5168, 0.5818] m
+[task_skill_server-9] [INFO] [1795497295.193214465] [task_skills]:   Y: [-0.0601, 0.0799] m
+[task_skill_server-9] [INFO] [1795497295.193760456] [task_skills]:   Z: [0.1568, 0.7068] m
+[task_skill_server-9] [INFO] [1795497295.202414289] [task_skills]: 轨迹可视化器已初始化（Gazebo模式）
+[task_skill_server-9] [INFO] [1795497295.244042619] [task_skills]: 标记地图 docs/experiments/tag_map_estimation/maps/tags_0.6_err5.yaml：3 个标记，最大间距 0.60 m，位置误差 σ = 5.0 mm
+[task_skill_server-9] [INFO] [1795497295.271892990] [task_skills]: 切割任务技能库已初始化
+[task_skill_server-9] [INFO] [1795497295.302943694] [task_skills]: 技能服务器就绪：fine_align / move_to_station / cut_station / hold_base / scan_marker / retract_arm
+[task_executor-10] [INFO] [1795497311.938914921] [task_executor]: Task executor active: /execute_slot_plan (install/scr_task/share/scr_task/behavior_trees/slot_plan.xml), /execute_cutting_task (install/scr_task/share/scr_task/behavior_trees/cutting_task.xml)
+[task_executor-10] [INFO] [1795497311.939873270] [task_executor]: Executing slot plan docs/experiments/slot_execution/runs/dp/slot_plan.yaml (dry run on, compensation on, re-align after never)
+[task_executor-10] [WARN] [1795497311.956721812] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795497316.193782491] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795497316.339738738] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795497316.414540066] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795497336.373346527] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795497336.424823656] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795497340.606556782] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795497340.635999778] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795497340.714999843] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795497340.756294633] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_skill_server-9] [INFO] [1795497347.265051056] [task_skills]: 
+[task_skill_server-9] [INFO] [1795497347.265628743] [task_skills]: 步骤2: 精确定位到黄色方块正前方
+[task_skill_server-9] [INFO] [1795497347.266112103] [task_skills]: ============================================================
+[task_skill_server-9] [INFO] [1795497347.268278559] [task_skills]: 方块位置: x=8.420, y=-3.925
+[task_skill_server-9] [INFO] [1795497347.268706594] [task_skills]: 目标距离: 0.70m
+[task_skill_server-9] [INFO] [1795497347.269024452] [task_skills]: 目标位置: x=8.420, y=-3.224, yaw=-1.571 (-90.0°)
+[task_skill_server-9] [INFO] [1795497347.269304591] [task_skills]: 对位模式: visual（apriltag + 激光墙面 → EKF），目标离墙 0.700 m，容差 法向 2.0 mm / 沿墙 2.0 mm / 朝向 0.30°，零位偏置 (+0.00 mm, +0.00 mm, +0.000°)
+[task_skill_server-9] [INFO] [1795497347.269574497] [task_skills]: 机械臂移至接近位姿 joint1=-0.15 m, joint3=+0.020 m（缩回）
+[task_skill_server-9] [INFO] [1795497347.270043604] [task_skills]: 发送目标: [-0.15, 0.0, 0.02, 0.0]
+[task_executor-10] [WARN] [1795497347.332749263] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795497347.352175069] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795497347.407904765] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795497347.444474854] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_skill_server-9] [INFO] [1795497349.936787430] [task_skills]: 轨迹计时: 时长 2.000 s，发送→接受 17 ms 墙钟 / 0 ms 仿真，接受→结果 2.645 s 墙钟 / 2.000 s 仿真，额外 +0.000 s 仿真 (发送 47.300，结果 49.300)
+[task_executor-10] [WARN] [1795497352.389390549] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795497352.677803716] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795497352.762418232] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795497356.009110305] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795497356.151297513] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795497356.251709378] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795497357.676077911] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_skill_server-9] [ERROR] [1795497363.543015459] [task_skills]: 定位标记丢失超过 10 s：None
+[task_skill_server-9] [INFO] [1795497364.228595034] [task_skills]: 测量更新：墙面 接受 0 / 拒收 0，标记 接受 0 / 拒收 0
+[task_skill_server-9] [INFO] [1795497364.794102021] [task_skills]: 真值误差: 位置=602.4mm (dx=-13.2, dy=-602.3), 角度=10.86°
+[task_executor-10] [WARN] [1795497364.812226681] [task_executor_execute_slot_plan_rclcpp_node]: FineAlign aborted: fine alignment did not converge
+[task_skill_server-9] [INFO] [1795497364.830227934] [task_skills]: 机械臂移至接近位姿 joint1=0.00 m, joint3=+0.020 m（缩回）
+[task_skill_server-9] [INFO] [1795497364.835190742] [task_skills]: 发送目标: [0.0, 0.0, 0.02, 0.0]
+[task_skill_server-9] [INFO] [1795497367.392941286] [task_skills]: 轨迹计时: 时长 2.000 s，发送→接受 9 ms 墙钟 / 0 ms 仿真，接受→结果 2.545 s 墙钟 / 2.000 s 仿真，额外 +0.000 s 仿真 (发送 60.900，结果 62.900)
+[task_skill_server-9] [INFO] [1795497370.340167950] [task_skills]: 
+[task_skill_server-9] [INFO] [1795497370.341124953] [task_skills]: 步骤2: 精确定位到黄色方块正前方
+[task_skill_server-9] [INFO] [1795497370.343350526] [task_skills]: ============================================================
+[task_skill_server-9] [INFO] [1795497370.344673119] [task_skills]: 方块位置: x=8.420, y=-3.925
+[task_skill_server-9] [INFO] [1795497370.345290085] [task_skills]: 目标距离: 0.70m
+[task_skill_server-9] [INFO] [1795497370.346877081] [task_skills]: 目标位置: x=8.420, y=-3.224, yaw=-1.571 (-90.0°)
+[task_skill_server-9] [INFO] [1795497370.348241810] [task_skills]: 对位模式: visual（apriltag + 激光墙面 → EKF），目标离墙 0.700 m，容差 法向 2.0 mm / 沿墙 2.0 mm / 朝向 0.30°，零位偏置 (+0.00 mm, +0.00 mm, +0.000°)
+[task_skill_server-9] [INFO] [1795497370.348974157] [task_skills]: 机械臂移至接近位姿 joint1=-0.15 m, joint3=+0.020 m（缩回）
+[task_skill_server-9] [INFO] [1795497370.352776760] [task_skills]: 发送目标: [-0.15, 0.0, 0.02, 0.0]
+[task_skill_server-9] [INFO] [1795497372.768274364] [task_skills]: 轨迹计时: 时长 2.000 s，发送→接受 7 ms 墙钟 / 0 ms 仿真，接受→结果 2.402 s 墙钟 / 2.000 s 仿真，额外 +0.000 s 仿真 (发送 65.400，结果 67.400)
+[task_skill_server-9] [ERROR] [1795497385.519571296] [task_skills]: 定位标记丢失超过 10 s：None
+[task_skill_server-9] [INFO] [1795497386.152447442] [task_skills]: 测量更新：墙面 接受 0 / 拒收 0，标记 接受 0 / 拒收 0
+[task_skill_server-9] [INFO] [1795497386.791840221] [task_skills]: 真值误差: 位置=602.4mm (dx=-13.2, dy=-602.3), 角度=10.86°
+[task_executor-10] [WARN] [1795497386.812073607] [task_executor_execute_slot_plan_rclcpp_node]: FineAlign aborted: fine alignment did not converge
+[task_executor-10] [INFO] [1795497386.822171285] [task_executor]: Slot plan finished: failure, 0 stations, 58.7 s, FineAlign aborted: fine alignment did not converge
+[task_executor-10] [WARN] [1795497386.822291717] [task_executor]: [execute_slot_plan] [ActionServer] Aborting handle.
+[task_executor-10] [ERROR] [1795497386.823653003] [task_executor]: Goal failed
+[INFO] [task_executor-10]: process has finished cleanly [pid 66562]
+[task_executor-10] [INFO] [1795497389.167626067] [rclcpp]: signal_handler(signum=2)
+[task_executor-10] [INFO] [1795497389.168402165] [task_executor]: Running Nav2 LifecycleNode rcl preshutdown (task_executor)
+[task_executor-10] [INFO] [1795497389.508324615] [task_executor]: Destroying bond (task_executor) to lifecycle manager.
+[task_executor-10] [INFO] [1795497389.526256893] [task_executor]: Destroying

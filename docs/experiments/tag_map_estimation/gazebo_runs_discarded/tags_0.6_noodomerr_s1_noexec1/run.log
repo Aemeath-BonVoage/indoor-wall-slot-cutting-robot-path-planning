@@ -1,0 +1,8 @@
+[INFO] [1795496823.387346977] [slot_plan_recorder]: S-1/11 NavigateToMarker
+[INFO] [1795496855.410981066] [slot_plan_recorder]: S-1/11 FineAlign
+[INFO] [1795496879.745735365] [slot_plan_recorder]: S-1/11 RetractArm（已恢复 1 次）
+[INFO] [1795496882.814831196] [slot_plan_recorder]: S-1/11 ReapproachMarker（已恢复 1 次）
+[INFO] [1795496882.913386615] [slot_plan_recorder]: S-1/11 FineAlign（已恢复 1 次）
+[INFO] [1795496902.343448763] [slot_plan_recorder]: S-1/11 （已恢复 1 次）
+[ERROR] [1795496902.878019046] [slot_plan_recorder]: 没有执行任何停靠站：FineAlign aborted: fine alignment did not converge
+[ros2run]: Process exited with failure 3

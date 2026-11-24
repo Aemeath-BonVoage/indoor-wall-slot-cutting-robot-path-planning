@@ -1,0 +1,19 @@
+# 标记地图在线估计（均值 + 协方差），可直接作为下一遍的 tag_map 先验
+tag_map:
+  family: tag36h11
+  size: 0.1
+  reference_id: 0
+  tags:
+  - id: 0
+    u: 0.0
+    v: 0.7
+    sigma: 0.0
+  - id: 4
+    u: 1.212449
+    v: 0.7
+    sigma: 0.00190738807870313
+  covariance:
+    ids:
+    - 4
+    matrix:
+    - - 3.638129e-06

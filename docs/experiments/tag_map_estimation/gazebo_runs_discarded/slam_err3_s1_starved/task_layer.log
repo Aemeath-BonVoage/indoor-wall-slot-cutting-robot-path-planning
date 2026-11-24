@@ -1,0 +1,480 @@
+[INFO] [task_executor-10]: process started with pid [60805]
+[task_executor-10] [INFO] [1795495817.470854099] [task_executor]: 
+[task_executor-10] 	task_executor lifecycle node launched. 
+[task_executor-10] 	Waiting on external lifecycle transitions to activate
+[task_executor-10] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[task_executor-10] [INFO] [1795495817.476015619] [task_executor_startup]: Waiting for Nav2 and the skill servers...
+[task_skill_server-9] [INFO] [1795495818.503653140] [task_skills]: 等待action服务器...
+[task_skill_server-9] [INFO] [1795495819.507844690] [task_skills]: 已连接到action服务器
+[task_skill_server-9] [INFO] [1795495819.512378774] [task_skills]: 笛卡尔空间工作范围（相对于base_link）:
+[task_skill_server-9] [INFO] [1795495819.512743376] [task_skills]:   X: [0.5168, 0.5818] m
+[task_skill_server-9] [INFO] [1795495819.512926552] [task_skills]:   Y: [-0.0601, 0.0799] m
+[task_skill_server-9] [INFO] [1795495819.513092468] [task_skills]:   Z: [0.1568, 0.7068] m
+[task_skill_server-9] [INFO] [1795495819.526364050] [task_skills]: 轨迹可视化器已初始化（Gazebo模式）
+[task_skill_server-9] [INFO] [1795495819.571056259] [task_skills]: 标记地图在线估计已开启：地图位置作为先验
+[task_skill_server-9] [INFO] [1795495819.571709377] [task_skills]: 标记地图 docs/experiments/along_wall_accuracy/maps/tags_0.6_err3.yaml：3 个标记，最大间距 0.60 m，位置误差 σ = 2.0 mm
+[task_skill_server-9] [INFO] [1795495819.594825913] [task_skills]: 切割任务技能库已初始化
+[task_skill_server-9] [INFO] [1795495819.619085820] [task_skills]: 技能服务器就绪：fine_align / move_to_station / cut_station / hold_base / scan_marker / retract_arm
+[task_executor-10] [INFO] [1795495835.410723205] [task_executor]: Task executor active: /execute_slot_plan (install/scr_task/share/scr_task/behavior_trees/slot_plan.xml), /execute_cutting_task (install/scr_task/share/scr_task/behavior_trees/cutting_task.xml)
+[task_executor-10] [INFO] [1795495835.412635326] [task_executor]: Executing slot plan docs/experiments/slot_execution/runs/dp/slot_plan.yaml (dry run on, compensation on, re-align after never)
+[task_executor-10] [WARN] [1795495835.427723758] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795495862.275459945] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_skill_server-9] [INFO] [1795495864.324729285] [task_skills]: 
+[task_skill_server-9] [INFO] [1795495864.328107305] [task_skills]: 步骤2: 精确定位到黄色方块正前方
+[task_skill_server-9] [INFO] [1795495864.328386594] [task_skills]: ============================================================
+[task_skill_server-9] [INFO] [1795495864.328612961] [task_skills]: 方块位置: x=8.420, y=-3.925
+[task_skill_server-9] [INFO] [1795495864.332919938] [task_skills]: 目标距离: 0.70m
+[task_skill_server-9] [INFO] [1795495864.333440049] [task_skills]: 目标位置: x=8.420, y=-3.224, yaw=-1.571 (-90.0°)
+[task_skill_server-9] [INFO] [1795495864.333690774] [task_skills]: 对位模式: visual（apriltag + 激光墙面 → EKF），目标离墙 0.700 m，容差 法向 2.0 mm / 沿墙 2.0 mm / 朝向 0.30°，零位偏置 (+0.00 mm, +0.00 mm, +0.000°)
+[task_skill_server-9] [INFO] [1795495864.333970004] [task_skills]: 机械臂移至接近位姿 joint1=-0.15 m, joint3=+0.020 m（缩回）
+[task_skill_server-9] [INFO] [1795495864.334465923] [task_skills]: 发送目标: [-0.15, 0.0, 0.02, 0.0]
+[task_skill_server-9] [INFO] [1795495866.494284868] [task_skills]: 轨迹计时: 时长 2.000 s，发送→接受 5 ms 墙钟 / 0 ms 仿真，接受→结果 2.153 s 墙钟 / 2.000 s 仿真，额外 +0.000 s 仿真 (发送 50.100，结果 52.100)
+[task_skill_server-9] [INFO] [1795495867.024951152] [task_skills]: [  0.0s] d=1.2528 m u=  -42.6 mm ψ=+10.28° σ_u=9.75 mm 标记: ok  墙面: init
+[task_skill_server-9] [INFO] [1795495867.690606366] [task_skills]: 标记地图估计：ID 2 u = 0.6004 ± 1.17 mm, ID 4 u = 1.1970 ± 5.02 mm
+[task_skill_server-9] [INFO] [1795495871.421006339] [task_skills]: [  4.0s] d=0.7205 m u=   -1.4 mm ψ= +0.02° σ_u=0.58 mm 标记: ok  墙面: ok
+[task_skill_server-9] [INFO] [1795495874.170544817] [task_skills]: 墙面闭环收敛：误差 法向 +0.09 mm、沿墙 +0.05 mm、朝向 +0.005°，σ = (0.32 mm, 0.50 mm, 0.041°)，用时 6.4 s
+[task_skill_server-9] [INFO] [1795495874.179058632] [task_skills]: 标记地图估计：ID 2 u = 0.5996 ± 0.63 mm, ID 4 u = 1.1970 ± 5.02 mm
+[task_skill_server-9] [INFO] [1795495874.179538283] [task_skills]: 测量更新：墙面 接受 55 / 拒收 2，标记 接受 66 / 拒收 2
+[task_skill_server-9] [INFO] [1795495874.694213273] [task_skills]: 真值误差: 位置=1.5mm (dx=1.4, dy=0.6), 角度=0.12°
+[task_skill_server-9] [INFO] [1795495874.694714088] [task_skills]: 墙面坐标原点 = 定位标记（停车位姿沿墙残差 +0.05 mm 已计入）
+[task_skill_server-9] [INFO] [1795495874.725566581] [task_skills]: 机械臂移至接近位姿 joint1=-0.15 m, joint3=+0.020 m（缩回）
+[task_skill_server-9] [INFO] [1795495874.726030270] [task_skills]: 发送目标: [-0.15, 0.0, 0.02, 0.0]
+[task_skill_server-9] [INFO] [1795495876.328560024] [task_skills]: 轨迹计时: 时长 1.500 s，发送→接受 2 ms 墙钟 / 0 ms 仿真，接受→结果 1.600 s 墙钟 / 1.500 s 仿真，额外 +0.000 s 仿真 (发送 59.500，结果 61.000)
+[task_skill_server-9] [INFO] [1795495876.830721400] [task_skills]: [  0.0s] d=0.7001 m u=   +0.1 mm ψ= +0.01° σ_u=0.49 mm 标记: ok  墙面: ok
+[task_executor-10] [WARN] [1795495880.702689002] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_skill_server-9] [INFO] [1795495881.151503862] [task_skills]: 墙面闭环收敛：误差 法向 -0.19 mm、沿墙 +0.33 mm、朝向 +0.025°，σ = (0.35 mm, 0.62 mm, 0.045°)，用时 3.9 s
+[task_executor-10] [WARN] [1795495881.188187859] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795495881.195051029] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795495881.764002118] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_skill_server-9] [INFO] [1795495882.322309763] [task_skills]: S0 残余误差（传感器）: 横向 +0.7 mm, 离墙 +0.3 mm, 朝向 +0.07°，已补偿
+[task_skill_server-9] [INFO] [1795495882.329735087] [task_skills]: 连续轨迹：4 个点，29 个结点，时长 2.97 s，起始时刻 66.550 s
+[task_skill_server-9] [WARN] [1795495882.608386930] [task_skills]: 里程计周期 40 ms 与定点保持的设计周期 20 ms 不符，控制律的增益按设计周期整定
+[task_skill_server-9] [INFO] [1795495885.636855708] [task_skills]: 轨迹计时: 时长 3.121 s，发送→接受 3 ms 墙钟 / 0 ms 仿真，接受→结果 3.300 s 墙钟 / 3.100 s 仿真，额外 -0.021 s 仿真 (发送 66.400，结果 69.500)
+[task_skill_server-9] [INFO] [1795495885.716248816] [task_skills]: 定点保持期间底盘真值最大漂移: 0.30 mm, 0.323°
+[task_executor-10] [WARN] [1795495885.718957436] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_skill_server-9] [INFO] [1795495885.732470627] [task_skills]: 机械臂移至接近位姿 joint1=-0.15 m, joint3=+0.020 m（缩回）
+[task_skill_server-9] [INFO] [1795495885.733196622] [task_skills]: 发送目标: [-0.15, 0.0, 0.02, 0.0]
+[task_skill_server-9] [INFO] [1795495887.385403745] [task_skills]: 轨迹计时: 时长 1.500 s，发送→接受 3 ms 墙钟 / 0 ms 仿真，接受→结果 1.648 s 墙钟 / 1.500 s 仿真，额外 +0.000 s 仿真 (发送 69.600，结果 71.100)
+[task_skill_server-9] [INFO] [1795495887.846120715] [task_skills]: [  0.0s] d=0.7005 m u= -229.4 mm ψ= +0.07° σ_u=0.59 mm 标记: ok  墙面: ok
+[task_skill_server-9] [INFO] [1795495890.333436521] [task_skills]: 墙面闭环收敛：误差 法向 -0.14 mm、沿墙 -0.22 mm、朝向 -0.028°，σ = (0.34 mm, 0.55 mm, 0.042°)，用时 2.2 s
+[task_executor-10] [WARN] [1795495890.370130755] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_skill_server-9] [INFO] [1795495891.466574384] [task_skills]: S1 残余误差（传感器）: 横向 +0.0 mm, 离墙 -0.2 mm, 朝向 -0.01°，已补偿
+[task_skill_server-9] [INFO] [1795495891.475012290] [task_skills]: 连续轨迹：4 个点，29 个结点，时长 4.25 s，起始时刻 74.950 s
+[task_executor-10] [WARN] [1795495891.669356333] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_skill_server-9] [INFO] [1795495896.631476587] [task_skills]: 轨迹计时: 时长 4.403 s，发送→接受 3 ms 墙钟 / 0 ms 仿真，接受→结果 5.152 s 墙钟 / 4.400 s 仿真，额外 -0.003 s 仿真 (发送 74.800，结果 79.200)
+[task_skill_server-9] [INFO] [1795495896.748346829] [task_skills]: 定点保持期间底盘真值最大漂移: 0.33 mm, 0.327°
+[task_executor-10] [WARN] [1795495896.756640526] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_skill_server-9] [INFO] [1795495896.785056808] [task_skills]: 机械臂移至接近位姿 joint1=-0.15 m, joint3=+0.020 m（缩回）
+[task_skill_server-9] [INFO] [1795495896.795810514] [task_skills]: 发送目标: [-0.15, 0.0, 0.02, 0.0]
+[task_skill_server-9] [INFO] [1795495898.599982705] [task_skills]: 轨迹计时: 时长 1.500 s，发送→接受 8 ms 墙钟 / 0 ms 仿真，接受→结果 1.796 s 墙钟 / 1.600 s 仿真，额外 +0.100 s 仿真 (发送 79.300，结果 80.900)
+[task_skill_server-9] [INFO] [1795495899.172357476] [task_skills]: [  0.0s] d=0.6996 m u= -175.2 mm ψ= -0.02° σ_u=0.56 mm 标记: ok  墙面: ok
+[task_executor-10] [WARN] [1795495899.627737975] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_skill_server-9] [INFO] [1795495902.385149050] [task_skills]: 墙面闭环收敛：误差 法向 -0.05 mm、沿墙 -0.29 mm、朝向 -0.024°，σ = (0.33 mm, 0.52 mm, 0.042°)，用时 2.8 s
+[task_executor-10] [WARN] [1795495902.418697299] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_skill_server-9] [INFO] [1795495903.582359510] [task_skills]: S2 残余误差（传感器）: 横向 -0.3 mm, 离墙 -0.1 mm, 朝向 -0.02°，已补偿
+[task_skill_server-9] [INFO] [1795495903.587633491] [task_skills]: 连续轨迹：4 个点，29 个结点，时长 4.26 s，起始时刻 85.350 s
+[task_skill_server-9] [INFO] [1795495908.247085391] [task_skills]: 轨迹计时: 时长 4.408 s，发送→接受 5 ms 墙钟 / 0 ms 仿真，接受→结果 4.652 s 墙钟 / 4.400 s 仿真，额外 -0.008 s 仿真 (发送 85.200，结果 89.600)
+[task_skill_server-9] [INFO] [1795495908.271040578] [task_skills]: 定点保持期间底盘真值最大漂移: 0.37 mm, 0.320°
+[task_skill_server-9] [INFO] [1795495908.294876390] [task_skills]: 机械臂移至接近位姿 joint1=-0.15 m, joint3=+0.020 m（缩回）
+[task_skill_server-9] [INFO] [1795495908.296488737] [task_skills]: 发送目标: [-0.15, 0.0, 0.02, 0.0]
+[task_skill_server-9] [INFO] [1795495909.952342303] [task_skills]: 轨迹计时: 时长 1.500 s，发送→接受 2 ms 墙钟 / 0 ms 仿真，接受→结果 1.652 s 墙钟 / 1.600 s 仿真，额外 +0.100 s 仿真 (发送 89.600，结果 91.200)
+[task_skill_server-9] [INFO] [1795495910.476344817] [task_skills]: [  0.0s] d=0.6999 m u=  -55.3 mm ψ= -0.03° σ_u=0.50 mm 标记: ok  墙面: ok
+[task_skill_server-9] [INFO] [1795495913.499075374] [task_skills]: 墙面闭环收敛：误差 法向 -0.03 mm、沿墙 -0.30 mm、朝向 -0.033°，σ = (0.33 mm, 0.52 mm, 0.042°)，用时 2.7 s
+[task_executor-10] [WARN] [1795495913.540740394] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795495913.554414448] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795495913.559460318] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795495913.828216041] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_skill_server-9] [INFO] [1795495914.592553474] [task_skills]: S3 残余误差（传感器）: 横向 -0.2 mm, 离墙 -0.3 mm, 朝向 -0.02°，已补偿
+[task_skill_server-9] [INFO] [1795495914.602237508] [task_skills]: 连续轨迹：12 个点，85 个结点，时长 12.76 s，起始时刻 95.550 s
+[task_executor-10] [WARN] [1795495918.796277573] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795495918.836622630] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795495918.924846468] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795495919.063801217] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795495919.066561475] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795495919.088894017] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795495920.556308336] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795495926.923402184] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795495926.926877332] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_skill_server-9] [INFO] [1795495929.367572993] [task_skills]: 轨迹计时: 时长 12.908 s，发送→接受 5 ms 墙钟 / 0 ms 仿真，接受→结果 14.749 s 墙钟 / 12.900 s 仿真，额外 -0.008 s 仿真 (发送 95.400，结果 108.300)
+[task_skill_server-9] [INFO] [1795495929.406678879] [task_skills]: 定点保持期间底盘真值最大漂移: 0.35 mm, 0.326°
+[task_executor-10] [WARN] [1795495929.411675894] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_skill_server-9] [INFO] [1795495929.437305187] [task_skills]: 机械臂移至接近位姿 joint1=-0.15 m, joint3=+0.020 m（缩回）
+[task_skill_server-9] [INFO] [1795495929.437795746] [task_skills]: 发送目标: [-0.15, 0.0, 0.02, 0.0]
+[task_skill_server-9] [INFO] [1795495931.098300202] [task_skills]: 轨迹计时: 时长 1.500 s，发送→接受 3 ms 墙钟 / 0 ms 仿真，接受→结果 1.650 s 墙钟 / 1.600 s 仿真，额外 +0.100 s 仿真 (发送 108.300，结果 109.900)
+[task_skill_server-9] [INFO] [1795495931.630397260] [task_skills]: [  0.0s] d=0.6999 m u=  +64.6 mm ψ= -0.03° σ_u=0.50 mm 标记: ok  墙面: ok
+[task_skill_server-9] [INFO] [1795495934.962603201] [task_skills]: 墙面闭环收敛：误差 法向 +0.20 mm、沿墙 -0.00 mm、朝向 -0.014°，σ = (0.37 mm, 0.59 mm, 0.046°)，用时 2.9 s
+[task_executor-10] [WARN] [1795495934.997596519] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795495935.701243746] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_skill_server-9] [INFO] [1795495936.117414111] [task_skills]: S4 残余误差（传感器）: 横向 -0.4 mm, 离墙 +0.2 mm, 朝向 -0.04°，已补偿
+[task_skill_server-9] [INFO] [1795495936.121317296] [task_skills]: 连续轨迹：4 个点，29 个结点，时长 4.27 s，起始时刻 114.450 s
+[task_skill_server-9] [INFO] [1795495940.980120246] [task_skills]: 轨迹计时: 时长 4.416 s，发送→接受 7 ms 墙钟 / 0 ms 仿真，接受→结果 4.848 s 墙钟 / 4.400 s 仿真，额外 -0.016 s 仿真 (发送 114.300，结果 118.700)
+[task_skill_server-9] [INFO] [1795495941.007744380] [task_skills]: 定点保持期间底盘真值最大漂移: 0.34 mm, 0.328°
+[task_executor-10] [WARN] [1795495941.012739489] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_skill_server-9] [INFO] [1795495941.035700342] [task_skills]: 机械臂移至接近位姿 joint1=-0.15 m, joint3=+0.020 m（缩回）
+[task_skill_server-9] [INFO] [1795495941.039627864] [task_skills]: 发送目标: [-0.15, 0.0, 0.02, 0.0]
+[task_skill_server-9] [INFO] [1795495942.754080314] [task_skills]: 轨迹计时: 时长 1.500 s，发送→接受 3 ms 墙钟 / 0 ms 仿真，接受→结果 1.704 s 墙钟 / 1.500 s 仿真，额外 +0.000 s 仿真 (发送 118.700，结果 120.200)
+[task_skill_server-9] [INFO] [1795495943.199708561] [task_skills]: [  0.0s] d=0.7002 m u= +184.6 mm ψ= -0.05° σ_u=0.58 mm 标记: ok  墙面: ok
+[task_skill_server-9] [INFO] [1795495943.925632056] [task_skills]: 标记地图估计：ID 2 u = 0.5998 ± 0.60 mm, ID 4 u = 1.1970 ± 5.02 mm
+[task_skill_server-9] [INFO] [1795495947.236805417] [task_skills]: 墙面闭环收敛：误差 法向 +0.04 mm、沿墙 +1.18 mm、朝向 +0.086°，σ = (0.49 mm, 0.75 mm, 0.059°)，用时 3.5 s
+[task_skill_server-9] [INFO] [1795495947.241725368] [task_skills]: 标记地图估计：ID 2 u = 0.6001 ± 0.56 mm, ID 4 u = 1.1970 ± 5.02 mm
+[task_executor-10] [WARN] [1795495947.276085070] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_skill_server-9] [INFO] [1795495948.394498272] [task_skills]: 标记地图估计：ID 2 u = 0.6000 ± 0.55 mm, ID 4 u = 1.1970 ± 5.02 mm
+[task_skill_server-9] [INFO] [1795495948.397381292] [task_skills]: S5 残余误差（传感器）: 横向 +1.1 mm, 离墙 -0.3 mm, 朝向 +0.10°，已补偿
+[task_skill_server-9] [INFO] [1795495948.410555004] [task_skills]: 连续轨迹：8 个点，57 个结点，时长 8.18 s，起始时刻 125.350 s
+[task_skill_server-9] [INFO] [1795495957.563896764] [task_skills]: 轨迹计时: 时长 8.329 s，发送→接受 2 ms 墙钟 / 0 ms 仿真，接受→结果 9.151 s 墙钟 / 8.300 s 仿真，额外 -0.029 s 仿真 (发送 125.200，结果 133.500)
+[task_skill_server-9] [INFO] [1795495957.603078992] [task_skills]: 定点保持期间底盘真值最大漂移: 0.37 mm, 0.317°
+[task_executor-10] [WARN] [1795495957.606634747] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_skill_server-9] [INFO] [1795495957.629081269] [task_skills]: 机械臂移至接近位姿 joint1=-0.15 m, joint3=+0.020 m（缩回）
+[task_skill_server-9] [INFO] [1795495957.630850286] [task_skills]: 发送目标: [-0.15, 0.0, 0.02, 0.0]
+[task_executor-10] [WARN] [1795495958.600286802] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_skill_server-9] [INFO] [1795495959.535488074] [task_skills]: 轨迹计时: 时长 1.500 s，发送→接受 3 ms 墙钟 / 0 ms 仿真，接受→结果 1.899 s 墙钟 / 1.500 s 仿真，额外 +0.000 s 仿真 (发送 133.500，结果 135.000)
+[task_skill_server-9] [INFO] [1795495960.206612778] [task_skills]: [  0.0s] d=0.6998 m u= +305.8 mm ψ= +0.22° σ_u=0.69 mm 标记: 时间戳超出里程计历史  墙面: None
+[task_skill_server-9] [INFO] [1795495962.134572394] [task_skills]: 标记地图估计：ID 2 u = 0.6000 ± 0.55 mm, ID 4 u = 1.1970 ± 5.02 mm
+[task_skill_server-9] [INFO] [1795495963.995963932] [task_skills]: 墙面闭环收敛：误差 法向 -0.20 mm、沿墙 +0.32 mm、朝向 +0.032°，σ = (0.31 mm, 0.74 mm, 0.048°)，用时 3.3 s
+[task_skill_server-9] [INFO] [1795495964.006631852] [task_skills]: 标记地图估计：ID 2 u = 0.6001 ± 0.54 mm, ID 4 u = 1.1970 ± 5.02 mm
+[task_executor-10] [WARN] [1795495964.039601992] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_skill_server-9] [INFO] [1795495965.112860547] [task_skills]: 标记地图估计：ID 2 u = 0.6001 ± 0.54 mm, ID 4 u = 1.1970 ± 5.02 mm
+[task_skill_server-9] [INFO] [1795495965.114197138] [task_skills]: S6 残余误差（传感器）: 横向 +0.3 mm, 离墙 -0.2 mm, 朝向 +0.02°，已补偿
+[task_skill_server-9] [INFO] [1795495965.135790134] [task_skills]: 连续轨迹：8 个点，57 个结点，时长 8.48 s，起始时刻 139.950 s
+[task_executor-10] [WARN] [1795495967.497692311] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_skill_server-9] [INFO] [1795495975.393162747] [task_skills]: 轨迹计时: 时长 8.635 s，发送→接受 4 ms 墙钟 / 0 ms 仿真，接受→结果 10.253 s 墙钟 / 8.600 s 仿真，额外 -0.035 s 仿真 (发送 139.800，结果 148.400)
+[task_skill_server-9] [INFO] [1795495975.471125178] [task_skills]: 定点保持期间底盘真值最大漂移: 0.35 mm, 0.323°
+[task_executor-10] [WARN] [1795495975.478038380] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_skill_server-9] [INFO] [1795495975.525705836] [task_skills]: 机械臂移至接近位姿 joint1=-0.15 m, joint3=+0.020 m（缩回）
+[task_skill_server-9] [INFO] [1795495975.526658388] [task_skills]: 发送目标: [-0.15, 0.0, 0.02, 0.0]
+[task_skill_server-9] [INFO] [1795495977.391398864] [task_skills]: 轨迹计时: 时长 1.500 s，发送→接受 7 ms 墙钟 / 0 ms 仿真，接受→结果 1.855 s 墙钟 / 1.500 s 仿真，额外 +0.000 s 仿真 (发送 148.500，结果 150.000)
+[task_skill_server-9] [INFO] [1795495977.925234184] [task_skills]: [  0.0s] d=0.6999 m u= +425.0 mm ψ= +0.17° σ_u=0.79 mm 标记: 时间戳超出里程计历史  墙面: None
+[task_skill_server-9] [INFO] [1795495982.657467881] [task_skills]: [  4.0s] d=0.7001 m u= +619.9 mm ψ= -0.84° σ_u=1.61 mm 标记: 时间戳超出里程计历史  墙面: None
+[task_skill_server-9] [INFO] [1795495987.324883713] [task_skills]: [  8.0s] d=0.7024 m u= +626.8 mm ψ= -3.14° σ_u=2.30 mm 标记: 时间戳超出里程计历史  墙面: None
+[task_executor-10] [WARN] [1795495990.688434971] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_skill_server-9] [INFO] [1795495992.191406752] [task_skills]: [ 12.0s] d=0.7044 m u= +579.5 mm ψ= -6.44° σ_u=2.83 mm 标记: 时间戳超出里程计历史  墙面: None
+[task_executor-10] [WARN] [1795495992.903032006] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795495993.247715794] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795495993.249770124] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795495993.558233314] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795495994.701952931] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_skill_server-9] [INFO] [1795495997.773394230] [task_skills]: [ 16.0s] d=0.6964 m u= +463.8 mm ψ=+10.37° σ_u=3.49 mm 标记: 时间戳超出里程计历史  墙面: None
+[task_skill_server-9] [INFO] [1795496002.707993529] [task_skills]: [ 20.0s] d=0.7148 m u= +489.3 mm ψ= +8.83° σ_u=3.89 mm 标记: 时间戳超出里程计历史  墙面: None
+[task_executor-10] [WARN] [1795496005.620620020] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496007.895256815] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496008.162212325] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496008.519743822] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_skill_server-9] [INFO] [1795496008.841223932] [task_skills]: [ 24.3s] d=0.6951 m u= +584.1 mm ψ=-14.88° σ_u=4.25 mm 标记: 时间戳超出里程计历史  墙面: None
+[task_executor-10] [WARN] [1795496008.995856093] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496009.000845806] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496009.020642637] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496009.894756414] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496012.486630069] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496012.498435565] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496012.545296558] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496012.568231248] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496014.028519871] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496014.044820110] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496014.045806143] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496014.117434925] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_skill_server-9] [INFO] [1795496015.173608349] [task_skills]: [ 28.4s] d=0.6942 m u= +586.2 mm ψ=+14.50° σ_u=5.14 mm 标记: 时间戳超出里程计历史  墙面: None
+[task_executor-10] [WARN] [1795496018.165418718] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496018.205697984] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496018.239499570] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496018.701494036] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496019.083777305] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496019.595529767] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496020.138183574] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_skill_server-9] [INFO] [1795496020.942584178] [task_skills]: [ 32.5s] d=0.7109 m u= +514.5 mm ψ= +6.81° σ_u=5.42 mm 标记: 时间戳超出里程计历史  墙面: None
+[task_executor-10] [WARN] [1795496023.304661632] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496023.425672757] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_skill_server-9] [WARN] [1795496024.008837841] [task_skills]: 防碰撞守护：刀具前端距墙 4.8 mm，已阻止向墙运动
+[task_executor-10] [WARN] [1795496025.188229001] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_skill_server-9] [INFO] [1795496026.789984162] [task_skills]: [ 36.5s] d=0.6817 m u= +444.3 mm ψ=-12.82° σ_u=5.73 mm 标记: 时间戳超出里程计历史  墙面: None
+[task_skill_server-9] [INFO] [1795496032.840762979] [task_skills]: [ 40.8s] d=0.6867 m u= +477.7 mm ψ= -8.31° σ_u=6.07 mm 标记: 时间戳超出里程计历史  墙面: None
+[task_skill_server-9] [INFO] [1795496037.816725198] [task_skills]: [ 44.8s] d=0.6994 m u= +558.2 mm ψ= +0.59° σ_u=6.28 mm 标记: 无新图像  墙面: None
+[task_skill_server-9] [WARN] [1795496039.491845563] [task_skills]: 防碰撞守护：刀具前端距墙 2.5 mm，已阻止向墙运动
+[task_executor-10] [WARN] [1795496039.694890041] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496041.295899512] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496042.076986512] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496042.110985434] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496042.150619097] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496042.177492960] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496042.188635594] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496042.196982593] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496042.258367005] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496042.538566494] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496043.779633416] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496043.803285426] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_skill_server-9] [INFO] [1795496043.885631175] [task_skills]: [ 48.9s] d=0.7143 m u= +629.8 mm ψ= +8.02° σ_u=6.59 mm 标记: 时间戳超出里程计历史  墙面: None
+[task_executor-10] [WARN] [1795496044.485819360] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496046.319937286] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496046.560936403] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496046.653243068] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_skill_server-9] [WARN] [1795496047.574366205] [task_skills]: 防碰撞守护：刀具前端距墙 3.4 mm，已阻止向墙运动
+[task_executor-10] [WARN] [1795496047.986952268] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496047.996228239] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496048.152756587] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496049.832819063] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496049.841225238] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496049.863002376] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_skill_server-9] [INFO] [1795496050.018340576] [task_skills]: [ 52.9s] d=0.6964 m u= +568.4 mm ψ= +1.47° σ_u=6.85 mm 标记: 时间戳超出里程计历史  墙面: None
+[task_executor-10] [WARN] [1795496053.324634515] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496055.226196515] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_skill_server-9] [WARN] [1795496055.593859545] [task_skills]: 防碰撞守护：刀具前端距墙 2.5 mm，已阻止向墙运动
+[task_executor-10] [WARN] [1795496055.623165930] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_skill_server-9] [INFO] [1795496055.752244208] [task_skills]: [ 56.9s] d=0.6783 m u= +462.1 mm ψ=-17.54° σ_u=7.04 mm 标记: 时间戳超出里程计历史  墙面: None
+[task_executor-10] [WARN] [1795496058.674622288] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496059.096143415] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496059.123820920] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496059.136988751] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_skill_server-9] [ERROR] [1795496060.510331993] [task_skills]: 对位超时（60 s）
+[task_executor-10] [WARN] [1795496060.728065997] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496060.828105607] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496060.874629027] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496060.927400861] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496060.979817780] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496061.030076100] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496061.172719801] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496061.213430399] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496061.263866433] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496061.785976836] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496061.794958699] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496061.864507466] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496061.874224231] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496061.905600853] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_skill_server-9] [WARN] [1795496061.911593369] [task_skills]: 横移未按判据收敛：残差 横向 +13.9 mm, 离墙 +12.7 mm, 朝向 +1.46° → not converged, residual too large
+[task_executor-10] [WARN] [1795496061.957200034] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496061.965347818] [task_executor_execute_slot_plan_rclcpp_node]: MoveToStation aborted: not converged, residual too large
+[task_executor-10] [WARN] [1795496061.993086712] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496062.023700182] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_skill_server-9] [INFO] [1795496062.119975789] [task_skills]: 机械臂移至接近位姿 joint1=0.00 m, joint3=+0.020 m（缩回）
+[task_skill_server-9] [INFO] [1795496062.123753757] [task_skills]: 发送目标: [0.0, 0.0, 0.02, 0.0]
+[task_executor-10] [WARN] [1795496062.885508816] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496062.936126961] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_skill_server-9] [INFO] [1795496065.500042628] [task_skills]: 轨迹计时: 时长 2.000 s，发送→接受 28 ms 墙钟 / 0 ms 仿真，接受→结果 3.336 s 墙钟 / 1.900 s 仿真，额外 -0.100 s 仿真 (发送 211.200，结果 213.100)
+[task_executor-10] [WARN] [1795496065.733960691] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496066.159778988] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496066.175704988] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496066.209732963] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496066.228391155] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496066.445905807] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496067.244677764] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496067.280708544] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496067.295487088] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496068.806204428] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496069.555794439] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496069.669801664] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496072.389377994] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496079.128018820] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496079.302677805] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496079.650335408] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496079.656353627] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496079.684123134] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496079.685201803] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496079.726690763] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496083.630428639] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496083.661589858] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496083.679637009] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496085.772908996] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496087.192919511] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496087.463074518] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496088.124889219] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496088.176313821] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496089.174381814] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496089.416538369] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496090.664655025] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496091.682909447] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496091.685027032] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496096.933340214] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496096.934444161] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496096.994939079] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496097.155631789] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496097.477699453] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496098.335732260] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496098.395607490] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496098.776575970] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496098.795809385] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496098.817103065] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496098.860372611] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496098.866201954] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496099.502494238] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496099.538447222] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496101.371173790] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496101.397346649] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496101.420910369] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496103.133779945] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496103.354631172] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496103.652125409] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496103.661783343] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496104.335766821] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496104.424837999] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496105.117036004] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496105.132420647] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496105.140152885] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496105.147976067] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496107.927124976] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496109.435085703] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496109.691402570] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496109.717789382] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496109.735644708] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496109.829726459] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496109.872890796] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496110.183825715] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496110.196939292] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496110.239510977] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496110.283131219] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496110.663264716] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496110.913572529] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496111.133515384] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496111.225580364] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496111.917269429] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496111.936395867] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496112.848198427] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496114.768625501] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496116.896971337] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496116.929551622] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496116.941709795] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496116.976358527] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496117.012220064] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496117.021523273] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496117.078196451] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496117.099694267] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496117.106498071] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496117.200479838] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496117.268270778] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496117.281120456] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496117.325120635] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496117.337143296] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496117.349217385] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496117.377986643] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496120.178166355] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496123.418238553] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496126.630485894] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496127.060297143] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496130.799607250] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496135.582189801] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496136.376808693] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496137.374284553] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496137.751361710] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496151.345021944] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496151.890245880] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496151.902825598] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496151.906813243] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496156.937569308] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496156.951449954] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496156.977425651] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496157.022145931] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496157.043938549] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496157.067113593] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496157.067793857] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496157.079394635] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496157.093884882] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496157.202275931] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496157.213573079] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496157.299161371] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496157.321323029] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496157.486811950] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496158.058375907] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496160.667177562] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496160.812384115] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496160.817855154] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496161.127033949] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496162.734446230] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496162.745249017] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496162.757686825] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496163.436055320] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496163.468060049] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496177.008772885] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496177.539331050] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496177.567868049] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496177.600905071] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496178.402740486] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496178.659135510] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496181.044844592] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496182.842397033] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496182.886164318] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496186.532279819] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496186.872275020] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496186.884238387] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496186.969736155] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496186.992063103] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496187.028095843] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496188.117073857] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496189.218262255] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496189.272456566] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496189.290165221] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496189.301093872] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496189.316071504] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496189.323199780] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496189.342920297] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496189.412974954] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496193.034065428] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496204.831525317] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496204.838399072] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496205.424151595] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496208.453364180] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496210.733809656] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496214.934242336] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496232.505814881] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496239.524646577] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496265.035651346] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496265.114679132] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496274.589338058] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496279.828166526] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496279.993188309] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496281.067329853] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496281.177406604] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496281.227714038] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496281.308690398] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496281.978908644] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496282.000988901] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496282.037484618] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496282.066399468] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496282.089422719] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496282.107664828] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496282.259034938] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496282.274375419] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496282.297242688] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496282.352842370] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496282.458754458] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496282.489524339] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496282.529792771] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496284.797242622] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496284.811259922] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496284.991964251] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496285.042024323] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496288.127765345] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496288.215094290] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496288.384070736] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496288.701791598] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496291.017046910] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496291.044373981] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496291.351100291] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496291.369011906] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496291.610380222] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496292.032463909] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496292.083076116] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496292.130658921] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496292.143049788] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496292.173290823] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496292.221999338] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496292.256287102] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496294.110347249] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496294.120036649] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496294.172268995] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496298.443503324] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496299.053826791] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496299.754075666] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496300.142203980] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496300.161274015] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496312.446648735] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496312.475401493] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496312.498465408] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496314.274723416] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496314.298275966] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496315.342321359] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [WARN] [1795496323.602150816] [BehaviorTreeEngine]: Behavior Tree tick rate 100.00 was exceeded!
+[task_executor-10] [INFO] [1795496346.328736975] [task_executor]: Slot plan finished: failure, 7 stations, 399.3 s, station S7 failed (MoveToStation aborted: not converged, residual too large)
+[task_executor-10] [WARN] [1795496346.328793382] [task_executor]: [execute_slot_plan] [ActionServer] Aborting handle.
+[task_executor-10] [ERROR] [1795496346.328923197] [task_executor]: Goal failed
+[task_executor-10] [INFO] [1795496355.234941070] [rclcpp]: signal_handler(signum=2)
+[INFO] [task_executor-10]: process has finished cleanly [pid 60805]
+[task_executor-10] [INFO] [1795496355.235805743] [task_executor]: Running Nav2 LifecycleNode rcl preshutdown (task_executor)
+[task_executor-10] [INFO] [1795496355.558089323] [task_executor]: Destroying bond (task_executor) to lifecycle manager.
+[task_executor-10] [INFO] [1795496355.565035536] [task_executor]: Destroying
