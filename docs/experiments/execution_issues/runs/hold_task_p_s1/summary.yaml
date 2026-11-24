@@ -1,0 +1,6 @@
+path: single_station_task
+hold: p
+seed: 1
+startup_wall_s: 25.0
+client_rc: 0
+wall_s: 92.2

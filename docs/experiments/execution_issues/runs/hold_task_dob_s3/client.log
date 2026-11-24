@@ -1,0 +1,7 @@
+[INFO] [1795503729.320207190] [navigation_cutting_task_client]: 任务文件 install/scr_arm_controller/share/scr_arm_controller/config/task_at_target.yaml → /execute_cutting_task
+[INFO] [1795503729.591900763] [navigation_cutting_task_client]: NavigateToTarget
+[INFO] [1795503754.334127278] [navigation_cutting_task_client]: FineAlign
+[INFO] [1795503771.094930494] [navigation_cutting_task_client]: HoldBase+ScanMarker
+[INFO] [1795503773.713022594] [navigation_cutting_task_client]: HoldBase+CutStation
+[INFO] [1795503815.568957627] [navigation_cutting_task_client]: 
+[INFO] [1795503815.569454219] [navigation_cutting_task_client]: 任务完成，用时 81.8 s

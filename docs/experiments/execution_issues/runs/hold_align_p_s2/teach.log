@@ -1,0 +1,13 @@
+[INFO] [1795503383.011345559] [cartesian_cutting_controller]: 等待action服务器...
+[INFO] [1795503383.011962154] [cartesian_cutting_controller]: 已连接到action服务器
+[INFO] [1795503383.013155800] [cartesian_cutting_controller]: 笛卡尔空间工作范围（相对于base_link）:
+[INFO] [1795503383.013492275] [cartesian_cutting_controller]:   X: [0.5168, 0.5818] m
+[INFO] [1795503383.013852140] [cartesian_cutting_controller]:   Y: [-0.0601, 0.0799] m
+[INFO] [1795503383.014085749] [cartesian_cutting_controller]:   Z: [0.1568, 0.7068] m
+[INFO] [1795503383.022253059] [trajectory_visualizer]: 轨迹可视化器已初始化（Gazebo模式）
+[INFO] [1795503383.053462754] [navigation_cutting_task]: 标记地图 install/scr_arm_controller/share/scr_arm_controller/config/tag_map.yaml：3 个标记，最大间距 0.60 m，位置误差 σ = 2.0 mm
+[INFO] [1795503383.066525532] [navigation_cutting_task]: 切割任务技能库已初始化
+[INFO] [1795503383.480145214] [navigation_cutting_task]: 机械臂移至接近位姿 joint1=-0.15 m, joint3=+0.020 m（缩回）
+[INFO] [1795503383.480746925] [cartesian_cutting_controller]: 发送目标: [-0.15, 0.0, 0.02, 0.0]
+[INFO] [1795503385.533407203] [cartesian_cutting_controller]: 轨迹计时: 时长 2.000 s，发送→接受 2 ms 墙钟 / 0 ms 仿真，接受→结果 2.050 s 墙钟 / 0.000 s 仿真，额外 -2.000 s 仿真 (发送 102.200，结果 102.200)
+[INFO] [1795503421.116315280] [navigation_cutting_task]: 零位偏置：法向 -0.096 mm、沿墙 +0.090 mm、朝向 +0.0035°（300 个样本，标准误 0.221 mm / 0.0180°）→ docs/experiments/execution_issues/runs/hold_align_p_s2/taught.yaml

@@ -1,0 +1,2 @@
+ros2 launch scr_bringup sim_nav.launch.py gui:=false rviz:=false odom_seed:=2 alignment_params:=docs/experiments/execution_issues/runs/hold_task_p_s2/skill_params.yaml
+ros2 run scr_arm_controller navigation_cutting_task task_at_target.yaml

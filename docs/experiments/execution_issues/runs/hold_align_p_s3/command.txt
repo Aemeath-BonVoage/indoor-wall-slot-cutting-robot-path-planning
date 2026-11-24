@@ -1,0 +1,3 @@
+ros2 launch scr_description gazebo.launch.py gui:=false odom_seed:=3
+hold_paths.py align: v2 精对位 × 4（起点种子 42），到位后保持 8 s；hold.mode:=p，odom_topic:=/wheel/odom
+ros2 run scr_arm_controller teach_alignment_offset --out docs/experiments/execution_issues/runs/hold_align_p_s3/taught.yaml --ros-args -p hold.mode:=p -p odom_topic:=/wheel/odom

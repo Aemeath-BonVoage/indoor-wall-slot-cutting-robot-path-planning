@@ -1,0 +1,37 @@
+/**:
+  ros__parameters:
+    alignment:
+      detector: apriltag
+      tag_family: tag36h11
+      tag_id: 0
+      tag_size: 0.1
+      offset_normal: 0.0
+      offset_lateral: 0.0
+      offset_yaw_deg: 0.0
+      tolerance_normal: 0.002
+      tolerance_lateral: 0.002
+      tolerance_yaw_deg: 0.3
+      settle_cycles: 10
+      control_rate: 20.0
+      k_lin: 2.0
+      k_ang: 2.0
+      decel_lin: 0.15
+      decel_ang: 0.5
+      max_lin: 0.15
+      max_ang: 0.3
+      timeout: 50.0
+      lost_timeout: 10.0
+      sigma_hold: 0.01
+      fold_residual: true
+      strafe_tag_updates: true
+      observe_between_stations: true
+      tag_map: tag_map.yaml
+      estimate_scale: true
+      scale_init: 0.0
+      scale_sigma: 0.05
+      estimate_tag_map: false
+      tag_map_prior_sigma: 0.0
+      tag_map_output: ''
+      tag_map_floor: 0.0
+    hold:
+      mode: p

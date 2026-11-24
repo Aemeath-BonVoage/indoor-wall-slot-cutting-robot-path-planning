@@ -1,0 +1,9 @@
+path: align_teach
+hold: dob
+seed: 1
+hold_law_in_node: PlanarHold
+teach_rc: 0
+taught:
+  offset_normal: 2.3e-05
+  offset_lateral: -0.0002
+  offset_yaw_deg: -0.01993
