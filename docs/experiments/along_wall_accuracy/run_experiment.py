@@ -80,6 +80,8 @@ CONFIGS.update({
                                 estimate_scale=False), 0.0),
     # 两个标记（0、1.2 m，不同框），ID 4 记录值 −5 mm：估计 / 不估计横移比例
     'slam2_err5': (dict(SLAM, tag_map='tags_1.2_err5'), 0.0),
+    # 当前默认参数（在线估计、先验取地图的 sigma），只把地图换成记录值有 ±5 mm 误差的一份
+    'default_err5': (dict(tag_map='tags_0.6_err5', estimate_tag_map=True), 0.0),
     'slam2_err5_noscale': (dict(SLAM, tag_map='tags_1.2_err5', estimate_scale=False), 0.0),
 })
 
@@ -123,6 +125,10 @@ def params_file(name, out, prior_map=None):
     if over is None:
         return None
     a = dict(over)
+    # 各配置按其运行时的设置固定：不写明时地图位置视为已知（当前默认值为在线估计）
+    a.setdefault('estimate_tag_map', False)
+    if a['estimate_tag_map'] and not a.get('estimate_scale', True):
+        a['tag_map_without_scale'] = True
     if prior_map:
         a['tag_map'] = prior_map
     if a.get('tag_map'):

@@ -32,6 +32,22 @@ from scr_arm_controller.tag_map import TagMap
 from scr_arm_controller.wall_ekf import WallEKF, wrap
 
 
+def map_estimation_allowed(estimate_tag_map, estimate_scale, without_scale=False):
+    """
+    是否开启标记地图在线估计 → (是否开启, 不开启的原因或 None).
+
+    不估计横移比例时，不同框的标记之间的间距只能靠里程计传递，里程计的比例误差会被地图
+    吸收（两个标记、间距 1.2 m 时地图误差 12–16 mm），导出的协方差也随之失真。因此只在
+    同时估计横移比例时开启；without_scale 为 True 时放行（对照实验用）。
+    """
+    if not estimate_tag_map:
+        return False, None
+    if estimate_scale or without_scale:
+        return True, None
+    return False, ('标记地图在线估计需要同时估计横移比例（alignment.estimate_scale），'
+                   '已按已知地图处理')
+
+
 class TagMapEKF(WallEKF):
     """WallEKF + 非参考标记的沿墙位置（EKF-SLAM，1 维路标）."""
 

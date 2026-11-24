@@ -334,3 +334,13 @@ def test_loaded_estimate_is_not_reinitialized():
     z = WallEKF.h_tag((0.70, 0.3, 0.0), 0.62)
     ok, _ = f.update_tag_id(z, R_TAG, 2)
     assert not ok and f.stats['tag_init'] == 0
+
+
+def test_map_estimation_requires_scale_estimation():
+    from scr_arm_controller.tag_map_slam import map_estimation_allowed
+    assert map_estimation_allowed(True, True) == (True, None)
+    assert map_estimation_allowed(False, True) == (False, None)
+    assert map_estimation_allowed(False, False) == (False, None)
+    on, why = map_estimation_allowed(True, False)
+    assert not on and why
+    assert map_estimation_allowed(True, False, without_scale=True) == (True, None)

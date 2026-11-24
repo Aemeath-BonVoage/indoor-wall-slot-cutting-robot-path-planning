@@ -205,3 +205,33 @@ def test_planar_hold_modes_and_errors():
         do.PlanarHold('mpc')
     with pytest.raises(ValueError):
         do.DisturbanceObserver(do.AxisModel(K, T))
+
+
+def test_period_guard_accepts_the_design_rate_with_jitter():
+    guard = do.PeriodGuard(0.02)
+    t = 0.0
+    for k in range(200):
+        t += 0.02 + (0.004 if k % 7 == 0 else -0.001)
+        assert guard.update(t)
+    # 个别丢帧（间隔翻倍）不触发切换
+    for _ in range(3):
+        t += 0.02
+        guard.update(t)
+    t += 0.04
+    assert guard.update(t)
+
+
+def test_period_guard_rejects_a_slow_stream_and_recovers():
+    guard = do.PeriodGuard(0.02)
+    t = 0.0
+    oks = []
+    for _ in range(12):
+        t += 0.1
+        oks.append(guard.update(t))
+    assert oks[:3] == [True, True, True]      # 间隔不足 3 个时按可用处理
+    assert not any(oks[3:])
+    assert abs(guard.median - 0.1) < 1e-9
+    for _ in range(12):
+        t += 0.02
+        guard.update(t)
+    assert guard.ok

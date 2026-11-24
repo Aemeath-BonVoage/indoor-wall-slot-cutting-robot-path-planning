@@ -48,7 +48,7 @@ from scr_arm_controller.cut_schedule import CutSchedule, split_plunges, travel_r
 from scr_arm_controller.docking_control import ConvergenceMonitor, WallAlignController
 from scr_arm_controller.slot_execution import cut_phases
 from scr_arm_controller.tag_map import TagMap, resolve_path
-from scr_arm_controller.tag_map_slam import TagMapEstimate
+from scr_arm_controller.tag_map_slam import TagMapEstimate, map_estimation_allowed
 from scr_arm_controller.trajectory_visualizer import TrajectoryVisualizer
 from scr_arm_controller.visual_servo import pbvs_command
 from scr_arm_controller.visual_servo_ros import WallMarkerServo
@@ -92,11 +92,12 @@ ALIGNMENT_PARAMS = {
     'scale_init': 0.0,                 # s 的先验（可填离线标定值）
     'scale_sigma': 0.05,               # s 的先验标准差
     # 标记地图在线估计：非参考标记的沿墙位置作为 EKF 状态，地图中的位置只作先验
-    # （tag_map_slam.py）。默认关闭：地图位置视为已知常数
-    'estimate_tag_map': False,
+    # （tag_map_slam.py）。只在 estimate_scale 同时开启时生效；False = 地图位置视为已知常数
+    'estimate_tag_map': True,
+    'tag_map_without_scale': False,    # 不估计横移比例时也估计地图（对照实验用，地图会失真）
     'tag_map_prior_sigma': 0.0,        # 先验标准差（米）；0 = 用地图中每个标记的 sigma
     'tag_map_output': '',              # 估计结果（均值 + 协方差）写入的地图 YAML；空串不写
-    'tag_map_floor': 0.0,              # 导出协方差中计入的相机系统误差（米，1σ）
+    'tag_map_floor': 0.0005,           # 导出协方差中计入的相机系统误差（米，1σ）
 }
 
 
@@ -235,6 +236,11 @@ class CuttingSkills(Node):
             self.declare_parameter('arm_motion.' + k, v)
         self.last_trajectory = None     # 最近一次连续轨迹（arm_trajectory.ArmTrajectory）
         a = self.align_cfg
+        self.estimate_tag_map, why = map_estimation_allowed(
+            bool(a['estimate_tag_map']), bool(a['estimate_scale']),
+            bool(a['tag_map_without_scale']))
+        if why:
+            self.get_logger().error(why)
         self.tag_map = self.load_tag_map()
         self.servo = WallMarkerServo(self, detector=a['detector'], tag_family=self.tag_map.family,
                                      tag_id=self.tag_map.reference_id, tag_size=self.tag_map.size)
@@ -244,7 +250,7 @@ class CuttingSkills(Node):
             self, self.servo, odom_topic=self.odom_topic, tag_map=self.tag_map,
             estimate_scale=bool(a['estimate_scale']), scale_init=float(a['scale_init']),
             scale_sigma=float(a['scale_sigma']),
-            estimate_tag_map=bool(a['estimate_tag_map']),
+            estimate_tag_map=self.estimate_tag_map,
             map_prior_sigma=prior_sigma if prior_sigma > 0.0 else None,
             map_prior_cov=self.tag_map_prior_cov, map_output=str(a['tag_map_output']),
             map_floor=float(a['tag_map_floor']))
@@ -288,7 +294,7 @@ class CuttingSkills(Node):
             log.info(f'标记地图：只有参考标记 {m.reference_id}（站间沿墙位置由里程计外推）')
             return m
         m = TagMap.load(path)
-        if bool(a['estimate_tag_map']):
+        if self.estimate_tag_map:
             import yaml
             with open(path, encoding='utf-8') as f:
                 m, self.tag_map_prior_cov = TagMapEstimate.prior_from_dict(yaml.safe_load(f))

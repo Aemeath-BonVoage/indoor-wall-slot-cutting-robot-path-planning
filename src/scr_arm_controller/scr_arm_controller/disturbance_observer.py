@@ -339,6 +339,44 @@ def state_space(ctrl):
 MODES = ('p', 'pi', 'pid', 'dob', 'lqg')
 
 
+class PeriodGuard:
+    """
+    测量周期监视：控制律按固定周期 period 设计，实际周期偏离过多时不应继续使用.
+
+    update(stamp) 传入每帧测量的时间戳（秒），返回当前是否可用：最近 window 个间隔的中位数
+    与 period 的相对偏差不超过 tolerance 时为 True；间隔不足 3 个时按可用处理。用中位数而
+    不是单个间隔，个别丢帧或抖动不会触发切换。
+    """
+
+    def __init__(self, period, tolerance=0.5, window=10):
+        self.period = float(period)
+        self.tolerance = float(tolerance)
+        self.window = int(window)
+        self._last = None
+        self._intervals = []
+        self.ok = True
+
+    @property
+    def median(self):
+        """最近间隔的中位数（秒）；还没有间隔时为 None."""
+        if not self._intervals:
+            return None
+        s = sorted(self._intervals)
+        n = len(s)
+        return s[n // 2] if n % 2 else 0.5 * (s[n // 2 - 1] + s[n // 2])
+
+    def update(self, stamp):
+        if self._last is not None:
+            dt = stamp - self._last
+            if dt > 0.0:
+                self._intervals.append(dt)
+                del self._intervals[:-self.window]
+        self._last = stamp
+        if len(self._intervals) >= 3:
+            self.ok = abs(self.median - self.period) <= self.tolerance * self.period
+        return self.ok
+
+
 class PlanarHold:
     """
     平面三轴 (x, y, ψ) 的定点保持控制器.

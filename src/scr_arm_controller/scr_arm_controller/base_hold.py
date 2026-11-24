@@ -12,9 +12,12 @@
   两次，控制周期既不均匀也不是 20 ms（见 docs/experiments/cutting_force 的 Gazebo 验证）；
 - 同时订阅 Gazebo 真值（/gazebo/model_states），记录保持期间底盘偏离起点的最大距离与角度。
 
-抗扰保持（可选）：节点参数 hold.mode 选择控制律，默认 'p' 即上述比例控制，行为不变；
-'pi' / 'pid' / 'dob' / 'lqg' 使用 disturbance_observer.PlanarHold（切割力作用下比例保持
-有稳态偏差，见 docs/experiments/cutting_force）。其余参数：hold.max_lin、hold.max_ang
+控制律由节点参数 hold.mode 选择：默认 'dob'（扰动观测器），'p' 为上述比例控制，另有
+'pi' / 'pid' / 'lqg'，除 'p' 外都使用 disturbance_observer.PlanarHold（切割力作用下比例保持
+有稳态偏差，见 docs/experiments/cutting_force）。这些控制律按 50 Hz 的里程计设计：里程计
+的实际周期偏离设计周期一半以上时（例如仿真中 10 Hz 的融合里程计 /odom）自动退回比例
+控制，周期恢复后再切回（扰动观测器在 10 Hz 的里程计上会出现厘米级的极限环，见
+docs/experiments/execution_issues 第 6 节）。其余参数：hold.max_lin、hold.max_ang
 （指令限幅）、hold.observer_bandwidth、hold.delay_steps（测量到指令生效的整拍延迟）、
 hold.velocity_loop_gain、hold.mass、hold.inertia，
 以及前馈 hold.feedforward_topic（geometry_msgs/WrenchStamped，base_link 系下预计的外力，
@@ -30,7 +33,7 @@ from nav_msgs.msg import Odometry
 from rclpy.executors import SingleThreadedExecutor
 from rclpy.parameter import Parameter
 
-from scr_arm_controller.disturbance_observer import PlanarHold
+from scr_arm_controller.disturbance_observer import PeriodGuard, PlanarHold
 
 
 def _yaw(q):
@@ -48,12 +51,13 @@ class BaseHold:
 
         def param(name, default):
             return self.node.declare_parameter(name, default).value
-        mode = mode or param('hold.mode', 'p')
+        mode = mode or param('hold.mode', 'dob')
         max_lin = float(param('hold.max_lin', max_lin))
         max_ang = float(param('hold.max_ang', max_ang))
         self.k_lin, self.k_ang, self.max_lin, self.max_ang = k_lin, k_ang, max_lin, max_ang
-        # 抗扰控制律；None = 现有的比例保持（默认）
+        # 抗扰控制律；None = 比例保持
         self._law = None
+        self._fallback = False          # 里程计周期与设计不符，暂时退回比例保持
         self._ff = None                 # 预计的外力 (F_x, F_y, M_z)，base_link 系
         self._ff_gain = float(param('hold.feedforward_gain', 1.0))
         k_in = float(param('hold.velocity_loop_gain', 20.0))
@@ -75,7 +79,7 @@ class BaseHold:
         self._odom = None
         self._odom_stamp = None         # 最新里程计的时间戳（秒，仿真时间，分辨率不受 /clock 限制）
         self._period = 1.0 / rate_hz
-        self._period_warned = False
+        self._guard = PeriodGuard(self._period)
         # 每帧里程计调用一次的回调 f(时间戳)：需要 50 Hz、按仿真时间均匀执行的后台任务
         # （例如切削状态的发布）挂在这里，不用仿真时钟的定时器
         self.tick_callbacks = []
@@ -99,13 +103,18 @@ class BaseHold:
     def _on_odom(self, msg):
         p = msg.pose.pose
         stamp = msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9
-        if self._odom_stamp is not None and self._target is not None and not self._period_warned:
-            dt = stamp - self._odom_stamp
-            if dt > 0.0 and abs(dt - self._period) > 0.5 * self._period:
-                self._period_warned = True
-                self.node.get_logger().warn(
-                    f'里程计周期 {dt * 1e3:.0f} ms 与定点保持的设计周期 '
-                    f'{self._period * 1e3:.0f} ms 不符，控制律的增益按设计周期整定')
+        ok = self._guard.update(stamp)
+        if self._law is not None and ok == self._fallback:
+            with self._lock:
+                self._fallback = not ok
+                if ok:
+                    self._law.reset()
+            if ok:
+                self.node.get_logger().info('里程计周期恢复，定点保持切回所选控制律')
+            else:
+                self.node.get_logger().error(
+                    f'里程计周期 {self._guard.median * 1e3:.0f} ms 与定点保持的设计周期 '
+                    f'{self._period * 1e3:.0f} ms 不符，定点保持退回比例控制')
         self._odom_stamp = stamp
         self._odom = (p.position.x, p.position.y, _yaw(p.orientation))
         for cb in self.tick_callbacks:
@@ -142,7 +151,7 @@ class BaseHold:
         ex, ey = tx - x, ty - y
         c, s = math.cos(yaw), math.sin(yaw)
         cmd = Twist()
-        if self._law is not None:
+        if self._law is not None and not self._fallback:
             # 偏差 = 当前位姿 − 保持点（机体系），与下面比例保持的误差反号
             dyaw = math.atan2(math.sin(yaw - tyaw), math.cos(yaw - tyaw))
             with self._lock:
@@ -191,8 +200,10 @@ class BaseHold:
         return math.hypot(odom[0] - target[0], odom[1] - target[1]), dyaw
 
     def disturbance_estimate(self):
-        """估计的外力 (F_x, F_y, M_z)（base_link 系）；比例保持时为 None."""
-        return self._law.disturbance_estimate() if self._law is not None else None
+        """估计的外力 (F_x, F_y, M_z)（base_link 系）；比例保持（含退回时）为 None."""
+        if self._law is None or self._fallback:
+            return None
+        return self._law.disturbance_estimate()
 
     def release(self):
         """停止保持，返回保持期间的真值最大漂移 (米, 度)；无真值时为 None."""
